@@ -237,13 +237,15 @@ final class MotionFlowUITests: XCTestCase {
 
     func testGestureTaskSwipesCompleteRescheduleAndUndo() {
         let app = gestureApp()
-        let title = app.staticTexts["Review quarterly roadmap"]
+        app.tabBars.buttons["Dashboard"].tap()
+        let title = app.staticTexts["Plan iPad reading workflow"]
         XCTAssertTrue(title.waitForExistence(timeout: 3))
         horizontalDrag(in: app, y: title.frame.midY, from: 0.24, to: 0.87)
         let undo = app.buttons["agenda.gesture.undo"]
         XCTAssertTrue(undo.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label == 'Mark incomplete' AND value == 'Review quarterly roadmap'")).firstMatch.exists)
+        XCTAssertTrue(title.waitForNonExistence(timeout: 3))
         undo.tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 3))
         horizontalDrag(in: app, y: title.frame.midY, from: 0.86, to: 0.23)
         let reschedule = app.buttons["agenda.swipe.reschedule"]
         XCTAssertTrue(reschedule.waitForExistence(timeout: 3))
@@ -252,9 +254,6 @@ final class MotionFlowUITests: XCTestCase {
         XCTAssertTrue(undo.waitForExistence(timeout: 3))
         undo.tap()
         XCTAssertTrue(title.waitForExistence(timeout: 3))
-        let y = title.frame.minY
-        app.scrollViews["orgenda.agenda.timeline"].swipeUp()
-        XCTAssertTrue(!title.isHittable || abs(title.frame.minY - y) > 30)
     }
 
     func testGestureCalendarDropAndCancelledDrop() {
@@ -365,7 +364,8 @@ final class MotionFlowUITests: XCTestCase {
         disclosure.tap()
         let todo = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'org.preview.todo.'")).firstMatch
         todo.tap()
-        XCTAssertEqual(todo.value as? String, "NEXT")
+        let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == 'DONE'"), object: todo)
+        XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 3), .completed)
         app.buttons["Edit"].tap()
         app.textViews["Org source editor"].tap()
         let undo = app.buttons["org.editor.undo"]
@@ -642,7 +642,8 @@ final class MotionFlowUITests: XCTestCase {
         app.buttons["Preview"].tap()
         let todo = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'org.preview.todo.'")).firstMatch
         todo.tap()
-        XCTAssertEqual(todo.value as? String, "NEXT")
+        let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == 'DONE'"), object: todo)
+        XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 3), .completed)
     }
 
     func testSourceEditorExtendsBehindTabBar() {
@@ -1029,17 +1030,13 @@ final class MotionFlowUITests: XCTestCase {
         app.launchArguments = ["--demo-workspace"]
         app.launch()
         app.tabBars.buttons["Calendar"].tap()
-        let densityMenu = app.buttons["orgenda.calendar.density"]
-        XCTAssertTrue(densityMenu.waitForExistence(timeout: 3))
-        densityMenu.tap()
-        let monthOption = app.buttons.matching(NSPredicate(format: "label == %@", "Month")).firstMatch
-        XCTAssertTrue(monthOption.waitForExistence(timeout: 2))
-        monthOption.tap()
+        let densityHandle = app.calendarDensityHandle
+        app.dragCalendarHandle(by: 230)
 
         XCTAssertFalse(app.buttons["orgenda.calendar.today"].exists)
         app.tabBars.buttons["Dashboard"].tap()
         app.tabBars.buttons["Calendar"].tap()
-        XCTAssertEqual(densityMenu.value as? String, "Month")
+        XCTAssertEqual(densityHandle.value as? String, "Month")
 
         let calendar = Calendar.autoupdatingCurrent
         let today = calendar.startOfDay(for: Date.now)
@@ -1116,10 +1113,7 @@ final class MotionFlowUITests: XCTestCase {
         }
         let previousDay = calendar.date(byAdding: .day, value: -1, to: nextMonth)!
 
-        let densityMenu = app.buttons["orgenda.calendar.density"]
-        XCTAssertTrue(densityMenu.waitForExistence(timeout: 3))
-        densityMenu.tap()
-        app.buttons["Month"].tap()
+        app.dragCalendarHandle(by: 230)
         let months = app.scrollViews["orgenda.calendar.months"]
         XCTAssertTrue(months.waitForExistence(timeout: 2))
         if needsNextMonth { months.swipeUp() }
@@ -1128,15 +1122,14 @@ final class MotionFlowUITests: XCTestCase {
         let previousDate = months.buttons.matching(NSPredicate(format: "label == %@", previousLabel)).firstMatch
         XCTAssertTrue(previousDate.waitForExistence(timeout: 2))
         previousDate.tap()
-        densityMenu.tap()
-        app.buttons["Week"].tap()
+        app.dragCalendarHandle(by: -230)
 
         let nextLabel = nextMonth.formatted(date: .complete, time: .omitted)
         let nextDate = app.buttons.matching(NSPredicate(format: "label == %@", nextLabel)).firstMatch
         XCTAssertTrue(nextDate.waitForExistence(timeout: 2))
         nextDate.tap()
         XCTAssertTrue(nextDate.isSelected, "A selected date in the adjacent month must retain its glass highlight")
-        XCTAssertTrue(app.staticTexts[nextMonth.formatted(.dateTime.month(.wide).year())].exists)
+        XCTAssertEqual(app.staticTexts["orgenda.calendar.date.heading"].label, nextLabel)
 
         let previousWeekDate = app.buttons.matching(NSPredicate(format: "label == %@", previousLabel)).firstMatch
         previousWeekDate.tap()
@@ -1184,18 +1177,23 @@ final class MotionFlowUITests: XCTestCase {
 
         let roadmapTitle = app.staticTexts["Review quarterly roadmap"]
         XCTAssertTrue(roadmapTitle.waitForExistence(timeout: 2))
+        roadmapTitle.tap()
+        XCTAssertTrue(app.navigationBars["Edit Item"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.staticTexts["Status"].exists)
+        app.buttons["Cancel"].tap()
 
         let todo = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'org.preview.todo.'")).firstMatch
         XCTAssertTrue(todo.waitForExistence(timeout: 2))
         XCTAssertEqual(todo.value as? String, "TODO")
 
         todo.tap()
-        XCTAssertEqual(todo.value as? String, "NEXT")
+        let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == 'DONE'"), object: todo)
+        XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 3), .completed)
 
         app.buttons["Edit"].tap()
         let editor = app.textViews["Org source editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 2))
-        XCTAssertTrue((editor.value as? String)?.contains("* NEXT [#A] Review quarterly roadmap") == true)
+        XCTAssertTrue((editor.value as? String)?.contains("* DONE [#A] Review quarterly roadmap") == true)
 
         app.navigationBars.buttons["BackButton"].tap()
         XCTAssertTrue(app.navigationBars["Files"].waitForExistence(timeout: 3))

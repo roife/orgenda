@@ -205,32 +205,34 @@ extension WorkspaceStore {
 
     func addJournalEntry(title: String, body: String, date: Date) {
         let path = "journal/\(Calendar.autoupdatingCurrent.component(.year, from: date)).org"
-        if !documents.contains(where: { $0.path == path }) {
+        let index: Int
+        if let existing = documents.firstIndex(where: { $0.path == path }) {
+            index = existing
+        } else {
+            index = documents.endIndex
             documents.append(WorkspaceDocument(path: path, title: URL(fileURLWithPath: path).lastPathComponent, contents: "", kind: .org))
         }
-        var entry = JournalEntry(
+        let time = date.formatted(.verbatim(
+            "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
+            locale: Locale(identifier: "en_US_POSIX"), timeZone: .autoupdatingCurrent,
+            calendar: Calendar(identifier: .gregorian)
+        ))
+        let source = "* \(Self.orgDayFormatter.string(from: date))\n** \(time) \(title)\n\(body)"
+        let separator = documents[index].contents.isEmpty ? "" : "\n\n"
+        let prefix = documents[index].contents + separator
+        let entry = JournalEntry(
             id: UUID(),
             date: date,
             title: title,
             body: body,
-            source: SourceLocation(file: path, startByte: 0, endByte: 0, startLine: 1)
-        )
-
-        if let index = documents.firstIndex(where: { $0.path == path }) {
-            let source = Self.journalSource(title: title, body: body, date: date)
-            let separator = documents[index].contents.isEmpty ? "" : "\n\n"
-            let prefix = documents[index].contents + separator
-            entry.source = SourceLocation(
+            source: SourceLocation(
                 file: path,
                 startByte: prefix.utf8.count,
                 endByte: prefix.utf8.count + source.utf8.count,
-                startLine: prefix.reduce(into: 1) { line, character in
-                    if character == "\n" { line += 1 }
-                }
+                startLine: prefix.utf8.filter { $0 == 10 }.count + 1
             )
-            documents[index].contents = prefix + source
-        }
-
+        )
+        documents[index].contents = prefix + source
         journalEntries.append(entry)
         scheduleWorkspaceRefresh(changedPaths: [path])
     }
@@ -497,10 +499,6 @@ extension WorkspaceStore {
         operationError = nil
         scheduleWorkspaceRefresh(changedPaths: [path])
         return true
-    }
-
-    private static func journalSource(title: String, body: String, date: Date) -> String {
-        "* \(orgDayFormatter.string(from: date))\n** \(title)\n\(body)"
     }
 
     static let orgDateFormatter: DateFormatter = {

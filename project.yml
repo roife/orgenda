@@ -37,6 +37,7 @@ packages:
 targets:
   Orgenda:
     type: application
+    productName: orgenda
     platform: iOS
     deploymentTarget: "27.0"
     sources:
@@ -61,10 +62,12 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.roifewu.Orgenda
         PRODUCT_NAME: orgenda
         PRODUCT_MODULE_NAME: Orgenda
+        DEVELOPMENT_TEAM: 9223UXXW46
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: orgenda
         INFOPLIST_FILE: Orgenda/Info.plist
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait

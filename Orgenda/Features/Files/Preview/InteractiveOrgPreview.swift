@@ -15,7 +15,7 @@ struct InteractiveOrgPreview: View {
     @State private var pendingReplacements: [String: PendingSourceReplacement] = [:]
     @State private var planningEditor: OrgPlanningEditorPresentation?
     @State private var interactionFeedback = 0
-    @State private var configuredEditorItem: OrgItem?
+    @State private var editorItem: OrgItem?
     @State private var scrollPosition = ScrollPosition(y: 0)
     /// Flattened outline rows, rebuilt only when the parsed document changes
     /// instead of on every body evaluation (scrolling included).
@@ -53,6 +53,7 @@ struct InteractiveOrgPreview: View {
                         collapsedHeadingIDs: $collapsedHeadingIDs,
                         pendingReplacements: pendingReplacements,
                         onToggleHeading: toggleHeading,
+                        onEditHeading: presentItemEditor,
                         onCycleTODO: cycleTODO,
                         onToggleCheckbox: toggleCheckbox,
                         onEditPlanning: presentPlanningEditor,
@@ -123,7 +124,7 @@ struct InteractiveOrgPreview: View {
                     .elementsEqual(pending.replacement.utf8)
             }
         }
-        .sheet(item: $configuredEditorItem) { item in
+        .sheet(item: $editorItem) { item in
             OrgItemEditor(store: store, draft: item)
         }
         .alert("Could not move heading", isPresented: Binding(
@@ -204,12 +205,8 @@ struct InteractiveOrgPreview: View {
     }
 
     private func cycleTODO(_ node: ParsedOrgNode) {
-        if store.usesEmacsConfiguration {
-            configuredEditorItem = item(containing: node)
-            return
-        }
         let currentText = pendingReplacements[node.id]?.replacement ?? node.text
-        guard let mutation = try? OrgSourceMutation.workflowCycle(
+        guard let mutation = try? OrgSourceMutation.workflowToggle(
             in: currentText,
             startByte: 0,
             endByte: currentText.utf8.count
@@ -217,6 +214,12 @@ struct InteractiveOrgPreview: View {
             return
         }
         replace(node, with: mutation.replacement)
+    }
+
+    private func presentItemEditor(for heading: ParsedOrgNode) {
+        editorItem = store.items.first {
+            $0.source.file == path && $0.source.startByte == heading.startByte
+        }
     }
 
     private func toggleCheckbox(_ node: ParsedOrgNode) {
@@ -236,12 +239,6 @@ struct InteractiveOrgPreview: View {
         draft: OrgPlanningEntryDraft
     ) {
         planningEditor = OrgPlanningEditorPresentation(node: node, draft: draft)
-    }
-
-    private func item(containing node: ParsedOrgNode) -> OrgItem? {
-        store.items.first {
-            $0.source.file == path && $0.source.startByte <= node.startByte && $0.source.endByte >= node.endByte
-        }
     }
 
     private func updatePlanning(

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "2600"
+   LastUpgradeVersion = "2700"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -15,7 +15,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "54586CC0DD147B6213263959"
+               BlueprintIdentifier = "B0FDAB27A88AD3FDB0D7A244"
                BuildableName = "orgenda.app"
                BlueprintName = "Orgenda"
                ReferencedContainer = "container:Orgenda.xcodeproj">
@@ -29,7 +29,7 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "02DE626DC4C12B51E4E01A71"
+               BlueprintIdentifier = "110FEEE4758B0761414E3415"
                BuildableName = "OrgendaTests.xctest"
                BlueprintName = "OrgendaTests"
                ReferencedContainer = "container:Orgenda.xcodeproj">
@@ -47,7 +47,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "54586CC0DD147B6213263959"
+            BlueprintIdentifier = "B0FDAB27A88AD3FDB0D7A244"
             BuildableName = "orgenda.app"
             BlueprintName = "Orgenda"
             ReferencedContainer = "container:Orgenda.xcodeproj">
@@ -59,7 +59,7 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "02DE626DC4C12B51E4E01A71"
+               BlueprintIdentifier = "110FEEE4758B0761414E3415"
                BuildableName = "OrgendaTests.xctest"
                BlueprintName = "OrgendaTests"
                ReferencedContainer = "container:Orgenda.xcodeproj">
@@ -70,7 +70,7 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E93B746D0679D7AC19BB8772"
+               BlueprintIdentifier = "4B7C0D0CAD08F773D488B743"
                BuildableName = "OrgendaUITests.xctest"
                BlueprintName = "OrgendaUITests"
                ReferencedContainer = "container:Orgenda.xcodeproj">
@@ -94,7 +94,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "54586CC0DD147B6213263959"
+            BlueprintIdentifier = "B0FDAB27A88AD3FDB0D7A244"
             BuildableName = "orgenda.app"
             BlueprintName = "Orgenda"
             ReferencedContainer = "container:Orgenda.xcodeproj">
@@ -113,7 +113,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "54586CC0DD147B6213263959"
+            BlueprintIdentifier = "B0FDAB27A88AD3FDB0D7A244"
             BuildableName = "orgenda.app"
             BlueprintName = "Orgenda"
             ReferencedContainer = "container:Orgenda.xcodeproj">

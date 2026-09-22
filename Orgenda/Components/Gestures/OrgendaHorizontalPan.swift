@@ -6,12 +6,18 @@ import UIKit
 struct OrgendaHorizontalPan: UIGestureRecognizerRepresentable {
     let onChange: (CGFloat, Bool) -> Void
     let onEnd: (CGFloat, CGFloat, Bool) -> Void
+    var isEnabled = true
 
     func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
         let pan = UIPanGestureRecognizer()
         pan.maximumNumberOfTouches = 1
         pan.delegate = context.coordinator
+        pan.isEnabled = isEnabled
         return pan
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        recognizer.isEnabled = isEnabled
     }
 
     func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {

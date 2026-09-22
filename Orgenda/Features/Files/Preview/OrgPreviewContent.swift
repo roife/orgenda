@@ -10,6 +10,7 @@ struct OrgPreviewContent: View {
     @Binding var collapsedHeadingIDs: Set<String>
     let pendingReplacements: [String: PendingSourceReplacement]
     let onToggleHeading: (String) -> Void
+    let onEditHeading: (ParsedOrgNode) -> Void
     let onCycleTODO: (ParsedOrgNode) -> Void
     let onToggleCheckbox: (ParsedOrgNode) -> Void
     let onEditPlanning: (ParsedOrgNode, OrgPlanningEntryDraft) -> Void
@@ -41,6 +42,7 @@ struct OrgPreviewContent: View {
                     isCollapsed: collapsedHeadingIDs.contains(row.id),
                     pendingReplacements: pendingReplacements,
                     onToggleHeading: onToggleHeading,
+                    onEditHeading: onEditHeading,
                     onCycleTODO: onCycleTODO,
                     onToggleCheckbox: onToggleCheckbox,
                     onEditPlanning: onEditPlanning,
@@ -121,6 +123,7 @@ private struct OrgPreviewRowView: View {
     let isCollapsed: Bool
     let pendingReplacements: [String: PendingSourceReplacement]
     let onToggleHeading: (String) -> Void
+    let onEditHeading: (ParsedOrgNode) -> Void
     let onCycleTODO: (ParsedOrgNode) -> Void
     let onToggleCheckbox: (ParsedOrgNode) -> Void
     let onEditPlanning: (ParsedOrgNode, OrgPlanningEntryDraft) -> Void
@@ -139,6 +142,7 @@ private struct OrgPreviewRowView: View {
                 todoOverride: row.node.todoNode.flatMap { pendingReplacements[$0.id]?.replacement },
                 isTODOUpdating: row.node.todoNode.map { pendingReplacements[$0.id] != nil } ?? false,
                 onToggleDisclosure: { onToggleHeading(row.id) },
+                onEdit: { onEditHeading(row.node) },
                 onCycleTODO: onCycleTODO,
                 onBeginDrag: onBeginDrag,
                 onEndDrag: onEndDrag
@@ -220,6 +224,7 @@ private struct OrgPreviewRowView: View {
                     isCollapsed: false,
                     pendingReplacements: pendingReplacements,
                     onToggleHeading: onToggleHeading,
+                    onEditHeading: onEditHeading,
                     onCycleTODO: onCycleTODO,
                     onToggleCheckbox: onToggleCheckbox,
                     onEditPlanning: onEditPlanning,

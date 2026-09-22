@@ -1,8 +1,6 @@
 import XCTest
 
 final class UIUXPolishUITests: XCTestCase {
-    /// An explicit visual audit, intentionally compatible with both the original
-    /// UI and the polished UI so its screenshots can be compared side by side.
     func testCaptureAuditFlow() {
         let app = launchApp()
         defer { app.terminate() }
@@ -12,10 +10,9 @@ final class UIUXPolishUITests: XCTestCase {
         attach(app, name: "01 Dashboard", always: true)
 
         app.tabBars.buttons["Calendar"].tap()
-        XCTAssertTrue(app.buttons["orgenda.calendar.density"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.calendarDensityHandle.waitForExistence(timeout: 3))
         attach(app, name: "02 Calendar week", always: true)
-        app.buttons["orgenda.calendar.density"].tap()
-        app.buttons["Month"].tap()
+        app.dragCalendarHandle(by: 230)
         attach(app, name: "03 Calendar month", always: true)
 
         app.buttons["orgenda.capture"].tap()

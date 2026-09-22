@@ -38,7 +38,13 @@ extension WorkspaceStore {
     func journal(on date: Date) -> [JournalEntry] {
         journalEntries
             .filter { Calendar.autoupdatingCurrent.isDate($0.date, inSameDayAs: date) }
-            .sorted { $0.date > $1.date }
+            .sorted {
+                if $0.date != $1.date { return $0.date > $1.date }
+                if $0.source.file != $1.source.file { return $0.source.file < $1.source.file }
+                // Entries without a time, or saved in the same minute, retain
+                // a deterministic newest-appended-first order after reindexing.
+                return $0.source.startByte > $1.source.startByte
+            }
     }
     func search(_ query: String, scope: SearchScope) -> [SearchResult] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)

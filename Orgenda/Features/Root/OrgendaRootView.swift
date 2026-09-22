@@ -18,7 +18,6 @@ struct OrgendaRootView: View {
     @State private var fileNavigationRequest: WorkspaceFileNavigationRequest?
     @State private var showsWorkspaceSettings = false
     private let isUITestWorkspace = WorkspaceStore.isUITestWorkspace(arguments: ProcessInfo.processInfo.arguments)
-    private var expectsConnectedWorkspace: Bool { !isUITestWorkspace }
 
     var body: some View {
         Group {
@@ -62,26 +61,6 @@ struct OrgendaRootView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if store.fileSyncError != nil && store.isFolderConnected {
-                Button {
-                    showsWorkspaceSettings = true
-                } label: {
-                    HStack {
-                        Label("File changes need attention", systemImage: "exclamationmark.triangle")
-                        Spacer(minLength: 8)
-                        Text("Review").fontWeight(.semibold)
-                        Image(systemName: "chevron.right")
-                    }
-                    .font(.subheadline)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(.bar)
-                }
-                .accessibilityIdentifier("workspace.sync.error")
-            }
         }
         .sheet(isPresented: $showsWorkspaceSettings) {
             SettingsView(store: store, initialDestination: .workspace)
@@ -137,14 +116,14 @@ private extension OrgendaRootView {
                     capture = .agenda(date)
                 }, onShowInFile: showInFile, onShowOverdue: showOverdue,
                    navigationRequest: $dashboardNavigationRequest,
-                   expectsConnectedWorkspace: expectsConnectedWorkspace)
+                   expectsConnectedWorkspace: !isUITestWorkspace)
                 .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
             Tab("Calendar", systemImage: "calendar", value: .calendar) {
                 AgendaView(store: store, mode: .calendar, onCapture: { date in
                     capture = .agenda(date)
                 }, onShowInFile: showInFile, onShowOverdue: showOverdue,
-                   expectsConnectedWorkspace: expectsConnectedWorkspace)
+                   expectsConnectedWorkspace: !isUITestWorkspace)
                 .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
             Tab("Files", systemImage: "folder.fill", value: .files) {
@@ -165,7 +144,7 @@ private extension OrgendaRootView {
     }
 
     func showInFile(_ item: OrgItem) {
-        let current = store.items.first { $0.id == item.id } ?? item
+        let current = store.item(withID: item.id) ?? item
         fileNavigationRequest = WorkspaceFileNavigationRequest(source: current.source, itemID: current.id)
         selectedTab = .files
     }

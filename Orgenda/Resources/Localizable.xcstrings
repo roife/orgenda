@@ -1,346 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "This image link has an invalid or unsupported path." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片链接的路径无效或不受支持。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片連結的路徑無效或不受支援。"
-          }
-        }
-      }
-    },
-    "This image path leaves the selected workspace folder." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片路径超出了所选工作区文件夹。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片路徑超出了所選工作區資料夾。"
-          }
-        }
-      }
-    },
-    "This attachment needs a DIR or ID property on its heading or an ancestor." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请在当前标题或上级标题中设置 DIR 或 ID 属性，以定位附件。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "請在目前標題或上層標題中設定 DIR 或 ID 屬性，以定位附件。"
-          }
-        }
-      }
-    },
-    "The attachment ID cannot be used as a directory name." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "附件 ID 无法用作目录名称。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "附件 ID 無法用作目錄名稱。"
-          }
-        }
-      }
-    },
-    "The image URL is invalid or contains embedded credentials." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片网址无效，或包含用户名及密码。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片網址無效，或包含使用者名稱及密碼。"
-          }
-        }
-      }
-    },
-    "Connect the workspace folder to display this image." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "连接工作区文件夹后即可显示此图片。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "連接工作區資料夾後即可顯示此圖片。"
-          }
-        }
-      }
-    },
-    "The image could not be found at this path." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在此路径下找不到图片。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在此路徑下找不到圖片。"
-          }
-        }
-      }
-    },
-    "The image is too large to display." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片文件过大，无法显示。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片檔案過大，無法顯示。"
-          }
-        }
-      }
-    },
-    "This image format is unsupported or the image file is damaged." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片格式不受支持，或文件已损坏。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片格式不受支援，或檔案已損壞。"
-          }
-        }
-      }
-    },
-    "This image requires a secure HTTPS connection." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此图片需要使用 HTTPS 安全连接。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此圖片需要使用 HTTPS 安全連線。"
-          }
-        }
-      }
-    },
-    "The image server returned an invalid response." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片服务器返回了无效响应。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片伺服器傳回了無效回應。"
-          }
-        }
-      }
-    },
-    "The image was not found on the server (404)." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "服务器上找不到此图片（404）。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "伺服器上找不到此圖片（404）。"
-          }
-        }
-      }
-    },
-    "The image server returned HTTP %lld." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片服务器返回 HTTP %lld。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片伺服器傳回 HTTP %lld。"
-          }
-        }
-      }
-    },
-    "The image path does not point to a readable file." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片路径没有指向可读取的文件。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片路徑未指向可讀取的檔案。"
-          }
-        }
-      }
-    },
-    "The image could not be loaded because its size limit is invalid." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片大小限制无效，无法加载。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片大小限制無效，無法載入。"
-          }
-        }
-      }
-    },
-    "Couldn't load image" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法加载图片"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "無法載入圖片"
-          }
-        }
-      }
-    },
-    "Loading image…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在加载图片…"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在載入圖片…"
-          }
-        }
-      }
-    },
-    "Reload image" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新加载图片"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新載入圖片"
-          }
-        }
-      }
-    },
-    "Open image. Pinch to zoom." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开图片，可用双指缩放。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開啟圖片，可用雙指縮放。"
-          }
-        }
-      }
-    },
-    "Retry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重试"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重試"
-          }
-        }
-      }
-    },
     "" : {
 
     },
@@ -793,23 +453,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "不能將子樹移動到自身或其子節點中。"
-          }
-        }
-      }
-    },
-    "A thought, a small win, or something to remember." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "记录一个想法、一点收获，或值得记住的事。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "記錄一個想法、一點收穫，或值得記住的事。"
           }
         }
       }
@@ -1354,6 +997,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "日曆檢視"
+          }
+        }
+      }
+    },
+    "Calendar years" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日历年份"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日曆年份"
           }
         }
       }
@@ -1973,6 +1633,23 @@
         }
       }
     },
+    "Connect the workspace folder to display this image." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接工作区文件夹后即可显示此图片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連接工作區資料夾後即可顯示此圖片。"
+          }
+        }
+      }
+    },
     "Connected folder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2156,6 +1833,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法安排提醒：%@"
+          }
+        }
+      }
+    },
+    "Couldn't load image" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载图片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入圖片"
           }
         }
       }
@@ -2789,6 +2483,23 @@
         }
       }
     },
+    "Drag up or down to switch between week, month, and year" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下拖动以切换周、月、年视图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下拖動以切換週、月、年檢視"
+          }
+        }
+      }
+    },
     "Drawer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2839,6 +2550,9 @@
           }
         }
       }
+    },
+    "Edit %@" : {
+
     },
     "Edit %@ planning" : {
       "extractionState" : "manual",
@@ -4200,6 +3914,23 @@
         }
       }
     },
+    "Loading image…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载图片…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在載入圖片…"
+          }
+        }
+      }
+    },
     "Loading workspace" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4318,6 +4049,12 @@
           }
         }
       }
+    },
+    "Mark this item done" : {
+
+    },
+    "Mark this item TODO" : {
+
     },
     "Match your device" : {
       "extractionState" : "manual",
@@ -5237,6 +4974,23 @@
         }
       }
     },
+    "Open image. Pinch to zoom." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开图片，可用双指缩放。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟圖片，可用雙指縮放。"
+          }
+        }
+      }
+    },
     "Open items past their scheduled or deadline date appear here." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6002,6 +5756,23 @@
         }
       }
     },
+    "Reload image" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新加载图片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新載入圖片"
+          }
+        }
+      }
+    },
     "Reminder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6219,6 +5990,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "恢復"
+          }
+        }
+      }
+    },
+    "Retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重試"
           }
         }
       }
@@ -7158,6 +6946,23 @@
         }
       }
     },
+    "Swipe up or down to change years" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下轻扫以切换年份"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下滑動以切換年份"
+          }
+        }
+      }
+    },
     "Swipe up or down to change months" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7379,6 +7184,23 @@
         }
       }
     },
+    "The attachment ID cannot be used as a directory name." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附件 ID 无法用作目录名称。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附件 ID 無法用作目錄名稱。"
+          }
+        }
+      }
+    },
     "The complete subtree moves to the archive configured for this file." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7545,6 +7367,142 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "標題已更改，請重新載入後再試。"
+          }
+        }
+      }
+    },
+    "The image could not be found at this path." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此路径下找不到图片。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此路徑下找不到圖片。"
+          }
+        }
+      }
+    },
+    "The image could not be loaded because its size limit is invalid." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片大小限制无效，无法加载。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片大小限制無效，無法載入。"
+          }
+        }
+      }
+    },
+    "The image is too large to display." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片文件过大，无法显示。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片檔案過大，無法顯示。"
+          }
+        }
+      }
+    },
+    "The image path does not point to a readable file." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片路径没有指向可读取的文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片路徑未指向可讀取的檔案。"
+          }
+        }
+      }
+    },
+    "The image server returned an invalid response." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片服务器返回了无效响应。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片伺服器傳回了無效回應。"
+          }
+        }
+      }
+    },
+    "The image server returned HTTP %lld." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片服务器返回 HTTP %lld。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片伺服器傳回 HTTP %lld。"
+          }
+        }
+      }
+    },
+    "The image URL is invalid or contains embedded credentials." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片网址无效，或包含用户名及密码。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片網址無效，或包含使用者名稱及密碼。"
+          }
+        }
+      }
+    },
+    "The image was not found on the server (404)." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器上找不到此图片（404）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器上找不到此圖片（404）。"
           }
         }
       }
@@ -7855,6 +7813,23 @@
         }
       }
     },
+    "This attachment needs a DIR or ID property on its heading or an ancestor." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在当前标题或上级标题中设置 DIR 或 ID 属性，以定位附件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在目前標題或上層標題中設定 DIR 或 ID 屬性，以定位附件。"
+          }
+        }
+      }
+    },
     "This document does not contain an Org heading." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7919,6 +7894,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此資料夾為空"
+          }
+        }
+      }
+    },
+    "This image format is unsupported or the image file is damaged." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片格式不受支持，或文件已损坏。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片格式不受支援，或檔案已損壞。"
+          }
+        }
+      }
+    },
+    "This image link has an invalid or unsupported path." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片链接的路径无效或不受支持。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片連結的路徑無效或不受支援。"
+          }
+        }
+      }
+    },
+    "This image path leaves the selected workspace folder." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片路径超出了所选工作区文件夹。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片路徑超出了所選工作區資料夾。"
+          }
+        }
+      }
+    },
+    "This image requires a secure HTTPS connection." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此图片需要使用 HTTPS 安全连接。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此圖片需要使用 HTTPS 安全連線。"
           }
         }
       }

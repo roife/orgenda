@@ -19,6 +19,7 @@ struct JournalComposer: View {
                 Section {
                     TextField("Title (optional)", text: $title)
                         .font(.headline)
+                        .accessibilityIdentifier("journal.composer.title")
                         .focused($focusedField, equals: .title)
                         .submitLabel(.next)
                         .onSubmit { focusedField = .body }
@@ -82,14 +83,13 @@ struct JournalComposer: View {
     }
 
     private func saveEntry() {
-        guard !entryBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let calendar = Calendar.autoupdatingCurrent
-        let time = calendar.dateComponents([.hour, .minute, .second], from: Date.now)
+        let now = Date.now
         let entryDate = calendar.date(
-            bySettingHour: time.hour ?? 0,
-            minute: time.minute ?? 0,
-            second: time.second ?? 0,
+            bySettingHour: calendar.component(.hour, from: now),
+            minute: calendar.component(.minute, from: now),
+            second: calendar.component(.second, from: now),
             of: date
         ) ?? date
         focusedField = nil

@@ -5,65 +5,70 @@ struct JournalDayContent: View {
     let onCapture: () -> Void
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 14) {
+        LazyVStack(alignment: .leading, spacing: 0) {
             if entries.isEmpty {
                 ContentUnavailableView {
                     Label("A blank page", systemImage: "book.closed")
-                } description: {
-                    Text("A thought, a small win, or something to remember.")
                 } actions: {
                     Button("Write an Entry", systemImage: "square.and.pencil", action: onCapture)
                         .buttonStyle(.glass)
                         .foregroundStyle(OrgendaTheme.accentText)
+                        .padding(.top, 16)
                 }
+                .accessibilityIdentifier("journal.empty")
                 .padding(.top, 44)
             } else {
                 ForEach(entries) { entry in
-                    JournalEntryCard(entry: entry)
+                    JournalTimelineEntry(entry: entry, isLast: entry.id == entries.last?.id)
                 }
             }
         }
     }
 }
-private struct JournalEntryCard: View {
+private struct JournalTimelineEntry: View {
     let entry: JournalEntry
+    let isLast: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(entry.title)
-                        .font(.headline)
-                    Spacer(minLength: 0)
-                    entryTime
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(entry.title)
-                        .font(.headline)
-                    entryTime
-                }
-            }
-            Text(entry.body)
-                .font(.body)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(entry.date.formatted(date: .omitted, time: .shortened))
+                .font(.subheadline.monospacedDigit().weight(.medium))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(3)
-                .textSelection(.enabled)
+            Text(entry.title)
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("journal.entry.title.\(entry.id)")
+            if !entry.body.isEmpty {
+                Text(entry.body)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(3)
+                    .textSelection(.enabled)
+            }
         }
-        .padding(16)
+        .padding(.leading, 28)
+        .padding(.bottom, 28)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(.primary.opacity(0.06), lineWidth: 1)
+        .background(alignment: .topLeading) {
+            ZStack(alignment: .top) {
+                if !isLast {
+                    Rectangle()
+                        .fill(OrgendaTheme.accent.opacity(0.18))
+                        .frame(width: 1)
+                        .padding(.top, 10)
+                }
+                Circle()
+                    .fill(OrgendaTheme.accent)
+                    .frame(width: 9, height: 9)
+                    .padding(.top, 5)
+            }
+            .frame(width: 12, alignment: .top)
+            .accessibilityHidden(true)
         }
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("journal.entry.\(entry.id)")
     }
 
-    private var entryTime: some View {
-        Text(entry.date.formatted(date: .omitted, time: .shortened))
-            .font(.subheadline.monospacedDigit().weight(.medium))
-            .foregroundStyle(.secondary)
-            .fixedSize()
-    }
 }

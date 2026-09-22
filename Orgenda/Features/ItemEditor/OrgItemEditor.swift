@@ -4,7 +4,6 @@ import UIKit
 struct OrgItemEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let store: WorkspaceStore
     private let isNew: Bool
@@ -27,16 +26,12 @@ struct OrgItemEditor: View {
     @State private var isArchiving = false
     @State private var latestItem: OrgItem?
     @State private var showsDraftCopied = false
-    @FocusState private var focusedField: Field?
+    @FocusState private var focusedField: OrgItemEditorField?
     @ScaledMetric(relativeTo: .body) private var notesMinimumHeight = 120.0
-
-    private enum Field: Hashable {
-        case title, tags, notes, firstAction, sourceLink, stateNote
-    }
 
     init(store: WorkspaceStore, draft: OrgItem) {
         self.store = store
-        let newItem = !store.items.contains { $0.id == draft.id }
+        let newItem = store.item(withID: draft.id) == nil
         isNew = newItem
         captureDate = draft.agendaDate ?? .now
         let initial = newItem && store.usesEmacsConfiguration
@@ -183,8 +178,17 @@ struct OrgItemEditor: View {
             titleSection
             captureSection
             firstActionSection
-            scheduleSection
-            detailsSection
+            OrgItemScheduleSection(
+                draft: $draft, hasConfiguredTime: $hasConfiguredTime, captureDate: captureDate,
+                usesEventTimestamp: usesEventTimestamp,
+                requiresSchedule: usesCaptureTemplates && captureTemplate.includesAppointmentWarning,
+                onDismissKeyboard: { focusedField = nil }
+            )
+            OrgItemDetailsSection(
+                draft: $draft, tagsText: $tagsText, contextTag: contextTag,
+                focusedField: $focusedField, usesCaptureTemplates: usesCaptureTemplates,
+                usesEmacsConfiguration: store.usesEmacsConfiguration
+            )
             stateNoteSection
             repeatSection
             appointmentSection
@@ -246,64 +250,6 @@ struct OrgItemEditor: View {
         }
     }
 
-    private var detailsSection: some View {
-        Section {
-            if draft.kind != .note && draft.kind != .event {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Status")
-                    OrgWorkflowPicker(selection: $draft.state)
-                        .accessibilityIdentifier("item.editor.state")
-                }
-            }
-
-            if !usesCaptureTemplates {
-                Picker("Type", selection: $draft.kind) {
-                    ForEach(OrgItemKind.allCases) { kind in Label(kind.title, systemImage: kind.systemImage).tag(kind) }
-                }
-            }
-
-            Picker("Priority", selection: $draft.priority) {
-                Text("None").tag(OrgPriority.none)
-                Text("High · A").tag(OrgPriority.high)
-                Text("Medium · B").tag(OrgPriority.medium)
-                Text("Low · C").tag(OrgPriority.low)
-            }
-            .pickerStyle(.menu)
-            .accessibilityIdentifier("item.editor.priority")
-
-            tagsField
-            if store.usesEmacsConfiguration {
-                Picker("Context", selection: contextTag) {
-                    Text("None").tag("")
-                    Text("@home").tag("@home")
-                    Text("@work").tag("@work")
-                }
-            }
-        } header: {
-            Text("Details")
-        } footer: {
-            Text("Separate tags with commas, for example: work, focus")
-                .font(.subheadline)
-        }
-    }
-
-    private var tagsField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Tags")
-                .font(.subheadline.weight(.medium))
-            TextField("work, focus", text: $tagsText, axis: .vertical)
-                .lineLimit(1...4)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .focused($focusedField, equals: .tags)
-                .submitLabel(.done)
-                .onSubmit { focusedField = nil }
-                .accessibilityLabel("Tags")
-                .accessibilityHint("Separate tags with commas")
-                .accessibilityIdentifier("item.editor.tags")
-        }
-    }
-
     @ViewBuilder
     private var stateNoteSection: some View {
         if requiresStateNote {
@@ -318,54 +264,6 @@ struct OrgItemEditor: View {
                 Text("Your Org workflow requires a note for this status change.")
                     .font(.subheadline)
             }
-        }
-    }
-
-    private var scheduleSection: some View {
-        Section {
-            if usesEventTimestamp {
-                datePicker("Event date", selection: eventDate, displayedComponents: .date)
-            } else {
-                Toggle("Scheduled", isOn: hasSchedule)
-                    .disabled(usesCaptureTemplates && captureTemplate.includesAppointmentWarning)
-            }
-            if draft.scheduled != nil && !usesEventTimestamp {
-                datePicker("Scheduled date", selection: scheduledDate, displayedComponents: .date)
-                let layout = dynamicTypeSize.isAccessibilitySize
-                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-                    : AnyLayout(HStackLayout(spacing: 12))
-                layout {
-                    quickDateButton("Today", date: .now)
-                    quickDateButton("Tomorrow", date: Date.now.adding(days: 1))
-                }
-                .buttonStyle(.bordered)
-            }
-            Toggle("Deadline", isOn: hasDeadline)
-            if draft.deadline != nil {
-                datePicker("Deadline date", selection: deadlineDate, displayedComponents: .date)
-            }
-            if draft.agendaDate != nil {
-                Toggle("Set a time", isOn: hasTime)
-                if draft.hasTime {
-                    if draft.eventDate != nil {
-                        datePicker("Event time", selection: eventDate, displayedComponents: .hourAndMinute)
-                    }
-                    if draft.scheduled != nil {
-                        datePicker("Scheduled time", selection: scheduledDate, displayedComponents: .hourAndMinute)
-                        Stepper("Duration · \(draft.durationMinutes) min", value: $draft.durationMinutes, in: 5...480, step: 5)
-                    }
-                    if draft.deadline != nil {
-                        datePicker("Deadline time", selection: deadlineDate, displayedComponents: .hourAndMinute)
-                    }
-                }
-            }
-        } header: {
-            Text("Schedule")
-        } footer: {
-            Text(usesEventTimestamp
-                 ? "Events use an active Org timestamp, so they also appear in your Emacs calendar."
-                 : "Scheduled is when you plan to work. Deadline is when it's due.")
-                .font(.subheadline)
         }
     }
 
@@ -613,101 +511,7 @@ struct OrgItemEditor: View {
             || !firstAction.isEmpty || !sourceLink.isEmpty || !stateNote.isEmpty
     }
 
-    private var hasTime: Binding<Bool> {
-        Binding(
-            get: { draft.hasTime },
-            set: { enabled in
-                if enabled, !hasConfiguredTime {
-                    draft.scheduled = draft.scheduled.map(initialTime)
-                    draft.deadline = draft.deadline.map(initialTime)
-                    draft.eventDate = draft.eventDate.map(initialTime)
-                    hasConfiguredTime = true
-                }
-                draft.hasTime = enabled
-                if enabled, draft.durationMinutes < 5 { draft.durationMinutes = 30 }
-            }
-        )
-    }
-
-    private func initialTime(on date: Date) -> Date {
-        guard date == date.startOfDay else { return date }
-        let calendar = Calendar.autoupdatingCurrent
-        let time = calendar.dateComponents([.hour, .minute], from: Date.now)
-        return calendar.date(
-            bySettingHour: time.hour ?? 0,
-            minute: time.minute ?? 0,
-            second: 0,
-            of: date
-        ) ?? date
-    }
-
-    @ViewBuilder
-    private func datePicker(
-        _ title: LocalizedStringKey,
-        selection: Binding<Date>,
-        displayedComponents: DatePickerComponents
-    ) -> some View {
-        if dynamicTypeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(title)
-                DatePicker(title, selection: selection, displayedComponents: displayedComponents)
-                    .labelsHidden()
-            }
-        } else {
-            DatePicker(title, selection: selection, displayedComponents: displayedComponents)
-        }
-    }
-
-    private func quickDateButton(_ title: LocalizedStringKey, date: Date) -> some View {
-        Button(title) {
-            focusedField = nil
-            let calendar = Calendar.autoupdatingCurrent
-            let time = calendar.dateComponents([.hour, .minute], from: draft.scheduled ?? .now)
-            draft.scheduled = calendar.date(
-                bySettingHour: time.hour ?? 0,
-                minute: time.minute ?? 0,
-                second: 0,
-                of: date
-            ) ?? date
-        }
-        .frame(minHeight: 44)
-        .accessibilityHint("Changes the scheduled date and keeps the selected time")
-    }
-
-    private var hasSchedule: Binding<Bool> {
-        Binding(
-            get: { draft.scheduled != nil },
-            set: { draft.scheduled = $0 ? (draft.scheduled ?? .now) : nil }
-        )
-    }
-
-    private var scheduledDate: Binding<Date> {
-        Binding(
-            get: { draft.scheduled ?? .now },
-            set: { draft.scheduled = $0 }
-        )
-    }
-
-    private var hasDeadline: Binding<Bool> {
-        Binding(
-            get: { draft.deadline != nil },
-            set: { draft.deadline = $0 ? (draft.deadline ?? draft.scheduled ?? .now) : nil }
-        )
-    }
-
-    private var deadlineDate: Binding<Date> {
-        Binding(
-            get: { draft.deadline ?? .now },
-            set: { draft.deadline = $0 }
-        )
-    }
-
-    private var eventDate: Binding<Date> {
-        Binding(get: { draft.eventDate ?? captureDate }, set: { draft.eventDate = $0 })
-    }
-
     private func commit() {
-        guard canSave else { return }
         focusedField = nil
         if store.save(preparedDraft, original: isNew ? nil : originalDraft,
                       captureTemplate: usesCaptureTemplates ? captureTemplate : nil,

@@ -1,12 +1,5 @@
 import SwiftUI
 
-enum OrgendaCalendarLayout {
-    static let monthRowSpacing: CGFloat = 2
-    static let monthRowCount = 6
-    static let monthHeight = OrgendaDateLayout.dayCellHeight * CGFloat(monthRowCount)
-        + monthRowSpacing * CGFloat(monthRowCount - 1)
-}
-
 struct OrgendaCalendar: View {
     enum Density: String, CaseIterable {
         case week = "Week"
@@ -34,6 +27,7 @@ struct OrgendaCalendar: View {
     let showsNavigationControls: Bool
     let controlsInHeader: Bool
     let onCapture: (() -> Void)?
+    let captureLabel: LocalizedStringKey
     let onScheduleTask: ((OrgTaskTransfer, Date) -> Void)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -45,19 +39,26 @@ struct OrgendaCalendar: View {
     @State private var visibleMonth: Date
     @State private var monthScrollAnchor: Date
     @State private var monthScrollPosition: Int?
+    @State private var yearScrollAnchor: Date
+    @State private var yearScrollPosition: Int?
     @State private var preferredDayOfMonth: Int
     @State private var isUpdatingSelectionFromMonthScroll = false
     @State private var verticalDrag: CGFloat = 0
     @State private var pageDirection: PageDirection = .forward
     @State private var pageGeneration = 0
     @State private var dropDate: Date?
+    @State private var densityDragOrigin: CGFloat?
+    @State private var densityDragPosition: CGFloat?
+    @GestureState private var isDraggingDensity = false
 
     private let calendar = Calendar.autoupdatingCurrent
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
     private let monthPageOffsets = -240...240
+    private let yearPageOffsets = -200...200
 
     init(selectedDate: Binding<Date>, density: Binding<Density>, markedDates: Set<String>, showsNavigationControls: Bool = true,
          controlsInHeader: Bool = false, onCapture: (() -> Void)? = nil,
+         captureLabel: LocalizedStringKey = "New task",
          onScheduleTask: ((OrgTaskTransfer, Date) -> Void)? = nil,
          onReturnToday: @escaping () -> Void = {}) {
         _selectedDate = selectedDate
@@ -67,6 +68,7 @@ struct OrgendaCalendar: View {
         self.showsNavigationControls = showsNavigationControls
         self.controlsInHeader = controlsInHeader
         self.onCapture = onCapture
+        self.captureLabel = captureLabel
         self.onScheduleTask = onScheduleTask
         let calendar = Calendar.autoupdatingCurrent
         let initialMonth = calendar.dateInterval(of: .month, for: selectedDate.wrappedValue)?.start
@@ -74,6 +76,8 @@ struct OrgendaCalendar: View {
         _visibleMonth = State(initialValue: initialMonth)
         _monthScrollAnchor = State(initialValue: initialMonth)
         _monthScrollPosition = State(initialValue: 0)
+        _yearScrollAnchor = State(initialValue: calendar.dateInterval(of: .year, for: initialMonth)?.start ?? initialMonth)
+        _yearScrollPosition = State(initialValue: 0)
         _preferredDayOfMonth = State(initialValue: calendar.component(.day, from: selectedDate.wrappedValue))
     }
 
@@ -90,10 +94,24 @@ struct OrgendaCalendar: View {
             } else {
                 calendarTitle
             }
-            if density != .year && !dynamicTypeSize.isAccessibilitySize {
-                weekdayHeader
+            Group {
+                if let position = densityDragPosition {
+                    OrgendaCalendarResizePreview(position: position, content: calendarDragPreview)
+                } else {
+                    VStack(spacing: 6) {
+                        if density != .year && !dynamicTypeSize.isAccessibilitySize {
+                            weekdayHeader
+                                .frame(height: weekdayLineHeight)
+                        }
+                        calendarViewport
+                    }
+                }
             }
-            calendarViewport
+            .frame(height: calendarSelectionHeight, alignment: .top)
+            .clipped()
+            .allowsHitTesting(densityDragPosition == nil)
+            calendarDensityHandle
+                .padding(.top, -4)
             if let dropDate {
                 Text("Schedule for \(OrgendaDatePresentation.relativeDate(dropDate))")
                     .font(.footnote.weight(.semibold)).foregroundStyle(OrgendaTheme.accentText)
@@ -102,16 +120,19 @@ struct OrgendaCalendar: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 4)
-        .padding(.bottom, 12)
+        .padding(.bottom, 4)
         .toolbar {
             if showsNavigationControls && !controlsInHeader {
                 ToolbarItemGroup(placement: .topBarLeading) {
                     calendarTodayButton
-                    calendarDensityMenu
                 }
             }
         }
-        .sensoryFeedback(.selection, trigger: density)
+        .sensoryFeedback(.selection, trigger: displayedDensity)
+        .onChange(of: isDraggingDensity) { _, isDragging in
+            // GestureState also resets when the system cancels a drag.
+            if !isDragging { finishDensityDrag() }
+        }
         .onChange(of: selectedDate) { _, newValue in
             if !isUpdatingSelectionFromMonthScroll {
                 preferredDayOfMonth = calendar.component(.day, from: newValue)
@@ -132,6 +153,10 @@ struct OrgendaCalendar: View {
                 scrollToMonth(containing: newValue, animated: true)
                 return
             }
+            if density == .year {
+                scrollToYear(containing: newValue, animated: true)
+                return
+            }
 
             withAnimation(pageAnimation) {
                 visibleMonth = newValue
@@ -147,8 +172,6 @@ struct OrgendaCalendar: View {
                     calendarTodayButton
                         .frame(width: 44, height: 44)
                 }
-                calendarDensityMenu
-                    .frame(width: 44, height: 44)
                 if let onCapture {
                     Button(action: onCapture) {
                         Image(systemName: "plus")
@@ -156,7 +179,7 @@ struct OrgendaCalendar: View {
                             .frame(width: 30, height: 30)
                     }
                     .foregroundStyle(OrgendaTheme.accentText)
-                    .accessibilityLabel("New task")
+                    .accessibilityLabel(captureLabel)
                     .accessibilityIdentifier("orgenda.capture")
                 }
             }
@@ -168,27 +191,38 @@ struct OrgendaCalendar: View {
         .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil, alignment: .trailing)
     }
 
-    @ViewBuilder
     private var calendarTitle: some View {
-        if density == .year {
+        // Keep the heading's height stable as the handle crosses into Year.
+        ZStack(alignment: .leading) {
+            OrgendaDateHeading(date: selectedDate, displayedMonth: visibleMonth)
+                .opacity(1 - yearTitleProgress)
+                .offset(y: reduceMotion ? 0 : -6 * yearTitleProgress)
+                .accessibilityHidden(displayedDensity == .year)
+                .accessibilityIdentifier("orgenda.calendar.date.heading")
             Text(visibleMonth.formatted(.dateTime.year()))
-                .font(.largeTitle.bold())
+                .font(dynamicTypeSize.isAccessibilitySize ? .subheadline.bold() : .largeTitle.bold())
                 .fontDesign(.rounded)
                 .foregroundStyle(OrgendaTheme.ink)
                 .contentTransition(reduceMotion ? .opacity : .numericText(
                     value: Double(calendar.component(.year, from: visibleMonth))
                 ))
+                .opacity(yearTitleProgress)
+                .offset(y: reduceMotion ? 0 : 6 * (1 - yearTitleProgress))
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityHidden(displayedDensity != .year)
                 .accessibilityAddTraits(.isHeader)
-        } else {
-            OrgendaDateHeading(date: selectedDate, displayedMonth: visibleMonth)
-                .accessibilityIdentifier("orgenda.calendar.date.heading")
         }
+    }
+
+    private var yearTitleProgress: CGFloat {
+        guard let position = densityDragPosition else { return density == .year ? 1 : 0 }
+        let month = sizing.dragPosition(for: .month)
+        return min(max((position - month) / (sizing.dragPosition(for: .year) - month), 0), 1)
     }
 
     private var weekdayHeader: some View {
         LazyVGrid(columns: columns, spacing: 0) {
-            ForEach(Array(rotatedWeekdays.enumerated()), id: \.offset) { index, symbol in
+            ForEach(Array(dates.rotatedWeekdays.enumerated()), id: \.offset) { index, symbol in
                 let weekday = (calendar.firstWeekday - 1 + index) % 7 + 1
                 Text(symbol.uppercased())
                     .font(.footnote.weight(.semibold))
@@ -218,10 +252,7 @@ struct OrgendaCalendar: View {
                 onReturnToday()
                 // Year paging can leave the selected date unchanged.
                 if density == .year {
-                    withAnimation(OrgendaMotion.geometryAnimation(.content, reduceMotion: reduceMotion)) {
-                        visibleMonth = .now
-                        pageGeneration &+= 1
-                    }
+                    scrollToYear(containing: .now, animated: true)
                 }
             } label: {
                 Label("Today", systemImage: "arrow.uturn.backward")
@@ -234,25 +265,95 @@ struct OrgendaCalendar: View {
         }
     }
 
-    private var calendarDensityMenu: some View {
-        Menu {
-            Picker("Calendar view", selection: Binding(
-                get: { density },
-                set: { setDensity($0) }
-            )) {
-                ForEach(Density.allCases, id: \.self) { value in
-                    Text(value.title).tag(value)
+    private var calendarDensityHandle: some View {
+        Capsule()
+            .fill(densityDragPosition == nil ? Color.secondary.opacity(0.35) : OrgendaTheme.accent)
+            .frame(width: 36, height: 5)
+            .padding(.top, 2)
+            .padding(.bottom, 9)
+            .frame(width: 96)
+            .contentShape(.interaction, Rectangle().inset(by: -14))
+            .gesture(densityResizeGesture)
+            .accessibilityElement()
+            .accessibilityLabel("Calendar view")
+            .accessibilityValue(displayedDensity.title)
+            .accessibilityHint("Drag up or down to switch between week, month, and year")
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment:
+                    setDensity(density == .week ? .month : .year)
+                case .decrement:
+                    setDensity(density == .year ? .month : .week)
+                @unknown default:
+                    break
                 }
             }
-        } label: {
-            Label("Calendar view", systemImage: "calendar")
-                .labelStyle(.iconOnly)
-                .frame(width: controlsInHeader ? 30 : nil, height: controlsInHeader ? 30 : nil)
+            .accessibilityIdentifier("orgenda.calendar.density.handle")
+            .frame(maxWidth: .infinity)
+    }
+
+    private var densityResizeGesture: some Gesture {
+        // Global translation stays stable while the handle moves with the calendar.
+        DragGesture(minimumDistance: 6, coordinateSpace: .global)
+            .updating($isDraggingDensity) { _, state, _ in state = true }
+            .onChanged { value in
+                guard densityDragOrigin != nil || abs(value.translation.height) > abs(value.translation.width) else {
+                    return
+                }
+                let origin = densityDragOrigin ?? densityDragPosition ?? sizing.dragPosition(for: density)
+                let position = min(max(origin + value.translation.height, 0), sizing.dragPosition(for: .year))
+                var transaction = Transaction(animation: nil)
+                transaction.isContinuous = true
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    densityDragOrigin = origin
+                    densityDragPosition = position
+                }
+            }
+            .onEnded { _ in finishDensityDrag() }
+    }
+
+    private func finishDensityDrag() {
+        guard densityDragOrigin != nil, let position = densityDragPosition else { return }
+        densityDragOrigin = nil
+        let target = sizing.density(at: position)
+        withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.9)) {
+            densityDragPosition = sizing.dragPosition(for: target)
+        } completion: {
+            guard densityDragOrigin == nil, !isDraggingDensity,
+                  densityDragPosition == sizing.dragPosition(for: target) else { return }
+            setDensity(target, animated: false)
+            densityDragPosition = nil
         }
-        .tint(OrgendaTheme.accentText)
-        .accessibilityLabel("Calendar view")
-        .accessibilityValue(density.title)
-        .accessibilityIdentifier("orgenda.calendar.density")
+    }
+
+    private var displayedDensity: Density {
+        densityDragPosition.map { sizing.density(at: $0) } ?? density
+    }
+
+    private func calendarDragPreview(at position: CGFloat) -> some View {
+        OrgendaCalendarResizeContent(
+            position: position, visibleMonth: visibleMonth,
+            selectedWeekOffset: selectedWeekOffset, sizing: sizing,
+            monthGrid: { monthGrid(for: visibleMonth, exposesAccessibility: false) },
+            yearGrid: { yearGrid(for: visibleMonth, exposesAccessibility: false) },
+            weekdayHeader: { weekdayHeader },
+            accessibleDays: { isWeek in
+                dayGrid(
+                    dates: isWeek ? dates.daysInWeek(containing: selectedDate) : dates.daysInMonth(for: visibleMonth),
+                    displayedIn: visibleMonth, exposesAccessibility: false
+                )
+            }
+        )
+    }
+
+    private var selectedWeekOffset: CGFloat {
+        guard let monthStart = calendar.dateInterval(of: .month, for: visibleMonth)?.start,
+              let firstDate = calendar.dateInterval(of: .weekOfYear, for: monthStart)?.start,
+              let selectedWeek = calendar.dateInterval(of: .weekOfYear, for: selectedDate)?.start else { return 0 }
+        let days = calendar.dateComponents([.day], from: firstDate, to: selectedWeek).day ?? 0
+        return CGFloat(min(max(days / 7, 0), OrgendaCalendarLayout.monthRowCount - 1))
+            * (OrgendaDateLayout.dayCellHeight + OrgendaCalendarLayout.monthRowSpacing)
     }
 
     @ViewBuilder
@@ -260,19 +361,27 @@ struct OrgendaCalendar: View {
         if density == .month {
             monthPager
                 .frame(maxWidth: .infinity)
-                .frame(height: calendarHeight, alignment: .top)
+                .frame(height: sizing.calendarHeight(for: .month), alignment: .top)
+                .clipped()
+                .transition(densityTransition)
+        } else if density == .year {
+            yearPager
+                .frame(maxWidth: .infinity)
+                .frame(height: sizing.yearHeight, alignment: .top)
                 .clipped()
                 .transition(densityTransition)
         } else {
             ZStack(alignment: .top) {
-                nonMonthCalendarBody
+                dayGrid(dates: dates.daysInWeek(containing: selectedDate), displayedIn: visibleMonth,
+                        exposesAccessibility: true, isWeekLayout: true)
+                    .transition(densityTransition)
                     .frame(maxWidth: .infinity, alignment: .top)
                     .id(pageGeneration)
                     .transition(pageTransition)
                     .offset(y: reduceMotion ? 0 : verticalDrag)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: calendarHeight, alignment: .top)
+            .frame(height: sizing.calendarHeight(for: .week), alignment: .top)
             .contentShape(Rectangle())
             .simultaneousGesture(verticalPageSwipe)
             .clipped()
@@ -324,178 +433,67 @@ struct OrgendaCalendar: View {
         }
     }
 
-    @ViewBuilder
+    private var yearPager: some View {
+        ScrollView(.vertical) {
+            LazyVStack(spacing: 0) {
+                ForEach(yearPageOffsets, id: \.self) { offset in
+                    let pageYear = year(at: offset)
+                    yearGrid(for: pageYear, exposesAccessibility: yearScrollPosition == offset)
+                        .id(pageYear)
+                        .containerRelativeFrame(.vertical, alignment: .top)
+                        .clipped()
+                        .accessibilityElement(children: .contain)
+                        .accessibilityHidden(yearScrollPosition != offset)
+                        .id(offset)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollIndicators(.hidden)
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: $yearScrollPosition, anchor: .top)
+        .accessibilityLabel("Calendar years")
+        .accessibilityValue(visibleMonth.formatted(.dateTime.year()))
+        .accessibilityHint("Swipe up or down to change years")
+        .accessibilityScrollAction { edge in
+            switch edge {
+            case .top: moveVisiblePage(by: -1)
+            case .bottom: moveVisiblePage(by: 1)
+            default: break
+            }
+        }
+        .accessibilityIdentifier("orgenda.calendar.years")
+        .onChange(of: yearScrollPosition) { _, offset in
+            guard let offset else { return }
+            let nextYear = year(at: offset)
+            let delta = calendar.component(.year, from: nextYear) - calendar.component(.year, from: visibleMonth)
+            guard delta != 0 else { return }
+            // Browsing years keeps the selected day and the month to return to.
+            withAnimation(selectionAnimation) {
+                visibleMonth = calendar.date(byAdding: .year, value: delta, to: visibleMonth) ?? nextYear
+            }
+        }
+    }
+
     private func monthGrid(for month: Date, exposesAccessibility: Bool) -> some View {
-        if dynamicTypeSize.isAccessibilitySize {
-            dateStrip(
-                dates: daysInMonth(for: month),
-                displayedIn: month,
-                exposesAccessibility: exposesAccessibility
-            )
-        } else {
-            LazyVGrid(columns: columns, spacing: OrgendaCalendarLayout.monthRowSpacing) {
-                ForEach(daysInMonthGrid(for: month), id: \.self) { date in
-                    dayCell(
-                        date,
-                        displayedIn: month,
-                        accessibilityHidden: !exposesAccessibility
-                    )
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
+        dayGrid(
+            dates: dynamicTypeSize.isAccessibilitySize
+                ? dates.daysInMonth(for: month) : dates.daysInMonthGrid(for: month),
+            displayedIn: month, exposesAccessibility: exposesAccessibility
+        )
     }
 
-    @ViewBuilder
-    private var nonMonthCalendarBody: some View {
-        switch density {
-        case .week:
-            if dynamicTypeSize.isAccessibilitySize {
-                dateStrip(dates: daysInSelectedWeek, displayedIn: visibleMonth, exposesAccessibility: true)
-                    .transition(densityTransition)
-            } else {
-                LazyVGrid(columns: columns, spacing: 6) {
-                    ForEach(daysInSelectedWeek, id: \.self) {
-                        dayCell(
-                            $0,
-                            displayedIn: visibleMonth,
-                            accessibilityHidden: false
-                        )
-                    }
-                }
-                .frame(height: OrgendaDateLayout.dayCellHeight)
-                .transition(densityTransition)
-            }
-        case .year:
-            yearGrid
-                .frame(height: yearHeight, alignment: .top)
-                .transition(densityTransition)
-        case .month:
-            EmptyView()
-        }
-    }
-
-    // At accessibility sizes, scrolling gives dates enough room to use the
-    // requested font size. Vertical paging still changes the week or month.
-    private func dateStrip(dates: [Date], displayedIn month: Date, exposesAccessibility: Bool) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal) {
-                HStack(spacing: 8) {
-                    ForEach(dates, id: \.self) { date in
-                        dayCell(date, displayedIn: month, accessibilityHidden: !exposesAccessibility)
-                            .frame(width: accessibleDayDiameter + 12)
-                            .id(date.orgendaDayKey)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-            .scrollIndicators(.hidden)
-            .accessibilityHidden(!exposesAccessibility)
-            .accessibilityIdentifier(exposesAccessibility
-                ? "orgenda.calendar.dates"
-                : "orgenda.calendar.dates.offscreen.\(month.orgendaDayKey)")
-            .onChange(of: selectedDate, initial: true) { _, date in
-                guard dates.contains(where: { calendar.isDate($0, inSameDayAs: date) }) else { return }
-                proxy.scrollTo(date.orgendaDayKey, anchor: .center)
-            }
-        }
-        .frame(height: accessibleDateStripHeight)
-        .accessibilityHidden(!exposesAccessibility)
-    }
-
-    private var yearGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 10) {
-            ForEach(0..<12, id: \.self) { offset in
-                let month = monthInVisibleYear(offset + 1)
-                let isSelectedMonth = calendar.isDate(month, equalTo: selectedDate, toGranularity: .month)
-                Button {
-                    selectMonth(month)
-                } label: {
-                    VStack(spacing: 6) {
-                        Text(month.formatted(.dateTime.month(.abbreviated)))
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                        if !dynamicTypeSize.isAccessibilitySize {
-                            MiniMonth(
-                                month: month,
-                                selectedDate: selectedDate,
-                                selectionID: selectionGeometryID,
-                                selectionNamespace: selectionNamespace,
-                                reduceMotion: reduceMotion
-                            )
-                            .accessibilityHidden(true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: yearRowHeight)
-                    .background {
-                        if dynamicTypeSize.isAccessibilitySize && isSelectedMonth {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(OrgendaTheme.accentSoft)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(month.formatted(.dateTime.month(.wide).year()))
-                .accessibilityHint("Shows this month")
-                .accessibilityAddTraits(isSelectedMonth ? .isSelected : [])
-            }
-        }
-    }
-
-    private func dayCell(
-        _ date: Date,
-        displayedIn month: Date,
-        accessibilityHidden: Bool
-    ) -> some View {
-        let inVisibleMonth = calendar.isDate(date, equalTo: month, toGranularity: .month)
-        let inSelectionScope = density == .week || inVisibleMonth
-        let selected = inSelectionScope && calendar.isDate(date, inSameDayAs: selectedDate)
-        let today = inSelectionScope && calendar.isDateInToday(date)
-        let isMarked = markedDates.contains(date.orgendaDayKey)
-
-        return OrgendaDateButton(
-            date: date,
-            isSelected: selected,
-            isToday: today,
-            isDimmed: !inVisibleMonth,
-            showsWeekday: dynamicTypeSize.isAccessibilitySize,
-            scalesForAccessibility: true,
-            eventMarker: isMarked,
-            selection: .init(id: selectionGeometryID(for: month), namespace: selectionNamespace)
-        ) {
-            selectDay(date)
-        }
-        .accessibilityValue(dayAccessibilityValue(for: date, isMarked: isMarked))
-        .accessibilityHidden(accessibilityHidden)
-        .accessibilityIdentifier("orgenda.calendar.day.\(date.orgendaDayKey)")
-        .overlay {
-            if dropDate == date {
-                RoundedRectangle(cornerRadius: 10).stroke(OrgendaTheme.accent, lineWidth: 3)
-                    .background(OrgendaTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
-                    .allowsHitTesting(false)
-            }
-        }
-        .dropDestination(for: OrgTaskTransfer.self) { tasks, _ in
-            dropDate = nil
-            guard onScheduleTask != nil, !accessibilityHidden,
-                  tasks.count == 1, let task = tasks.first else { return false }
-            onScheduleTask?(task, date)
-            return true
-        } isTargeted: { targeted in
-            guard onScheduleTask != nil, !accessibilityHidden else { return }
-            if targeted { dropDate = date }
-            else if dropDate == date { dropDate = nil }
-        }
-    }
-
-    private func dayAccessibilityValue(for date: Date, isMarked: Bool) -> String {
-        var values: [String] = []
-        if calendar.isDateInToday(date) { values.append(String(localized: "Today")) }
-        if isMarked { values.append(String(localized: "Has scheduled items")) }
-        return values.joined(separator: ", ")
+    private func dayGrid(dates: [Date], displayedIn month: Date, exposesAccessibility: Bool,
+                         isWeekLayout: Bool = false) -> some View {
+        OrgendaCalendarDayGrid(
+            dates: dates, month: month, selectedDate: selectedDate, isWeekLayout: isWeekLayout,
+            allowsAdjacentMonthSelection: density == .week,
+            markedDates: markedDates, selectionID: "\(selectionGeometryID)-\(month.orgendaDayKey)",
+            selectionNamespace: selectionNamespace, exposesAccessibility: exposesAccessibility,
+            accessibleDayDiameter: sizing.accessibleDayDiameter,
+            accessibleDateStripHeight: sizing.accessibleDateStripHeight,
+            dropDate: $dropDate, onSelectDay: selectDay, onScheduleTask: onScheduleTask
+        )
     }
 
     private var verticalPageSwipe: some Gesture {
@@ -529,12 +527,17 @@ struct OrgendaCalendar: View {
             }
     }
 
-    private func setDensity(_ nextDensity: Density) {
+    private func setDensity(_ nextDensity: Density, animated: Bool = true) {
+        guard nextDensity != density else { return }
         if nextDensity == .month {
             scrollToMonth(containing: visibleMonth, animated: false)
+        } else if nextDensity == .year {
+            scrollToYear(containing: visibleMonth, animated: false)
         }
 
-        withAnimation(reduceMotion ? nil : densityAnimation) {
+        withAnimation(animated && !reduceMotion ? densityAnimation : nil) {
+            if nextDensity == .week { visibleMonth = selectedDate }
+            verticalDrag = 0
             density = nextDensity
         }
     }
@@ -580,6 +583,14 @@ struct OrgendaCalendar: View {
     private func moveVisiblePage(by delta: Int) {
         pageDirection = delta < 0 ? .backward : .forward
 
+        if density == .year {
+            let currentOffset = yearScrollPosition ?? yearOffset(for: visibleMonth)
+            withAnimation(reduceMotion ? nil : pageAnimation) {
+                yearScrollPosition = min(max(currentOffset + delta, yearPageOffsets.lowerBound), yearPageOffsets.upperBound - 1)
+            }
+            return
+        }
+
         if density == .month {
             let currentOffset = monthScrollPosition ?? monthOffset(for: visibleMonth)
             let nextOffset = min(
@@ -587,22 +598,18 @@ struct OrgendaCalendar: View {
                 monthPageOffsets.upperBound - 1
             )
             // Month paging moves a scroll position; reduced-motion fades are
-            // reserved for the week/year content transitions below.
+            // reserved for the week content transitions below.
             withAnimation(reduceMotion ? nil : pageAnimation) {
                 monthScrollPosition = nextOffset
             }
             return
         }
 
-        let component: Calendar.Component = density == .week ? .weekOfYear : .year
-        let pageAnchor = density == .week ? selectedDate : visibleMonth
-        let nextPage = calendar.date(byAdding: component, value: delta, to: pageAnchor) ?? pageAnchor
+        let nextPage = calendar.date(byAdding: .weekOfYear, value: delta, to: selectedDate) ?? selectedDate
 
         withAnimation(pageAnimation) {
             visibleMonth = nextPage
-            if density == .week {
-                selectedDate = nextPage.startOfDay
-            }
+            selectedDate = nextPage.startOfDay
             verticalDrag = 0
             pageGeneration &+= 1
         }
@@ -640,64 +647,51 @@ struct OrgendaCalendar: View {
         "orgenda-calendar-selected-date-\(density.rawValue)-\(pageGeneration)"
     }
 
-    private func selectionGeometryID(for month: Date) -> String {
-        "\(selectionGeometryID)-\(month.orgendaDayKey)"
+    private var sizing: OrgendaCalendarSizing {
+        OrgendaCalendarSizing(
+            usesAccessibilityText: dynamicTypeSize.isAccessibilitySize,
+            dayNumberSize: dayNumberSize, weekdayLineHeight: weekdayLineHeight,
+            monthLabelHeight: monthLabelHeight
+        )
     }
 
-    private var calendarHeight: CGFloat {
-        switch density {
-        case .week: dynamicTypeSize.isAccessibilitySize ? accessibleDateStripHeight : OrgendaDateLayout.dayCellHeight
-        case .month: dynamicTypeSize.isAccessibilitySize ? accessibleDateStripHeight : OrgendaCalendarLayout.monthHeight
-        case .year: yearHeight
+    private var calendarSelectionHeight: CGFloat {
+        guard let position = densityDragPosition else { return sizing.selectionHeight(for: density) }
+        return sizing.selectionHeight(at: position)
+    }
+
+    private var dates: OrgCalendarDates { OrgCalendarDates(calendar: calendar) }
+
+    private func yearGrid(for year: Date, exposesAccessibility: Bool) -> some View {
+        OrgendaCalendarYearGrid(
+            year: year, selectedDate: selectedDate, selectionID: selectionGeometryID,
+            selectionNamespace: selectionNamespace, reduceMotion: reduceMotion,
+            yearRowHeight: sizing.yearRowHeight, exposesAccessibility: exposesAccessibility,
+            onSelectMonth: selectMonth
+        )
+    }
+
+    private func year(at offset: Int) -> Date {
+        calendar.date(byAdding: .year, value: offset, to: yearScrollAnchor)!
+    }
+
+    private func yearOffset(for date: Date) -> Int {
+        let year = calendar.dateInterval(of: .year, for: date)?.start ?? date
+        return calendar.dateComponents([.year], from: yearScrollAnchor, to: year).year ?? 0
+    }
+
+    private func scrollToYear(containing date: Date, animated: Bool) {
+        let offset = yearOffset(for: date)
+        if !yearPageOffsets.dropLast().contains(offset) {
+            yearScrollAnchor = calendar.dateInterval(of: .year, for: date)?.start ?? date
+            yearScrollPosition = 0
+            visibleMonth = date
+            return
         }
-    }
-
-    private var accessibleDayDiameter: CGFloat {
-        OrgendaDateLayout.accessibleDayDiameter(numberSize: dayNumberSize)
-    }
-
-    private var accessibleDateStripHeight: CGFloat {
-        accessibleDayDiameter + weekdayLineHeight + OrgendaDateLayout.eventMarkerDiameter + 14
-    }
-
-    private var yearRowHeight: CGFloat {
-        dynamicTypeSize.isAccessibilitySize ? max(44, monthLabelHeight + 16) : monthLabelHeight + 78
-    }
-
-    private var yearHeight: CGFloat {
-        yearRowHeight * 4 + 30
-    }
-
-    private func monthInVisibleYear(_ month: Int) -> Date {
-        var components = calendar.dateComponents([.era, .year], from: visibleMonth)
-        components.month = month
-        components.day = 1
-        return calendar.date(from: components) ?? visibleMonth
-    }
-
-    private var rotatedWeekdays: [String] {
-        let symbols = calendar.shortStandaloneWeekdaySymbols
-        let index = max(0, min(symbols.count - 1, calendar.firstWeekday - 1))
-        return Array(symbols[index...] + symbols[..<index])
-    }
-
-    private var daysInSelectedWeek: [Date] {
-        guard let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else { return [] }
-        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: interval.start) }
-    }
-
-    private func daysInMonthGrid(for visibleMonth: Date) -> [Date] {
-        guard
-            let month = calendar.dateInterval(of: .month, for: visibleMonth),
-            let firstWeek = calendar.dateInterval(of: .weekOfYear, for: month.start)
-        else { return [] }
-        return (0..<42).compactMap { calendar.date(byAdding: .day, value: $0, to: firstWeek.start) }
-    }
-
-    private func daysInMonth(for month: Date) -> [Date] {
-        guard let interval = calendar.dateInterval(of: .month, for: month),
-              let days = calendar.range(of: .day, in: .month, for: month) else { return [] }
-        return days.compactMap { calendar.date(byAdding: .day, value: $0 - 1, to: interval.start) }
+        withAnimation(animated && !reduceMotion ? pageAnimation : nil) {
+            yearScrollPosition = offset
+            visibleMonth = date
+        }
     }
 
     private func month(at offset: Int) -> Date {
@@ -741,7 +735,7 @@ struct OrgendaCalendar: View {
     private func updateVisibleMonth(_ month: Date) {
         guard !calendar.isDate(month, equalTo: visibleMonth, toGranularity: .month) else { return }
         pageDirection = month < visibleMonth ? .backward : .forward
-        let nextSelectedDate = date(in: month, day: preferredDayOfMonth)
+        let nextSelectedDate = dates.date(in: month, day: preferredDayOfMonth)
         isUpdatingSelectionFromMonthScroll = true
 
         if reduceMotion {
@@ -764,81 +758,5 @@ struct OrgendaCalendar: View {
         }
     }
 
-    private func date(in month: Date, day preferredDay: Int) -> Date {
-        guard let validDays = calendar.range(of: .day, in: .month, for: month) else {
-            return month.startOfDay
-        }
 
-        var components = calendar.dateComponents([.era, .year, .month], from: month)
-        components.day = min(max(preferredDay, validDays.lowerBound), validDays.upperBound - 1)
-        return (calendar.date(from: components) ?? month).startOfDay
-    }
-}
-
-private struct MiniMonth: View {
-    let month: Date
-    let selectedDate: Date
-    let selectionID: String
-    let selectionNamespace: Namespace.ID
-    let reduceMotion: Bool
-
-    private let calendar = Calendar.autoupdatingCurrent
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 7)
-
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 1) {
-            ForEach(days, id: \.self) { date in
-                let inMonth = calendar.isDate(date, equalTo: month, toGranularity: .month)
-                let selected = inMonth && calendar.isDate(date, inSameDayAs: selectedDate)
-
-                ZStack {
-                    if selected {
-                        Circle()
-                            .fill(Color.secondary.opacity(0.72))
-                            .frame(width: 10, height: 10)
-                            .modifier(
-                                CalendarSelectionGeometry(
-                                    id: selectionID,
-                                    namespace: selectionNamespace,
-                                    reduceMotion: reduceMotion
-                                )
-                            )
-                    }
-
-                    Text(date.formatted(.dateTime.day()))
-                        .font(.system(size: 9, weight: selected ? .bold : .regular))
-                        .foregroundStyle(inMonth ? (selected ? Color.white : Color.primary) : Color.clear)
-                }
-                .frame(height: 11)
-            }
-        }
-    }
-
-    private var days: [Date] {
-        guard
-            let monthInterval = calendar.dateInterval(of: .month, for: month),
-            let firstWeek = calendar.dateInterval(of: .weekOfYear, for: monthInterval.start)
-        else { return [] }
-        return (0..<42).compactMap { calendar.date(byAdding: .day, value: $0, to: firstWeek.start) }
-    }
-}
-
-private struct CalendarSelectionGeometry: ViewModifier {
-    let id: String
-    let namespace: Namespace.ID
-    let reduceMotion: Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if reduceMotion {
-            content.transition(.opacity)
-        } else {
-            content.matchedGeometryEffect(
-                id: id,
-                in: namespace,
-                properties: .frame,
-                anchor: .center
-            )
-        }
-    }
 }

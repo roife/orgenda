@@ -10,6 +10,7 @@ struct OrgPreviewHeading: View {
     let todoOverride: String?
     let isTODOUpdating: Bool
     let onToggleDisclosure: () -> Void
+    let onEdit: () -> Void
     let onCycleTODO: (ParsedOrgNode) -> Void
     let onBeginDrag: () -> String?
     let onEndDrag: () -> Void
@@ -34,6 +35,8 @@ struct OrgPreviewHeading: View {
                             (dimensions.height - dimensions[.lastTextBaseline]
                                 + dimensions[.firstTextBaseline]) / 2
                         }
+                        .contentShape(Rectangle())
+                        .accessibilityAction(named: Text("Edit \(title)"), onEdit)
                         .accessibilityIdentifier("org.preview.heading.title.\(node.startByte)")
                         .background {
                             GeometryReader { geometry in
@@ -47,7 +50,12 @@ struct OrgPreviewHeading: View {
                             // Keep image buttons and their context menus interactive.
                             // Image headings can still be moved from the outline.
                             if !titleFragments.contains(where: { if case .image = $0 { return true }; return false }) {
-                                OrgHeadingDragSource(title: title, onBegin: onBeginDrag, onEnd: onEndDrag)
+                                OrgHeadingDragSource(
+                                    title: title,
+                                    onBegin: onBeginDrag,
+                                    onEnd: onEndDrag,
+                                    onTap: onEdit
+                                )
                                     .accessibilityHidden(true)
                             }
                         }
@@ -145,12 +153,14 @@ struct OrgPreviewHeading: View {
         .disabled(isTODOUpdating)
         .accessibilityLabel("Change task state for \(title)")
         .accessibilityValue(isTODOUpdating ? String(localized: "\(state?.title ?? keyword), Updating") : (state?.title ?? keyword))
-        .accessibilityHint("Change this item's workflow state")
+        .accessibilityHint(state?.isTerminal == true ? "Mark this item TODO" : "Mark this item done")
         .accessibilityIdentifier("org.preview.todo.\(todoNode.startByte)")
     }
 
     private var title: String {
-        String(attributedTitle.characters)
+        node.child(ofType: "heading_title").map {
+            String(OrgPreviewMarkup.attributed($0, trimSpaces: true).characters)
+        } ?? String(localized: "Untitled")
     }
 
     private var titleFragments: [OrgPreviewInlineFragment] {
@@ -166,16 +176,6 @@ struct OrgPreviewHeading: View {
             }
         }
         return fragments
-    }
-
-    private var attributedTitle: AttributedString {
-        var value = node.child(ofType: "heading_title").map { OrgPreviewMarkup.attributed($0, trimSpaces: true) }
-            ?? AttributedString(String(localized: "Untitled"))
-        if let keyword = todoOverride ?? node.todoNode?.text,
-           let state = OrgWorkflowState(rawValue: keyword.trimmingCharacters(in: .whitespacesAndNewlines)) {
-            value.foregroundColor = OrgendaTheme.workflowColor(state)
-        }
-        return value
     }
 
     private var tags: [String] {
@@ -236,7 +236,7 @@ struct OrgPreviewListItem: View {
             if let checkboxNode = node.checkboxNode {
                 checkboxControl(checkboxNode)
             } else {
-                Text(marker)
+                Text(OrgPreviewMarkup.listMarker(node))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 28, minHeight: 24)
@@ -281,20 +281,12 @@ struct OrgPreviewListItem: View {
     }
 
     private var content: String {
-        String(attributedContent.characters)
-    }
-
-    private var attributedContent: AttributedString {
-        OrgPreviewMarkup.listContent(node)
+        String(OrgPreviewMarkup.listContent(node).characters)
     }
 
     private var contentFragments: [OrgPreviewInlineFragment] {
         guard let content = node.children.first(where: { $0.type == "list_item_content" }) else { return [] }
         return OrgPreviewMarkup.fragments(content, trimSpaces: true)
-    }
-
-    private var marker: String {
-        OrgPreviewMarkup.listMarker(node)
     }
 
     private var listIndentation: CGFloat {
@@ -305,11 +297,8 @@ struct OrgPreviewListItem: View {
         return CGFloat(min(spaces, 12)) * 4
     }
 
-    private static let checkedCheckboxExpression = try? NSRegularExpression(pattern: #"\[[Xx]\]"#)
-
     private var isComplete: Bool {
         let source = checkboxOverride ?? node.checkboxNode?.text ?? ""
-        return Self.checkedCheckboxExpression?
-            .firstMatch(in: source, range: NSRange(source.startIndex..., in: source)) != nil
+        return source.contains("[X]") || source.contains("[x]")
     }
 }

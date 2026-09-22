@@ -1,6 +1,150 @@
 import XCTest
 
 final class DatePresentationUITests: XCTestCase {
+    func testCalendarHandleResizesThroughWeekMonthAndYear() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        defer { app.terminate() }
+        app.tabBars.buttons["Calendar"].tap()
+
+        let handle = app.calendarDensityHandle
+        XCTAssertTrue(handle.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["orgenda.calendar.density"].exists)
+        XCTAssertEqual(handle.value as? String, "Week")
+        let selectedDate = try XCTUnwrap(app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH 'orgenda.calendar.day.' AND selected == true"
+        )).allElementsBoundByIndex.first).identifier
+        let weekY = handle.frame.midY
+
+        handle.swipeLeft()
+        app.dragCalendarHandle(by: 20)
+        XCTAssertEqual(handle.value as? String, "Week")
+        XCTAssertEqual(handle.frame.midY, weekY, accuracy: 1)
+
+        app.dragCalendarHandle(by: 230)
+        XCTAssertEqual(handle.value as? String, "Month")
+        XCTAssertTrue(app.buttons[selectedDate].isSelected)
+        let monthY = handle.frame.midY
+        XCTAssertGreaterThan(monthY, weekY + 150)
+
+        app.dragCalendarHandle(by: 117)
+        XCTAssertEqual(handle.value as? String, "Year")
+        XCTAssertGreaterThan(handle.frame.midY, monthY + 70)
+        XCTAssertTrue(app.scrollViews["orgenda.agenda.timeline"].isHittable)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Calendar year expanded with drag handle"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+
+        let years = app.scrollViews["orgenda.calendar.years"]
+        XCTAssertTrue(years.waitForExistence(timeout: 3))
+        let currentYear = Date.now.formatted(.dateTime.year())
+        let previousYear = Calendar.current.date(byAdding: .year, value: -1, to: .now)!.formatted(.dateTime.year())
+        XCTAssertEqual(years.value as? String, currentYear)
+        years.swipeDown()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", previousYear), object: years
+        )], timeout: 3), .completed)
+        XCTAssertEqual(handle.value as? String, "Year")
+        let visibleMonths = years.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH 'orgenda.calendar.month.'"
+        )).allElementsBoundByIndex.filter(\.isHittable)
+        XCTAssertEqual(visibleMonths.count, 12, visibleMonths.map(\.identifier).joined(separator: ", "))
+        years.swipeUp()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", currentYear), object: years
+        )], timeout: 3), .completed)
+
+        app.dragCalendarHandle(by: -117)
+        XCTAssertEqual(handle.value as? String, "Month")
+        XCTAssertTrue(app.buttons[selectedDate].isSelected)
+        app.dragCalendarHandle(by: -230)
+        XCTAssertEqual(handle.value as? String, "Week")
+        XCTAssertTrue(app.buttons[selectedDate].isSelected)
+        XCTAssertEqual(handle.frame.midY, weekY, accuracy: 1)
+    }
+
+    func testCalendarJournalPagingKeepsDateAndCapturesOnSelectedDay() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        defer { app.terminate() }
+
+        XCTAssertFalse(app.tabBars.buttons["Journal"].exists)
+        app.tabBars.buttons["Calendar"].tap()
+        let agenda = app.scrollViews["orgenda.agenda.timeline"]
+        XCTAssertTrue(agenda.waitForExistence(timeout: 5))
+        let heading = app.staticTexts["orgenda.calendar.date.heading"]
+        let originalHeading = heading.label
+        let originalHeaderFrame = heading.frame
+        let dates = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'orgenda.calendar.day.'"))
+        let today = try XCTUnwrap(dates.allElementsBoundByIndex.first { $0.isSelected })
+        let todayID = today.identifier
+        let capture = app.buttons["orgenda.capture"]
+        XCTAssertEqual(capture.label, "New task")
+        XCTAssertFalse(app.segmentedControls["calendar.content.picker"].exists)
+
+        // A horizontal drag starting on task content must page, not reveal
+        // row actions or change the selected date in the fixed calendar.
+        agenda.swipeLeft()
+        let journal = app.scrollViews["calendar.journal.timeline"]
+        XCTAssertTrue(journal.waitForExistence(timeout: 5))
+        XCTAssertEqual(capture.label, "New journal entry")
+        XCTAssertTrue(app.tabBars.buttons["Calendar"].isSelected)
+        XCTAssertEqual(heading.label, originalHeading)
+        XCTAssertEqual(heading.frame.minY, originalHeaderFrame.minY, accuracy: 1)
+        XCTAssertEqual(heading.frame.height, originalHeaderFrame.height, accuracy: 1)
+        XCTAssertTrue(app.buttons[todayID].isSelected)
+        XCTAssertTrue(journal.staticTexts["Morning note"].exists)
+        XCTAssertFalse(journal.staticTexts["What moved forward"].exists)
+        XCTAssertFalse(app.buttons["agenda.swipe.more"].isHittable)
+
+        let anotherDate = try XCTUnwrap(dates.allElementsBoundByIndex.first { !$0.isSelected && $0.isHittable })
+        let anotherID = anotherDate.identifier
+        anotherDate.tap()
+        XCTAssertEqual(capture.label, "New journal entry")
+        XCTAssertTrue(app.buttons[anotherID].isSelected)
+        XCTAssertFalse(journal.staticTexts["Morning note"].exists)
+
+        capture.tap()
+        let title = app.textFields["journal.composer.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 3))
+        title.tap()
+        title.typeText("Calendar journal capture")
+        let body = app.textViews["journal.composer.body"]
+        body.tap()
+        body.typeText("Only belongs to the selected day.")
+        app.buttons["journal.composer.save"].tap()
+        XCTAssertTrue(journal.staticTexts["Calendar journal capture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons[anotherID].isSelected)
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Calendar journal timeline for selected day"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+
+        app.buttons[todayID].tap()
+        XCTAssertTrue(journal.staticTexts["Morning note"].waitForExistence(timeout: 3))
+        XCTAssertFalse(journal.staticTexts["Calendar journal capture"].exists)
+        journal.swipeRight()
+        XCTAssertTrue(agenda.waitForExistence(timeout: 5))
+        XCTAssertEqual(capture.label, "New task")
+        XCTAssertTrue(app.buttons[todayID].isSelected)
+        capture.tap()
+        XCTAssertTrue(app.textFields["item.editor.title"].waitForExistence(timeout: 3))
+        app.buttons["Cancel"].tap()
+
+        agenda.swipeLeft()
+        XCTAssertTrue(journal.waitForExistence(timeout: 3))
+        app.tabBars.buttons["Files"].tap()
+        app.tabBars.buttons["Calendar"].tap()
+        XCTAssertEqual(capture.label, "New journal entry")
+        XCTAssertTrue(app.buttons[todayID].isSelected)
+    }
+
     func testCalendarDateSelectionSurvivesTabSwitching() {
         verifyDatePresentation()
     }
@@ -83,7 +227,7 @@ final class DatePresentationUITests: XCTestCase {
         app.tabBars.buttons["Dashboard"].tap()
         XCTAssertTrue(viewMenu.waitForExistence(timeout: 3))
         XCTAssertEqual(viewMenu.value as? String, "Overdue")
-        XCTAssertFalse(app.buttons["orgenda.calendar.density"].exists)
+        XCTAssertFalse(app.calendarDensityHandle.exists)
         app.tabBars.buttons["Calendar"].tap()
         XCTAssertTrue(calendarNeighbor.isSelected)
         XCTAssertEqual(calendarHeading.label, neighborHeadingLabel)
@@ -107,9 +251,8 @@ final class DatePresentationUITests: XCTestCase {
         today: Date,
         formatter: DateFormatter
     ) {
-        app.buttons["orgenda.calendar.density"].tap()
-        app.buttons["Month"].tap()
-        XCTAssertEqual(app.buttons["orgenda.calendar.density"].value as? String, "Month")
+        app.dragCalendarHandle(by: 96)
+        XCTAssertEqual(app.calendarDensityHandle.value as? String, "Month")
 
         let monthStart = calendar.dateInterval(of: .month, for: today)!.start
         let lastDayOffset = calendar.range(of: .day, in: .month, for: today)!.count - 1
@@ -156,10 +299,8 @@ final class ChineseLocalizationUITests: XCTestCase {
         calendarTab.tap()
         XCTAssertTrue(app.buttons["orgenda.capture"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.buttons["orgenda.capture"].label, language == "zh-Hans" ? "新建任务" : "新建任務")
-        app.buttons["orgenda.calendar.density"].tap()
-        XCTAssertTrue(app.buttons["月"].waitForExistence(timeout: 3))
-        app.buttons["月"].tap()
-        XCTAssertEqual(app.buttons["orgenda.calendar.density"].value as? String, "月")
+        app.dragCalendarHandle(by: 230)
+        XCTAssertEqual(app.calendarDensityHandle.value as? String, "月")
         attach(app, name: "\(language)-calendar")
 
         app.buttons["orgenda.capture"].tap()
@@ -199,5 +340,21 @@ final class ChineseLocalizationUITests: XCTestCase {
         screenshot.name = name
         screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+}
+
+
+extension XCUIApplication {
+    var calendarDensityHandle: XCUIElement {
+        descendants(matching: .any)["orgenda.calendar.density.handle"].firstMatch
+    }
+
+    func dragCalendarHandle(by distance: CGFloat) {
+        let handle = calendarDensityHandle
+        XCTAssertTrue(handle.waitForExistence(timeout: 3))
+        let start = handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        start.press(forDuration: 0.05,
+                    thenDragTo: start.withOffset(CGVector(dx: 0, dy: distance)),
+                    withVelocity: .slow, thenHoldForDuration: 0.1)
     }
 }

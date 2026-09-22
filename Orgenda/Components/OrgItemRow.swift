@@ -17,6 +17,7 @@ struct OrgItemRow: View {
     var topPadding: CGFloat = 9
     var bottomPadding: CGFloat = 9
     var tagSpacing: CGFloat = 6
+    var allowsSwipeActions = true
     @Binding var revealedItemID: UUID?
 
     var body: some View {
@@ -45,7 +46,7 @@ struct OrgItemRow: View {
                     }
                     if completes { performToggle() }
                     if swipeOffset == 0 { revealedItemID = nil }
-                }))
+                }, isEnabled: allowsSwipeActions))
         }
         .clipped()
         .onChange(of: revealedItemID) { _, selected in

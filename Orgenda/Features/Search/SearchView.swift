@@ -18,6 +18,11 @@ struct SearchView: View {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var suggestions: SearchSuggestions {
+        SearchSuggestions(scope: scope, items: store.items,
+                          journalEntries: store.journalEntries, documents: store.documents)
+    }
+
     var body: some View {
         NavigationStack {
             searchContent
@@ -59,8 +64,7 @@ struct SearchView: View {
         }
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled,
-                  request.query == trimmedQuery, request.scope == scope else { return }
+            guard !Task.isCancelled else { return }
             results = store.search(request.query, scope: request.scope)
             completedSearch = request
         }
@@ -109,8 +113,11 @@ struct SearchView: View {
     @ViewBuilder
     private var searchContent: some View {
         if trimmedQuery.isEmpty {
-            if hasSuggestions {
-                suggestions
+            if suggestions.isAvailable {
+                SearchSuggestionsView(
+                    store: store, scope: scope, suggestions: suggestions, query: $query,
+                    onPresent: { presentation = $0 }
+                )
             } else {
                 searchGuidance
             }
@@ -125,7 +132,7 @@ struct SearchView: View {
                 List {
                     Section {
                         ForEach(results) { result in
-                            resultRow(result)
+                            SearchResultRow(result: result, store: store, trimmedQuery: trimmedQuery, onPresent: { presentation = $0 })
                                 .padding(.vertical, 5)
                         }
                     } header: {
@@ -150,22 +157,6 @@ struct SearchView: View {
                 .searchListSurface()
                 .accessibilityIdentifier("search.results")
             }
-        }
-    }
-
-    private var hasSuggestions: Bool {
-        switch scope {
-        case .all:
-            !suggestedTags.isEmpty || !store.journalEntries.isEmpty
-                || store.documents.contains { $0.kind != .folder }
-        case .tasks, .calendar:
-            !suggestedTags.isEmpty
-        case .journal:
-            !store.journalEntries.isEmpty
-        case .files:
-            store.documents.contains { $0.kind != .folder }
-        case .settings:
-            true
         }
     }
 
@@ -200,113 +191,6 @@ struct SearchView: View {
         }
     }
 
-    private var suggestions: some View {
-        List {
-            if !suggestedTags.isEmpty {
-                Section {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(suggestedTags, id: \.self) { tag in
-                                Button {
-                                    query = tag
-                                } label: {
-                                    Label(tag, systemImage: "number")
-                                        .font(.subheadline.weight(.medium))
-                                        .padding(.horizontal, 12)
-                                        .frame(minHeight: 44)
-                                        .background(OrgendaTheme.accent.opacity(0.08), in: Capsule())
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(OrgendaTheme.accentText)
-                                .accessibilityLabel("Search for tag \(tag)")
-                            }
-                        }
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .listRowSeparator(.hidden)
-                } header: {
-                    searchSectionTitle(String(localized: "Try a tag"))
-                }
-            }
-
-            if scope == .all || scope == .journal {
-                let entries = store.journalEntries.sorted { $0.date > $1.date }.prefix(3)
-                if !entries.isEmpty {
-                    Section {
-                        ForEach(entries) { entry in
-                            journalLink(entry)
-                                .padding(.vertical, 4)
-                        }
-                    } header: {
-                        searchSectionTitle(String(localized: "Recent journal entries"))
-                    }
-                }
-            }
-
-            if scope == .all || scope == .files {
-                let files = store.documents.filter { $0.kind != .folder }.prefix(4)
-                if !files.isEmpty {
-                    Section {
-                        ForEach(files) { document in
-                            documentLink(document)
-                                .padding(.vertical, 4)
-                        }
-                    } header: {
-                        searchSectionTitle(String(localized: "Browse files"))
-                    }
-                }
-            }
-
-            if scope == .settings {
-                Section {
-                    Button {
-                        presentation = .settings(nil)
-                    } label: {
-                        SearchResultLabel(
-                            icon: "gearshape",
-                            title: String(localized: "Browse Settings"),
-                            subtitle: String(localized: "Workspace, appearance, and reminders"),
-                            tint: OrgendaTheme.accent
-                        )
-                    }
-                    .accessibilityHint("Opens Settings")
-                }
-            }
-        }
-        .listSectionSpacing(16)
-        .searchListSurface()
-        .accessibilityIdentifier("search.suggestions")
-    }
-
-    private func searchSectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(.subheadline.weight(.semibold))
-            .textCase(nil)
-            .fixedSize(horizontal: false, vertical: true)
-            // Plain list headers carry ~20pt of system padding on each side;
-            // pull it back so suggestions read as compact groups.
-            .padding(.vertical, -10)
-    }
-
-    private var suggestedTags: [String] {
-        guard scope == .all || scope == .tasks || scope == .calendar else { return [] }
-        let items = store.items.filter { item in
-            switch scope {
-            case .tasks: item.kind == .task || item.kind == .project || item.kind == .habit
-            case .calendar: item.agendaDate != nil
-            default: true
-            }
-        }
-        let counts = items.flatMap(\.tags).reduce(into: [String: Int]()) { counts, tag in
-            counts[tag, default: 0] += 1
-        }
-        return Array(counts.keys.sorted {
-            let first = counts[$0, default: 0]
-            let second = counts[$1, default: 0]
-            return first == second ? $0.localizedStandardCompare($1) == .orderedAscending : first > second
-        }.prefix(8))
-    }
-
     private var noResults: some View {
         ScrollView {
             ContentUnavailableView {
@@ -331,201 +215,4 @@ struct SearchView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
-    @ViewBuilder
-    private func resultRow(_ result: SearchResult) -> some View {
-        switch result {
-        case .item(let item):
-            Button { presentation = .item(item) } label: {
-                SearchResultLabel(
-                    icon: item.kind.systemImage,
-                    title: item.title,
-                    subtitle: itemSubtitle(item),
-                    tint: OrgendaTheme.kindColor(item.kind),
-                    query: trimmedQuery,
-                    detail: "\(item.kind.title) · \(item.source.file)",
-                    state: item.hasWorkflowState ? item.state : nil
-                )
-            }
-            .accessibilityHint("Opens item details")
-        case .journal(let entry):
-            journalLink(entry)
-        case .document(let document):
-            documentLink(document)
-        case .setting(let destination):
-            Button { presentation = .settings(destination) } label: {
-                SearchResultLabel(icon: "gearshape", title: destination.title, subtitle: destination.subtitle, tint: .secondary, query: trimmedQuery)
-            }
-            .accessibilityHint(Text("Opens \(destination.title) settings"))
-            .accessibilityIdentifier("search.setting.\(destination.rawValue)")
-        }
-    }
-
-    private func itemSubtitle(_ item: OrgItem) -> String {
-        let matchingTags = item.tags.filter {
-            $0.range(of: trimmedQuery, options: [.caseInsensitive, .diacriticInsensitive]) != nil
-        }
-        if !matchingTags.isEmpty {
-            return matchingTags.map { "#\($0)" }.joined(separator: "  ")
-        }
-        return searchExcerpt(item.body, matching: trimmedQuery)
-    }
-
-    private func journalLink(_ entry: JournalEntry) -> some View {
-        NavigationLink {
-            SearchJournalDetail(entry: entry)
-        } label: {
-            SearchResultLabel(
-                icon: "book.closed",
-                title: entry.title,
-                subtitle: searchExcerpt(entry.body, matching: trimmedQuery),
-                tint: OrgendaTheme.habit,
-                query: trimmedQuery,
-                detail: OrgendaDatePresentation.dateTime(entry.date)
-            )
-        }
-    }
-
-    private func documentLink(_ document: WorkspaceDocument) -> some View {
-        NavigationLink {
-            if document.kind == .folder {
-                WorkspaceFolderView(store: store, folder: document)
-            } else {
-                OrgDocumentView(store: store, path: document.path, searchQuery: trimmedQuery.isEmpty ? nil : trimmedQuery)
-            }
-        } label: {
-            SearchResultLabel(
-                icon: document.kind == .folder ? "folder" : "doc.text",
-                title: document.title,
-                subtitle: trimmedQuery.isEmpty ? document.path : searchExcerpt(document.contents, matching: trimmedQuery),
-                tint: OrgendaTheme.accent,
-                query: trimmedQuery,
-                detail: trimmedQuery.isEmpty ? nil : document.path
-            )
-        }
-        .accessibilityIdentifier("search.document.\(document.path)")
-    }
-}
-
-private enum SearchPresentation: Identifiable {
-    case item(OrgItem)
-    case settings(SettingsDestination?)
-
-    var id: String {
-        switch self {
-        case .item(let item): "item-\(item.id)"
-        case .settings(let destination): "settings-\(destination?.rawValue ?? "root")"
-        }
-    }
-}
-
-private struct SearchResultLabel: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 30
-    let icon: String
-    let title: String
-    let subtitle: String
-    let tint: Color
-    var query = ""
-    var detail: String?
-    var state: OrgWorkflowState?
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.body)
-                .foregroundStyle(tint)
-                .frame(width: iconSize, height: iconSize)
-                .background(tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    if let state { OrgWorkflowIcon(state) }
-                    Text(highlightedTitle)
-                        .foregroundStyle(state.map(OrgendaTheme.workflowColor) ?? .primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .font(.body.weight(.medium))
-                if !subtitle.isEmpty {
-                    Text(highlighted(subtitle))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if let detail {
-                    Text(detail)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .contentShape(Rectangle())
-    }
-
-    private func highlighted(_ text: String) -> AttributedString {
-        var result = AttributedString(text)
-        guard !query.isEmpty,
-              let range = result.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) else {
-            return result
-        }
-        result[range].inlinePresentationIntent = .stronglyEmphasized
-        result[range].foregroundColor = OrgendaTheme.accentText
-        return result
-    }
-
-    private var highlightedTitle: AttributedString {
-        var value = highlighted(title)
-        if let state { value.foregroundColor = OrgendaTheme.workflowColor(state) }
-        return value
-    }
-}
-
-private func searchExcerpt(_ source: String, matching query: String) -> String {
-    let text = source.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-    guard !query.isEmpty,
-          let match = text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) else {
-        return String(text.prefix(160))
-    }
-    let start = text.index(match.lowerBound, offsetBy: -45, limitedBy: text.startIndex) ?? text.startIndex
-    let end = text.index(match.upperBound, offsetBy: 110, limitedBy: text.endIndex) ?? text.endIndex
-    return (start == text.startIndex ? "" : "…")
-        + String(text[start..<end])
-        + (end == text.endIndex ? "" : "…")
-}
-
-private struct SearchJournalDetail: View {
-    let entry: JournalEntry
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Label(OrgendaDatePresentation.dateTime(entry.date), systemImage: "calendar")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(entry.title)
-                    .font(.title.weight(.bold))
-                Text(entry.body)
-                    .font(.body)
-                    .lineSpacing(5)
-            }
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
-        }
-        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-        .navigationTitle("Journal Entry")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-private extension View {
-    func searchListSurface() -> some View {
-        listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
-            .scrollDismissesKeyboard(.interactively)
-            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-    }
 }
