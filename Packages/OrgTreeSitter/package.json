@@ -1,0 +1,18 @@
+{
+  "name": "tree-sitter-org-orgenda",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Org mode tree-sitter grammar embedded by orgenda",
+  "keywords": ["tree-sitter", "org-mode", "parser"],
+  "license": "MIT",
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "test": "tree-sitter test"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.org",
+      "file-types": ["org"]
+    }
+  ]
+}

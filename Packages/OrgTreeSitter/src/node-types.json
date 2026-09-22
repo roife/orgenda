@@ -1,0 +1,1775 @@
+[
+  {
+    "type": "_block",
+    "named": true,
+    "subtypes": [
+      {
+        "type": "blank_line",
+        "named": true
+      },
+      {
+        "type": "center_block",
+        "named": true
+      },
+      {
+        "type": "clock",
+        "named": true
+      },
+      {
+        "type": "comment",
+        "named": true
+      },
+      {
+        "type": "comment_block",
+        "named": true
+      },
+      {
+        "type": "drawer",
+        "named": true
+      },
+      {
+        "type": "dynamic_block",
+        "named": true
+      },
+      {
+        "type": "example_block",
+        "named": true
+      },
+      {
+        "type": "export_block",
+        "named": true
+      },
+      {
+        "type": "fixed_width",
+        "named": true
+      },
+      {
+        "type": "footnote_definition",
+        "named": true
+      },
+      {
+        "type": "heading",
+        "named": true
+      },
+      {
+        "type": "horizontal_rule",
+        "named": true
+      },
+      {
+        "type": "keyword",
+        "named": true
+      },
+      {
+        "type": "list",
+        "named": true
+      },
+      {
+        "type": "paragraph",
+        "named": true
+      },
+      {
+        "type": "planning",
+        "named": true
+      },
+      {
+        "type": "property_drawer",
+        "named": true
+      },
+      {
+        "type": "quote_block",
+        "named": true
+      },
+      {
+        "type": "source_block",
+        "named": true
+      },
+      {
+        "type": "table",
+        "named": true
+      },
+      {
+        "type": "verse_block",
+        "named": true
+      }
+    ]
+  },
+  {
+    "type": "_inline",
+    "named": true,
+    "subtypes": [
+      {
+        "type": "angle_link",
+        "named": true
+      },
+      {
+        "type": "bold",
+        "named": true
+      },
+      {
+        "type": "code",
+        "named": true
+      },
+      {
+        "type": "export_snippet",
+        "named": true
+      },
+      {
+        "type": "footnote_reference",
+        "named": true
+      },
+      {
+        "type": "inline_footnote",
+        "named": true
+      },
+      {
+        "type": "inline_symbol",
+        "named": true
+      },
+      {
+        "type": "italic",
+        "named": true
+      },
+      {
+        "type": "link",
+        "named": true
+      },
+      {
+        "type": "macro",
+        "named": true
+      },
+      {
+        "type": "plain_link",
+        "named": true
+      },
+      {
+        "type": "plain_text",
+        "named": true
+      },
+      {
+        "type": "radio_target",
+        "named": true
+      },
+      {
+        "type": "statistics_cookie",
+        "named": true
+      },
+      {
+        "type": "strikethrough",
+        "named": true
+      },
+      {
+        "type": "target",
+        "named": true
+      },
+      {
+        "type": "timestamp",
+        "named": true
+      },
+      {
+        "type": "timestamp_range",
+        "named": true
+      },
+      {
+        "type": "underline",
+        "named": true
+      },
+      {
+        "type": "verbatim",
+        "named": true
+      },
+      {
+        "type": "whitespace",
+        "named": true
+      }
+    ]
+  },
+  {
+    "type": "blank_line",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "center_block",
+    "named": true,
+    "fields": {
+      "begin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "center_block_begin",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "center_block_end",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "quote_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "clock",
+    "named": true,
+    "fields": {
+      "duration": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "clock_duration",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "inactive_timestamp",
+            "named": true
+          }
+        ]
+      },
+      "keyword": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "clock_keyword",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "inactive_timestamp",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "whitespace",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "comment",
+    "named": true,
+    "fields": {
+      "marker": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "comment_marker",
+            "named": true
+          }
+        ]
+      },
+      "text": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "comment_text",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "comment_block",
+    "named": true,
+    "fields": {
+      "begin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "comment_block_begin",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "comment_block_end",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "source_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "comment_text",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "document",
+    "named": true,
+    "root": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "_block",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "drawer",
+    "named": true,
+    "fields": {
+      "begin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "drawer_begin",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "drawer_end",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "center_block",
+          "named": true
+        },
+        {
+          "type": "clock",
+          "named": true
+        },
+        {
+          "type": "comment",
+          "named": true
+        },
+        {
+          "type": "comment_block",
+          "named": true
+        },
+        {
+          "type": "dynamic_block",
+          "named": true
+        },
+        {
+          "type": "example_block",
+          "named": true
+        },
+        {
+          "type": "export_block",
+          "named": true
+        },
+        {
+          "type": "fixed_width",
+          "named": true
+        },
+        {
+          "type": "footnote_definition",
+          "named": true
+        },
+        {
+          "type": "horizontal_rule",
+          "named": true
+        },
+        {
+          "type": "keyword",
+          "named": true
+        },
+        {
+          "type": "list",
+          "named": true
+        },
+        {
+          "type": "paragraph",
+          "named": true
+        },
+        {
+          "type": "quote_block",
+          "named": true
+        },
+        {
+          "type": "source_block",
+          "named": true
+        },
+        {
+          "type": "table",
+          "named": true
+        },
+        {
+          "type": "verse_block",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "drawer_end",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "dynamic_block",
+    "named": true,
+    "fields": {
+      "begin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "dynamic_block_begin",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "dynamic_block_end",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "keyword",
+          "named": true
+        },
+        {
+          "type": "list",
+          "named": true
+        },
+        {
+          "type": "paragraph",
+          "named": true
+        },
+        {
+          "type": "table",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "example_block",
+    "named": true,
+    "fields": {
+      "begin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "example_block_begin",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "example_block_end",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "source_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "export_block",
+    "named": true,
+    "fields": {
+      "begin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "export_block_begin",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "export_block_end",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "source_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "fixed_width",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "fixed_width_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "fixed_width_content",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "fixed_width_line",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "fixed_width_content",
+            "named": true
+          }
+        ]
+      },
+      "marker": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "fixed_width_marker",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "footnote_definition",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "footnote_definition_content",
+            "named": true
+          }
+        ]
+      },
+      "marker": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "footnote_definition_marker",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "footnote_definition_content",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "_inline",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "footnote_reference",
+    "named": true,
+    "fields": {
+      "label": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "footnote_label",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "heading",
+    "named": true,
+    "fields": {
+      "marker": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "heading_marker",
+            "named": true
+          }
+        ]
+      },
+      "priority": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "priority",
+            "named": true
+          }
+        ]
+      },
+      "tags": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "tag_list",
+            "named": true
+          }
+        ]
+      },
+      "title": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "heading_title",
+            "named": true
+          }
+        ]
+      },
+      "todo": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "todo_keyword",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "heading_title",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "_inline",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "horizontal_rule",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "horizontal_rule_marker",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "keyword",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword_name",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "keyword_value",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "whitespace",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "keyword_value",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "link",
+    "named": true,
+    "fields": {
+      "description": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "link_description",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "link_target",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "link_description",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "link_target",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "list",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "list_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "list_item",
+    "named": true,
+    "fields": {
+      "checkbox": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "checkbox",
+            "named": true
+          }
+        ]
+      },
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "list_item_content",
+            "named": true
+          }
+        ]
+      },
+      "counter": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "list_counter",
+            "named": true
+          }
+        ]
+      },
+      "marker": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "ordered_list_marker",
+            "named": true
+          },
+          {
+            "type": "unordered_list_marker",
+            "named": true
+          }
+        ]
+      },
+      "tag": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "description_tag",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "list_item_content",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "_inline",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "paragraph",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "_inline",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "planning",
+    "named": true,
+    "fields": {
+      "entry": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "planning_entry",
+            "named": true
+          }
+        ]
+      },
+      "indent": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "planning_indent",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "planning_entry",
+    "named": true,
+    "fields": {
+      "keyword": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "planning_keyword",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "timestamp",
+            "named": true
+          },
+          {
+            "type": "timestamp_range",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "whitespace",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "property",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "property_name",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "property_value",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "property_drawer",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "property",
+          "named": true
+        },
+        {
+          "type": "property_drawer_begin",
+          "named": true
+        },
+        {
+          "type": "property_drawer_end",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "property_drawer_end",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "property_value",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "_inline",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "quote_block",
+    "named": true,
+    "fields": {
+      "begin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "quote_block_begin",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "quote_block_end",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "quote_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "quote_line",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "_inline",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "source_block",
+    "named": true,
+    "fields": {
+      "begin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "source_block_begin",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "source_block_end",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "source_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "source_block_begin",
+    "named": true,
+    "fields": {
+      "arguments": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "block_arguments",
+            "named": true
+          }
+        ]
+      },
+      "language": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "source_language",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "block_keyword",
+          "named": true
+        },
+        {
+          "type": "whitespace",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "source_line",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "source_content",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "table",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "table_row",
+          "named": true
+        },
+        {
+          "type": "table_separator",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "table_cell",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "angle_link",
+          "named": true
+        },
+        {
+          "type": "bold",
+          "named": true
+        },
+        {
+          "type": "code",
+          "named": true
+        },
+        {
+          "type": "export_snippet",
+          "named": true
+        },
+        {
+          "type": "footnote_reference",
+          "named": true
+        },
+        {
+          "type": "inline_footnote",
+          "named": true
+        },
+        {
+          "type": "italic",
+          "named": true
+        },
+        {
+          "type": "link",
+          "named": true
+        },
+        {
+          "type": "macro",
+          "named": true
+        },
+        {
+          "type": "plain_link",
+          "named": true
+        },
+        {
+          "type": "plain_text",
+          "named": true
+        },
+        {
+          "type": "radio_target",
+          "named": true
+        },
+        {
+          "type": "statistics_cookie",
+          "named": true
+        },
+        {
+          "type": "strikethrough",
+          "named": true
+        },
+        {
+          "type": "table_symbol",
+          "named": true
+        },
+        {
+          "type": "target",
+          "named": true
+        },
+        {
+          "type": "timestamp",
+          "named": true
+        },
+        {
+          "type": "timestamp_range",
+          "named": true
+        },
+        {
+          "type": "underline",
+          "named": true
+        },
+        {
+          "type": "verbatim",
+          "named": true
+        },
+        {
+          "type": "whitespace",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "table_row",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "table_cell",
+          "named": true
+        },
+        {
+          "type": "table_pipe",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "table_separator",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "timestamp",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "active_timestamp",
+          "named": true
+        },
+        {
+          "type": "inactive_timestamp",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "timestamp_range",
+    "named": true,
+    "fields": {
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "timestamp",
+            "named": true
+          }
+        ]
+      },
+      "start": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "timestamp",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "verse_block",
+    "named": true,
+    "fields": {
+      "begin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "verse_block_begin",
+            "named": true
+          }
+        ]
+      },
+      "end": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "verse_block_end",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "blank_line",
+          "named": true
+        },
+        {
+          "type": "quote_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "--",
+    "named": false
+  },
+  {
+    "type": ":",
+    "named": false
+  },
+  {
+    "type": "[[",
+    "named": false
+  },
+  {
+    "type": "[fn:",
+    "named": false
+  },
+  {
+    "type": "]",
+    "named": false
+  },
+  {
+    "type": "][",
+    "named": false
+  },
+  {
+    "type": "]]",
+    "named": false
+  },
+  {
+    "type": "active_timestamp",
+    "named": true
+  },
+  {
+    "type": "angle_link",
+    "named": true
+  },
+  {
+    "type": "block_arguments",
+    "named": true
+  },
+  {
+    "type": "block_keyword",
+    "named": true
+  },
+  {
+    "type": "bold",
+    "named": true
+  },
+  {
+    "type": "center_block_begin",
+    "named": true
+  },
+  {
+    "type": "center_block_end",
+    "named": true
+  },
+  {
+    "type": "checkbox",
+    "named": true
+  },
+  {
+    "type": "clock_duration",
+    "named": true
+  },
+  {
+    "type": "clock_keyword",
+    "named": true
+  },
+  {
+    "type": "code",
+    "named": true
+  },
+  {
+    "type": "comment_block_begin",
+    "named": true
+  },
+  {
+    "type": "comment_block_end",
+    "named": true
+  },
+  {
+    "type": "comment_marker",
+    "named": true
+  },
+  {
+    "type": "description_tag",
+    "named": true
+  },
+  {
+    "type": "drawer_begin",
+    "named": true
+  },
+  {
+    "type": "dynamic_block_begin",
+    "named": true
+  },
+  {
+    "type": "dynamic_block_end",
+    "named": true
+  },
+  {
+    "type": "example_block_begin",
+    "named": true
+  },
+  {
+    "type": "example_block_end",
+    "named": true
+  },
+  {
+    "type": "export_block_begin",
+    "named": true
+  },
+  {
+    "type": "export_block_end",
+    "named": true
+  },
+  {
+    "type": "export_snippet",
+    "named": true
+  },
+  {
+    "type": "fixed_width_marker",
+    "named": true
+  },
+  {
+    "type": "footnote_definition_marker",
+    "named": true
+  },
+  {
+    "type": "footnote_label",
+    "named": true
+  },
+  {
+    "type": "heading_marker",
+    "named": true
+  },
+  {
+    "type": "horizontal_rule_marker",
+    "named": true
+  },
+  {
+    "type": "inactive_timestamp",
+    "named": true
+  },
+  {
+    "type": "inline_footnote",
+    "named": true
+  },
+  {
+    "type": "inline_symbol",
+    "named": true
+  },
+  {
+    "type": "italic",
+    "named": true
+  },
+  {
+    "type": "keyword_name",
+    "named": true
+  },
+  {
+    "type": "list_counter",
+    "named": true
+  },
+  {
+    "type": "macro",
+    "named": true
+  },
+  {
+    "type": "ordered_list_marker",
+    "named": true
+  },
+  {
+    "type": "plain_link",
+    "named": true
+  },
+  {
+    "type": "plain_text",
+    "named": true
+  },
+  {
+    "type": "planning_indent",
+    "named": true
+  },
+  {
+    "type": "planning_keyword",
+    "named": true
+  },
+  {
+    "type": "priority",
+    "named": true
+  },
+  {
+    "type": "property_drawer_begin",
+    "named": true
+  },
+  {
+    "type": "property_name",
+    "named": true
+  },
+  {
+    "type": "quote_block_begin",
+    "named": true
+  },
+  {
+    "type": "quote_block_end",
+    "named": true
+  },
+  {
+    "type": "radio_target",
+    "named": true
+  },
+  {
+    "type": "source_block_end",
+    "named": true
+  },
+  {
+    "type": "source_content",
+    "named": true
+  },
+  {
+    "type": "source_language",
+    "named": true
+  },
+  {
+    "type": "statistics_cookie",
+    "named": true
+  },
+  {
+    "type": "strikethrough",
+    "named": true
+  },
+  {
+    "type": "table_pipe",
+    "named": true
+  },
+  {
+    "type": "table_symbol",
+    "named": true
+  },
+  {
+    "type": "tag_list",
+    "named": true
+  },
+  {
+    "type": "target",
+    "named": true
+  },
+  {
+    "type": "todo_keyword",
+    "named": true
+  },
+  {
+    "type": "underline",
+    "named": true
+  },
+  {
+    "type": "unordered_list_marker",
+    "named": true
+  },
+  {
+    "type": "verbatim",
+    "named": true
+  },
+  {
+    "type": "verse_block_begin",
+    "named": true
+  },
+  {
+    "type": "verse_block_end",
+    "named": true
+  },
+  {
+    "type": "whitespace",
+    "named": true
+  }
+]

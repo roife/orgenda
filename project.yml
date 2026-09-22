@@ -1,0 +1,121 @@
+name: Orgenda
+
+options:
+  bundleIdPrefix: com.roifewu
+  deploymentTarget:
+    iOS: "27.0"
+  xcodeVersion: "27.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  developmentLanguage: en
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_EMIT_LOC_STRINGS: YES
+    IPHONEOS_DEPLOYMENT_TARGET: "27.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.1.0"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+packages:
+  Highlighter:
+    url: https://github.com/smittytone/HighlighterSwift.git
+    from: 3.1.0
+  OrgTreeSitter:
+    path: Packages/OrgTreeSitter
+  SwiftMath:
+    url: https://github.com/mgriebling/SwiftMath.git
+    revision: 1d2c90827e9c3908269d810d055fb03b7da5fd53
+
+targets:
+  Orgenda:
+    type: application
+    platform: iOS
+    deploymentTarget: "27.0"
+    sources:
+      - path: Orgenda
+        excludes:
+          - Info.plist
+          - Resources
+          - Assets.xcassets
+      - path: Orgenda/Assets.xcassets
+        buildPhase: resources
+      - path: Orgenda/Resources
+        buildPhase: resources
+    dependencies:
+      - package: Highlighter
+        product: Highlighter
+      - package: OrgTreeSitter
+        product: OrgTreeSitter
+      - package: SwiftMath
+        product: SwiftMath
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.roifewu.Orgenda
+        PRODUCT_NAME: orgenda
+        PRODUCT_MODULE_NAME: Orgenda
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: orgenda
+        INFOPLIST_FILE: Orgenda/Info.plist
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SUPPORTS_MACCATALYST: NO
+
+  OrgendaTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "27.0"
+    sources:
+      - path: OrgendaTests
+    dependencies:
+      - target: Orgenda
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.roifewu.OrgendaTests
+        PRODUCT_NAME: OrgendaTests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/orgenda.app/orgenda"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        GENERATE_INFOPLIST_FILE: YES
+
+  OrgendaUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "27.0"
+    sources:
+      - path: OrgendaUITests
+    dependencies:
+      - target: Orgenda
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.roifewu.OrgendaUITests
+        PRODUCT_NAME: OrgendaUITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Orgenda
+
+schemes:
+  Orgenda:
+    build:
+      targets:
+        Orgenda: all
+        OrgendaTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - name: OrgendaTests
+        - name: OrgendaUITests
+    archive:
+      config: Release

@@ -1,0 +1,226 @@
+================================================================================
+Heading metadata, planning timestamps, and property drawer
+================================================================================
+* TODO [#A] Ship the parser :ios:parser:
+SCHEDULED: <2026-08-30 Sun 10:00 +1w> DEADLINE: <2026-09-01 Tue>
+:PROPERTIES:
+:ID:       parser-001
+:Owner:    Orgenda Team
+:END:
+** TODO Parser architecture
+** WAIT Review Swift bridge :review:
+
+--------------------------------------------------------------------------------
+
+(document
+  (heading
+    (heading_marker)
+    (todo_keyword)
+    (priority)
+    (heading_title
+      (plain_text)
+      (whitespace)
+      (plain_text)
+      (whitespace)
+      (plain_text)
+      (whitespace))
+    (tag_list))
+  (planning
+    (planning_entry
+      (planning_keyword)
+      (whitespace)
+      (timestamp
+        (active_timestamp))
+      (whitespace))
+    (planning_entry
+      (planning_keyword)
+      (whitespace)
+      (timestamp
+        (active_timestamp))))
+  (property_drawer
+    (property_drawer_begin)
+    (property
+      (property_name)
+      (property_value
+        (whitespace)
+        (plain_text)))
+    (property
+      (property_name)
+      (property_value
+        (whitespace)
+        (plain_text)
+        (whitespace)
+        (plain_text)))
+    (property_drawer_end))
+  (heading
+    (heading_marker)
+    (todo_keyword)
+    (heading_title
+      (plain_text)
+      (whitespace)
+      (plain_text)))
+  (heading
+    (heading_marker)
+    (todo_keyword)
+    (heading_title
+      (plain_text)
+      (whitespace)
+      (plain_text)
+      (whitespace)
+      (plain_text)
+      (whitespace))
+    (tag_list)))
+
+================================================================================
+Indented planning line
+================================================================================
+** TODO Keep conventional Org indentation
+   SCHEDULED: <2026-08-31 Mon 09:00>
+
+--------------------------------------------------------------------------------
+
+(document
+  (heading
+    (heading_marker)
+    (todo_keyword)
+    (heading_title
+      (plain_text)
+      (whitespace)
+      (plain_text)
+      (whitespace)
+      (plain_text)
+      (whitespace)
+      (plain_text)))
+  (planning
+    (planning_indent)
+    (planning_entry
+      (planning_keyword)
+      (whitespace)
+      (timestamp
+        (active_timestamp)))))
+
+================================================================================
+Lists, checkboxes, and table
+================================================================================
+- [ ] First task
+  - [X] Nested task with [[https://example.com][reference]]
+1. [X] Ordered item
+| Name | State |
+|------+-------|
+| Parser | DONE |
+
+--------------------------------------------------------------------------------
+
+(document
+  (list
+    (list_item
+      (unordered_list_marker)
+      (checkbox)
+      (list_item_content
+        (plain_text)
+        (whitespace)
+        (plain_text)))
+    (list_item
+      (unordered_list_marker)
+      (checkbox)
+      (list_item_content
+        (plain_text)
+        (whitespace)
+        (plain_text)
+        (whitespace)
+        (plain_text)
+        (whitespace)
+        (link
+          (link_target)
+          (link_description))))
+    (list_item
+      (ordered_list_marker)
+      (checkbox)
+      (list_item_content
+        (plain_text)
+        (whitespace)
+        (plain_text))))
+  (table
+    (table_row
+      (table_pipe)
+      (table_cell
+        (whitespace)
+        (plain_text)
+        (whitespace))
+      (table_pipe)
+      (table_cell
+        (whitespace)
+        (plain_text)
+        (whitespace))
+      (table_pipe))
+    (table_separator)
+    (table_row
+      (table_pipe)
+      (table_cell
+        (whitespace)
+        (plain_text)
+        (whitespace))
+      (table_pipe)
+      (table_cell
+        (whitespace)
+        (plain_text)
+        (whitespace))
+      (table_pipe))))
+
+================================================================================
+Quote and source blocks plus comments
+================================================================================
+#+begin_quote
+A *structured* quote with /inline/ markup.
+#+end_quote
+
+#+begin_src swift :results output
+let answer = 42
+print(answer)
+#+end_src
+
+# A regular comment
+#+COMMENT: A directive comment
+#+TITLE: Parser fixture
+
+--------------------------------------------------------------------------------
+
+(document
+  (quote_block
+    (quote_block_begin)
+    (quote_line
+      (plain_text)
+      (whitespace)
+      (bold)
+      (whitespace)
+      (plain_text)
+      (whitespace)
+      (plain_text)
+      (whitespace)
+      (italic)
+      (whitespace)
+      (plain_text))
+    (quote_block_end))
+  (blank_line)
+  (source_block
+    (source_block_begin
+      (block_keyword)
+      (whitespace)
+      (source_language)
+      (whitespace)
+      (block_arguments))
+    (source_line
+      (source_content))
+    (source_line
+      (source_content))
+    (source_block_end))
+  (blank_line)
+  (comment
+    (comment_marker)
+    (comment_text))
+  (comment
+    (comment_marker)
+    (comment_text))
+  (keyword
+    (keyword_name)
+    (keyword_value)))

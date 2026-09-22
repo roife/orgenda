@@ -1,0 +1,23 @@
+{
+  "originHash" : "8fba3125a341bc85a3014bbf1cc1a9bf7efc9b0265453b44d5b582e903d8deb5",
+  "pins" : [
+    {
+      "identity" : "highlighterswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/smittytone/HighlighterSwift.git",
+      "state" : {
+        "revision" : "fe7aae9c9b31d3b296fd3d2dd575e1a207bb29e0",
+        "version" : "3.1.0"
+      }
+    },
+    {
+      "identity" : "swiftmath",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mgriebling/SwiftMath.git",
+      "state" : {
+        "revision" : "1d2c90827e9c3908269d810d055fb03b7da5fd53"
+      }
+    }
+  ],
+  "version" : 3
+}

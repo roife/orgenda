@@ -1,0 +1,33 @@
+#+title: Welcome to orgenda
+#+author: orgenda
+#+startup: overview
+
+* Inbox
+** TODO Try editing an Org heading                         :welcome:
+   SCHEDULED: <2026-08-31 Mon 09:00>
+   Add notes beneath a heading and keep the plain-text file yours.
+
+** NEXT Review today's agenda                              :agenda:
+   DEADLINE: <2026-09-01 Tue>
+
+* Projects
+** A small example
+   :PROPERTIES:
+   :ID:       orgenda-welcome-example
+   :END:
+
+   - [X] Open the document
+   - [ ] Add a task
+   - [ ] Schedule it
+
+   Learn more at [[https://orgmode.org][Org mode]].
+
+#+begin_src swift
+let greeting = "Hello, orgenda"
+#+end_src
+
+Inline math is rendered too: $e^{i\pi} + 1 = 0$.
+
+\[
+\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}
+\]

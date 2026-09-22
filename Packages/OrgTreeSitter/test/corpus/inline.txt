@@ -1,0 +1,119 @@
+================================================================================
+Inline markup, links, timestamps, and footnotes
+================================================================================
+Plain *bold* /italic/ _underline_ +strike+ ~code()~ =verbatim= text.
+See [[id:abc-123][the linked note]] and [fn:ref].
+Active <2026-08-30 Sun 09:30> inactive [2026-08-31 Mon] range <2026-09-01 Tue>--<2026-09-02 Wed>.
+[fn:ref] Footnote definition with *markup* and [[https://example.com]].
+
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (plain_text)
+    (whitespace)
+    (bold)
+    (whitespace)
+    (italic)
+    (whitespace)
+    (underline)
+    (whitespace)
+    (strikethrough)
+    (whitespace)
+    (code)
+    (whitespace)
+    (verbatim)
+    (whitespace)
+    (plain_text))
+  (paragraph
+    (plain_text)
+    (whitespace)
+    (link
+      (link_target)
+      (link_description))
+    (whitespace)
+    (plain_text)
+    (whitespace)
+    (footnote_reference
+      (footnote_label))
+    (plain_text))
+  (paragraph
+    (plain_text)
+    (whitespace)
+    (timestamp
+      (active_timestamp))
+    (whitespace)
+    (plain_text)
+    (whitespace)
+    (timestamp
+      (inactive_timestamp))
+    (whitespace)
+    (plain_text)
+    (whitespace)
+    (timestamp_range
+      (timestamp
+        (active_timestamp))
+      (timestamp
+        (active_timestamp)))
+    (plain_text))
+  (footnote_definition
+    (footnote_definition_marker)
+    (footnote_definition_content
+      (plain_text)
+      (whitespace)
+      (plain_text)
+      (whitespace)
+      (plain_text)
+      (whitespace)
+      (bold)
+      (whitespace)
+      (plain_text)
+      (whitespace)
+      (link
+        (link_target))
+      (plain_text))))
+
+================================================================================
+Plain links protect URL punctuation from emphasis
+================================================================================
+https://example.com/a_b/c_d?q=one+two&next=/docs/#section /italic/
+(https://example.com/wiki/Topic_(detail)).
+"mailto:first_last@example.com"
+|https://example.com/a/b|/italic/|
+[[https://example.com/a/b][Label /literal/]] <https://example.com/a/b>
+~https://example.com/a/b~ =https://example.com/a/b=
+
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (plain_link)
+    (whitespace)
+    (italic))
+  (paragraph
+    (inline_symbol)
+    (plain_link)
+    (plain_text))
+  (paragraph
+    (inline_symbol)
+    (plain_link)
+    (inline_symbol))
+  (table
+    (table_row
+      (table_pipe)
+      (table_cell
+        (plain_link))
+      (table_pipe)
+      (table_cell
+        (italic))
+      (table_pipe)))
+  (paragraph
+    (link
+      (link_target)
+      (link_description))
+    (whitespace)
+    (angle_link))
+  (paragraph
+    (code)
+    (whitespace)
+    (verbatim)))

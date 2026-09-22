@@ -1,0 +1,222 @@
+================================================================================
+Logbook, clock, and custom drawers
+================================================================================
+* TODO Log
+  :LOGBOOK:
+  CLOCK: [2026-09-19]--[2026-09-20] => 1:00
+  - State "DONE" [2026-09-20]
+  :END:
+:NOTES:
+Hi
+:END:
+
+--------------------------------------------------------------------------------
+
+(document
+  (heading
+    (heading_marker)
+    (todo_keyword)
+    (heading_title
+      (plain_text)))
+  (drawer
+    (drawer_begin)
+    (clock
+      (clock_keyword)
+      (inactive_timestamp)
+      (inactive_timestamp)
+      (whitespace)
+      (clock_duration))
+    (list
+      (list_item
+        (unordered_list_marker)
+        (list_item_content
+          (plain_text)
+          (whitespace)
+          (inline_symbol)
+          (plain_text)
+          (inline_symbol)
+          (whitespace)
+          (timestamp
+            (inactive_timestamp)))))
+    (drawer_end))
+  (drawer
+    (drawer_begin)
+    (paragraph
+      (plain_text))
+    (drawer_end)))
+
+================================================================================
+Unclosed drawer preserves the following heading
+================================================================================
+:LOGBOOK:
+unfinished
+* TODO Visible
+:END:
+
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (plain_text))
+  (paragraph
+    (plain_text))
+  (heading
+    (heading_marker)
+    (todo_keyword)
+    (heading_title
+      (plain_text)))
+  (paragraph
+    (plain_text)))
+
+================================================================================
+Indented property drawer and running clock
+================================================================================
+* TODO Work
+  :properties:
+  :ID: example
+  :end:
+clock: [2026-09-19]
+CLOCK: => 12:30
+
+--------------------------------------------------------------------------------
+
+(document
+  (heading
+    (heading_marker)
+    (todo_keyword)
+    (heading_title
+      (plain_text)))
+  (property_drawer
+    (property_drawer_begin)
+    (property
+      (property_name)
+      (property_value
+        (whitespace)
+        (plain_text)))
+    (property_drawer_end))
+  (clock
+    (clock_keyword)
+    (inactive_timestamp))
+  (clock
+    (clock_keyword)
+    (clock_duration)))
+
+================================================================================
+Literal blocks, fixed width, and rule
+================================================================================
+#+BEGIN_EXAMPLE
+* not markup
+#+END_EXAMPLE
+#+BEGIN_EXPORT html
+<b>literal</b>
+#+END_EXPORT
+#+BEGIN_COMMENT
+* TODO hidden
+#+END_COMMENT
+: *literal*
+:
+-----
+
+--------------------------------------------------------------------------------
+
+(document
+  (example_block
+    (example_block_begin)
+    (source_line
+      (source_content))
+    (example_block_end))
+  (export_block
+    (export_block_begin)
+    (source_line
+      (source_content))
+    (export_block_end))
+  (comment_block
+    (comment_block_begin)
+    (source_line
+      (source_content))
+    (comment_block_end))
+  (fixed_width
+    (fixed_width_line
+      (fixed_width_marker)
+      (fixed_width_content))
+    (fixed_width_line
+      (fixed_width_marker)))
+  (horizontal_rule
+    (horizontal_rule_marker)))
+
+================================================================================
+Verse, center, and dynamic blocks
+================================================================================
+#+BEGIN_VERSE
+*bold*
+#+END_VERSE
+#+BEGIN_CENTER
+/italic/
+#+END_CENTER
+#+BEGIN: clocktable
+| time |
+#+END:
+
+--------------------------------------------------------------------------------
+
+(document
+  (verse_block
+    (verse_block_begin)
+    (quote_line
+      (bold))
+    (verse_block_end))
+  (center_block
+    (center_block_begin)
+    (quote_line
+      (italic))
+    (center_block_end))
+  (dynamic_block
+    (dynamic_block_begin)
+    (table
+      (table_row
+        (table_pipe)
+        (table_cell
+          (whitespace)
+          (plain_text)
+          (whitespace))
+        (table_pipe)))
+    (dynamic_block_end)))
+
+================================================================================
+Progress, list counters, and inline objects
+================================================================================
+* TODO [#27] [2/3] [50%]
+- [@3] [X] Term :: definition
+<<target>> <<<radio>>> {{{title}}} @@html:x@@ <https://orgmode.org> [fn::note]
+
+--------------------------------------------------------------------------------
+
+(document
+  (heading
+    (heading_marker)
+    (todo_keyword)
+    (priority)
+    (heading_title
+      (statistics_cookie)
+      (whitespace)
+      (statistics_cookie)))
+  (list
+    (list_item
+      (unordered_list_marker)
+      (list_counter)
+      (checkbox)
+      (description_tag)
+      (list_item_content
+        (plain_text))))
+  (paragraph
+    (target)
+    (whitespace)
+    (radio_target)
+    (whitespace)
+    (macro)
+    (whitespace)
+    (export_snippet)
+    (whitespace)
+    (angle_link)
+    (whitespace)
+    (inline_footnote)))

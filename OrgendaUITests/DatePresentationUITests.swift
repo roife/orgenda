@@ -1,0 +1,203 @@
+import XCTest
+
+final class DatePresentationUITests: XCTestCase {
+    func testCalendarDateSelectionSurvivesTabSwitching() {
+        verifyDatePresentation()
+    }
+
+    func testCalendarDateSelectionAtAccessibilitySize() {
+        verifyDatePresentation(contentSize: "UICTContentSizeCategoryAccessibilityXXXL")
+    }
+
+    func testCalendarDateSelectionInDarkAppearance() {
+        verifyDatePresentation(appearance: "Dark")
+    }
+
+    private func verifyDatePresentation(contentSize: String? = nil, appearance: String = "Light") {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
+            "-appearance", appearance
+        ]
+        if let contentSize {
+            app.launchArguments += ["-UIPreferredContentSizeCategoryName", contentSize]
+        }
+        app.launch()
+        defer { app.terminate() }
+
+        XCTAssertTrue(app.tabBars.buttons["Dashboard"].isSelected)
+        XCTAssertFalse(app.tabBars.buttons["Journal"].exists)
+        let viewMenu = app.buttons["agenda.viewMenu"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 3))
+        viewMenu.tap()
+        XCTAssertFalse(app.buttons["agenda.mode.agenda"].exists)
+        app.buttons["Overdue"].tap()
+        XCTAssertEqual(viewMenu.value as? String, "Overdue")
+        app.tabBars.buttons["Calendar"].tap()
+        XCTAssertFalse(viewMenu.exists)
+        XCTAssertFalse(app.navigationBars.firstMatch.exists)
+        XCTAssertTrue(app.buttons["orgenda.capture"].isHittable)
+        let searchTab = app.tabBars.buttons["Search"]
+        let filesTab = app.tabBars.buttons["Files"]
+        XCTAssertGreaterThan(searchTab.frame.minX - filesTab.frame.maxX, 4)
+
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        let week = calendar.dateInterval(of: .weekOfYear, for: today)!
+        let neighbor = calendar.date(
+            byAdding: .day, value: calendar.isDate(today, inSameDayAs: week.start) ? 1 : -1, to: today
+        )!
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        let todayKey = formatter.string(from: today)
+        let neighborKey = formatter.string(from: neighbor)
+
+        let calendarHeading = app.staticTexts["orgenda.calendar.date.heading"]
+        XCTAssertTrue(calendarHeading.waitForExistence(timeout: 3))
+        let todayHeadingLabel = calendarHeading.label
+        XCTAssertLessThan(calendarHeading.frame.minY, app.frame.height * 0.16)
+        XCTAssertTrue(app.buttons["orgenda.calendar.day.\(todayKey)"].isSelected)
+
+        if contentSize != nil {
+            let todayButton = app.buttons["orgenda.calendar.day.\(todayKey)"]
+            XCTAssertTrue(app.scrollViews["orgenda.calendar.dates"].exists)
+            // Large text gets wider cells instead of seven compressed columns.
+            XCTAssertGreaterThan(todayButton.frame.width, 55)
+            XCTAssertGreaterThan(todayButton.frame.height, 70)
+            XCTAssertLessThan(todayButton.frame.height, 170)
+            // A weekday wrapping into three rows used to push dates far below
+            // the heading and leave almost no room for the agenda.
+            XCTAssertLessThan(todayButton.frame.minY - calendarHeading.frame.maxY, 100)
+            XCTAssertLessThan(calendarHeading.frame.height, 110)
+            XCTAssertTrue(todayButton.label.contains(String(calendar.component(.year, from: today))))
+        }
+
+        let calendarNeighbor = app.buttons["orgenda.calendar.day.\(neighborKey)"]
+        calendarNeighbor.tap()
+        XCTAssertTrue(calendarNeighbor.isSelected)
+        XCTAssertFalse(app.buttons["orgenda.calendar.day.\(todayKey)"].isSelected)
+        let neighborHeadingLabel = calendarHeading.label
+
+        app.tabBars.buttons["Dashboard"].tap()
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 3))
+        XCTAssertEqual(viewMenu.value as? String, "Overdue")
+        XCTAssertFalse(app.buttons["orgenda.calendar.density"].exists)
+        app.tabBars.buttons["Calendar"].tap()
+        XCTAssertTrue(calendarNeighbor.isSelected)
+        XCTAssertEqual(calendarHeading.label, neighborHeadingLabel)
+        XCTAssertTrue(app.scrollViews["orgenda.agenda.timeline"].isHittable)
+        app.buttons["orgenda.calendar.today"].tap()
+        XCTAssertTrue(app.buttons["orgenda.calendar.day.\(todayKey)"].isSelected)
+        XCTAssertEqual(calendarHeading.label, todayHeadingLabel)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Calendar date header and separate Search tab - \(contentSize ?? appearance)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        if contentSize != nil {
+            verifyAccessibleMonthSelection(app, calendar: calendar, today: today, formatter: formatter)
+        }
+    }
+
+    private func verifyAccessibleMonthSelection(
+        _ app: XCUIApplication,
+        calendar: Calendar,
+        today: Date,
+        formatter: DateFormatter
+    ) {
+        app.buttons["orgenda.calendar.density"].tap()
+        app.buttons["Month"].tap()
+        XCTAssertEqual(app.buttons["orgenda.calendar.density"].value as? String, "Month")
+
+        let monthStart = calendar.dateInterval(of: .month, for: today)!.start
+        let lastDayOffset = calendar.range(of: .day, in: .month, for: today)!.count - 1
+        let lastDate = calendar.date(byAdding: .day, value: lastDayOffset, to: monthStart)!
+        let lastDateButton = app.buttons["orgenda.calendar.day.\(formatter.string(from: lastDate))"]
+        let strip = app.scrollViews["orgenda.calendar.dates"].firstMatch
+        XCTAssertTrue(strip.waitForExistence(timeout: 3))
+        for _ in 0..<12 where !lastDateButton.isHittable {
+            strip.swipeLeft()
+        }
+        XCTAssertTrue(lastDateButton.isHittable, "Every date remains reachable at the largest text size")
+        lastDateButton.tap()
+        XCTAssertTrue(lastDateButton.isSelected)
+        XCTAssertTrue(app.scrollViews["orgenda.agenda.timeline"].isHittable)
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Month date strip at largest accessibility size"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+}
+
+final class ChineseLocalizationUITests: XCTestCase {
+    func testSimplifiedChinese() {
+        verifyChinese(language: "zh-Hans", locale: "zh_CN", calendar: "日历", files: "文件",
+                      settings: "设置", workspace: "工作区与同步", appearance: "外观", search: "搜索")
+    }
+
+    func testTraditionalChinese() {
+        verifyChinese(language: "zh-Hant", locale: "zh_TW", calendar: "日曆", files: "檔案",
+                      settings: "設定", workspace: "工作區與同步", appearance: "外觀", search: "搜尋")
+    }
+
+    private func verifyChinese(language: String, locale: String, calendar: String, files: String,
+                               settings: String, workspace: String, appearance: String, search: String) {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(\(language))", "-AppleLocale", locale]
+        app.launch()
+        defer { app.terminate() }
+
+        let calendarTab = app.tabBars.buttons[calendar]
+        XCTAssertTrue(calendarTab.waitForExistence(timeout: 10))
+        calendarTab.tap()
+        XCTAssertTrue(app.buttons["orgenda.capture"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["orgenda.capture"].label, language == "zh-Hans" ? "新建任务" : "新建任務")
+        app.buttons["orgenda.calendar.density"].tap()
+        XCTAssertTrue(app.buttons["月"].waitForExistence(timeout: 3))
+        app.buttons["月"].tap()
+        XCTAssertEqual(app.buttons["orgenda.calendar.density"].value as? String, "月")
+        attach(app, name: "\(language)-calendar")
+
+        app.buttons["orgenda.capture"].tap()
+        XCTAssertTrue(app.textFields["item.editor.title"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["取消"].exists)
+        XCTAssertEqual(app.buttons["workflow.option.TODO"].label, language == "zh-Hans" ? "待办" : "待辦")
+        attach(app, name: "\(language)-capture")
+        app.buttons["取消"].tap()
+
+        app.tabBars.buttons[files].tap()
+        app.buttons["files.settings"].tap()
+        XCTAssertTrue(app.navigationBars[settings].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings.workspace"].label.contains(workspace))
+        XCTAssertTrue(app.buttons["settings.appearance"].label.contains(appearance))
+        attach(app, name: "\(language)-settings")
+        app.buttons["settings.appearance"].tap()
+        let dark = app.buttons["settings.appearance.dark"]
+        XCTAssertTrue(dark.waitForExistence(timeout: 5))
+        XCTAssertTrue(dark.label.contains("深色"))
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["settings.done"].tap()
+
+        app.tabBars.buttons[search].tap()
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+        XCTAssertTrue(searchField.placeholderValue?.contains(search) == true)
+        searchField.typeText("orgenda_i18n_no_match")
+        let noResults = language == "zh-Hans" ? "没有结果" : "沒有結果"
+        XCTAssertTrue(app.staticTexts[noResults].waitForExistence(timeout: 5))
+        let explanation = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "orgenda_i18n_no_match")).firstMatch
+        XCTAssertTrue(explanation.label.contains("找不到"))
+        attach(app, name: "\(language)-search")
+    }
+
+    private func attach(_ app: XCUIApplication, name: String) {
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = name
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+}

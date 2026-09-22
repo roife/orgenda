@@ -1,0 +1,15 @@
+# Xcode and SwiftPM build products
+/.derivedData*/
+/.package-cache/
+.build/
+build/
+*.xcresult/
+xcuserdata/
+*.xcuserstate
+
+# Local tooling and generated evidence
+.DS_Store
+__pycache__/
+*.py[cod]
+/artifacts/
+/References/qa/

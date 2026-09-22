@@ -1,0 +1,25 @@
+{
+  "grammars": [
+    {
+      "name": "org",
+      "camelcase": "Org",
+      "scope": "source.org",
+      "path": ".",
+      "file-types": ["org"],
+      "highlights": "queries/highlights.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Org mode grammar for Orgenda",
+    "authors": [
+      {
+        "name": "Orgenda contributors"
+      }
+    ]
+  },
+  "bindings": {
+    "c": true
+  }
+}
