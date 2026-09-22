@@ -55,6 +55,7 @@ struct InteractiveOrgPreview: View {
                         onToggleHeading: toggleHeading,
                         onEditHeading: presentItemEditor,
                         onCycleTODO: cycleTODO,
+                        onSetTODO: setTODO,
                         onToggleCheckbox: toggleCheckbox,
                         onEditPlanning: presentPlanningEditor,
                         drag: headingDrag,
@@ -220,6 +221,13 @@ struct InteractiveOrgPreview: View {
         editorItem = store.items.first {
             $0.source.file == path && $0.source.startByte == heading.startByte
         }
+    }
+
+    private func setTODO(_ node: ParsedOrgNode, to state: OrgWorkflowState) {
+        guard pendingReplacements[node.id] == nil else { return }
+        // The syntax node includes the spacing between the keyword and title.
+        let trailingWhitespace = node.text.reversed().prefix { $0 == " " || $0 == "\t" }.reversed()
+        replace(node, with: state.rawValue + String(trailingWhitespace))
     }
 
     private func toggleCheckbox(_ node: ParsedOrgNode) {

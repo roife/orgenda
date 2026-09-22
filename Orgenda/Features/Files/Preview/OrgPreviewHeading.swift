@@ -12,6 +12,7 @@ struct OrgPreviewHeading: View {
     let onToggleDisclosure: () -> Void
     let onEdit: () -> Void
     let onCycleTODO: (ParsedOrgNode) -> Void
+    let onSetTODO: (ParsedOrgNode, OrgWorkflowState) -> Void
     let onBeginDrag: () -> String?
     let onEndDrag: () -> Void
 
@@ -150,10 +151,31 @@ struct OrgPreviewHeading: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if !isTODOUpdating {
+                Picker("Status", selection: Binding(
+                    get: { keyword },
+                    set: { selection in
+                        guard selection != keyword,
+                              let selectedState = OrgWorkflowState(rawValue: selection) else { return }
+                        onSetTODO(todoNode, selectedState)
+                    }
+                )) {
+                    ForEach(OrgWorkspaceConfiguration.taskStates) { option in
+                        Label(option.title, systemImage: option.symbol)
+                            .tag(option.rawValue)
+                    }
+                }
+                .pickerStyle(.inline)
+            }
+        }
+        .menuOrder(.fixed)
         .disabled(isTODOUpdating)
         .accessibilityLabel("Change task state for \(title)")
         .accessibilityValue(isTODOUpdating ? String(localized: "\(state?.title ?? keyword), Updating") : (state?.title ?? keyword))
-        .accessibilityHint(state?.isTerminal == true ? "Mark this item TODO" : "Mark this item done")
+        .accessibilityHint(state?.isTerminal == true
+            ? "Tap to mark TODO. Touch and hold to choose a status."
+            : "Tap to mark done. Touch and hold to choose a status.")
         .accessibilityIdentifier("org.preview.todo.\(todoNode.startByte)")
     }
 

@@ -12,6 +12,7 @@ struct OrgPreviewContent: View {
     let onToggleHeading: (String) -> Void
     let onEditHeading: (ParsedOrgNode) -> Void
     let onCycleTODO: (ParsedOrgNode) -> Void
+    let onSetTODO: (ParsedOrgNode, OrgWorkflowState) -> Void
     let onToggleCheckbox: (ParsedOrgNode) -> Void
     let onEditPlanning: (ParsedOrgNode, OrgPlanningEntryDraft) -> Void
     let drag: OrgHeadingDrag?
@@ -44,6 +45,7 @@ struct OrgPreviewContent: View {
                     onToggleHeading: onToggleHeading,
                     onEditHeading: onEditHeading,
                     onCycleTODO: onCycleTODO,
+                    onSetTODO: onSetTODO,
                     onToggleCheckbox: onToggleCheckbox,
                     onEditPlanning: onEditPlanning,
                     onBeginDrag: { onBeginDrag(row.id) },
@@ -125,6 +127,7 @@ private struct OrgPreviewRowView: View {
     let onToggleHeading: (String) -> Void
     let onEditHeading: (ParsedOrgNode) -> Void
     let onCycleTODO: (ParsedOrgNode) -> Void
+    let onSetTODO: (ParsedOrgNode, OrgWorkflowState) -> Void
     let onToggleCheckbox: (ParsedOrgNode) -> Void
     let onEditPlanning: (ParsedOrgNode, OrgPlanningEntryDraft) -> Void
     let onBeginDrag: () -> String?
@@ -144,6 +147,7 @@ private struct OrgPreviewRowView: View {
                 onToggleDisclosure: { onToggleHeading(row.id) },
                 onEdit: { onEditHeading(row.node) },
                 onCycleTODO: onCycleTODO,
+                onSetTODO: onSetTODO,
                 onBeginDrag: onBeginDrag,
                 onEndDrag: onEndDrag
             )
@@ -226,6 +230,7 @@ private struct OrgPreviewRowView: View {
                     onToggleHeading: onToggleHeading,
                     onEditHeading: onEditHeading,
                     onCycleTODO: onCycleTODO,
+                    onSetTODO: onSetTODO,
                     onToggleCheckbox: onToggleCheckbox,
                     onEditPlanning: onEditPlanning,
                     onBeginDrag: { nil },

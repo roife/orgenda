@@ -4050,12 +4050,6 @@
         }
       }
     },
-    "Mark this item done" : {
-
-    },
-    "Mark this item TODO" : {
-
-    },
     "Match your device" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7061,6 +7055,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "標籤"
+          }
+        }
+      }
+    },
+    "Tap to mark done. Touch and hold to choose a status." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点标记为已完成，长按选择状态。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輕點標記為已完成，長按選擇狀態。"
+          }
+        }
+      }
+    },
+    "Tap to mark TODO. Touch and hold to choose a status." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点标记为待办，长按选择状态。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輕點標記為待辦，長按選擇狀態。"
           }
         }
       }
