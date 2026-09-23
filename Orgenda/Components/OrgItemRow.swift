@@ -4,7 +4,6 @@ import UIKit
 struct OrgItemRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
-    @State private var completionFeedback = 0
     @State private var swipeOffset: CGFloat = 0
     @State private var swipeStart: CGFloat = 0
 
@@ -23,7 +22,7 @@ struct OrgItemRow: View {
     var body: some View {
         ZStack {
             swipeActions
-            draggableContent
+            rowContent
                 .background(Color(uiColor: .systemBackground))
                 .offset(x: swipeOffset)
                 .gesture(OrgendaHorizontalPan(onChange: { translation, began in
@@ -93,20 +92,6 @@ struct OrgItemRow: View {
         (canSchedule ? actionDiameter * 2 + actionSpacing : actionDiameter) + 24
     }
 
-    @ViewBuilder
-    private var draggableContent: some View {
-        if canSchedule {
-            rowContent.draggable(OrgTaskTransfer(item: dragItem ?? item)) {
-                Label(item.title, systemImage: "calendar.badge.clock")
-                    .foregroundStyle(item.workflowTitleColor)
-                    .font(.body).padding(14).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            }
-            .contextMenu { contextActions }
-        } else {
-            rowContent.contextMenu { contextActions }
-        }
-    }
-
     private var swipeActions: some View {
         GlassEffectContainer(spacing: 8) {
             HStack(spacing: 0) {
@@ -166,24 +151,10 @@ struct OrgItemRow: View {
 
     private var rowContent: some View {
         HStack(alignment: .top, spacing: 2) {
-            if !item.canComplete {
-                statusIcon
-                    .offset(y: topPadding - 9)
-                    .frame(width: 44, height: 44)
-                    .accessibilityHidden(true)
+            if canSchedule {
+                completionControl.draggable(OrgTaskTransfer(item: dragItem ?? item))
             } else {
-                Button(action: performToggle) {
-                    statusIcon
-                        .offset(y: topPadding - 9)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(completionLabel)
-                .accessibilityValue(item.hasWorkflowState ? "\(item.title), \(item.state.title)" : item.title)
-                .accessibilityHint(completesOccurrence ? "Record completion and schedule the next occurrence" : "")
-                .accessibilityIdentifier("agenda.item.complete.\(item.id)")
-                .sensoryFeedback(.success, trigger: completionFeedback)
+                completionControl
             }
 
             Button {
@@ -226,8 +197,31 @@ struct OrgItemRow: View {
             .buttonStyle(.plain)
             .accessibilityHint("Edit item")
             .accessibilityIdentifier("agenda.item.open.\(item.id)")
+            .contextMenu { contextActions } preview: { OrgItemContextPreview(item: item) }
         }
         .padding(.leading, -8)
+    }
+
+    @ViewBuilder
+    private var completionControl: some View {
+        if !item.canComplete {
+            statusIcon
+                .offset(y: topPadding - 9)
+                .frame(width: 44, height: 44)
+                .accessibilityHidden(true)
+        } else {
+            Button(action: performToggle) {
+                statusIcon
+                    .offset(y: topPadding - 9)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(completionLabel)
+            .accessibilityValue(item.hasWorkflowState ? "\(item.title), \(item.state.title)" : item.title)
+            .accessibilityHint(completesOccurrence ? "Record completion and schedule the next occurrence" : "")
+            .accessibilityIdentifier("agenda.item.complete.\(item.id)")
+        }
     }
 
     private var metadata: some View {
@@ -289,9 +283,6 @@ struct OrgItemRow: View {
     }
 
     private func performToggle() {
-        if !item.state.isTerminal {
-            completionFeedback += 1
-        }
         onToggle()
     }
 

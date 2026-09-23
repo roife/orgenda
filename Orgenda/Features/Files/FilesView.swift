@@ -113,7 +113,7 @@ struct FilesView: View {
             .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
                 guard files.count == 1, let file = files.first,
                       store.canMoveFile(file, to: "") else { return false }
-                Task { await store.moveFile(file, to: "") }
+                Task { OrgendaHaptics.result(await store.moveFile(file, to: "")) }
                 return true
             }
         }

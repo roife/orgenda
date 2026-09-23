@@ -9,6 +9,7 @@ enum OrgendaTab: Hashable {
 
 struct OrgendaRootView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var sceneDelegate: OrgendaSceneDelegate
     @AppStorage("appearance") private var appearance = "System"
     @State private var store = WorkspaceStore.startup()
     @State private var selectedTab: OrgendaTab = .dashboard
@@ -17,6 +18,9 @@ struct OrgendaRootView: View {
     @State private var capture: CaptureDestination?
     @State private var fileNavigationRequest: WorkspaceFileNavigationRequest?
     @State private var showsWorkspaceSettings = false
+    @State private var calendarNavigationID = UUID()
+    @State private var filesNavigationID = UUID()
+    @State private var searchNavigationID: UUID?
     private let isUITestWorkspace = WorkspaceStore.isUITestWorkspace(arguments: ProcessInfo.processInfo.arguments)
 
     var body: some View {
@@ -77,6 +81,19 @@ struct OrgendaRootView: View {
             #endif
             await store.startWorkspace()
         }
+        .task(id: actionableShortcutID) {
+            guard let requestID = actionableShortcutID else { return }
+            // A quick action must not discard a draft in an existing sheet.
+            // Wait only while a request is pending; readiness changes cancel this task.
+            while sceneDelegate.isPresentingModal {
+                do { try await Task.sleep(for: .milliseconds(200)) }
+                catch { return }
+            }
+            guard !Task.isCancelled, let request = sceneDelegate.pendingAction,
+                  request.id == requestID else { return }
+            sceneDelegate.pendingAction = nil
+            performQuickAction(request.action)
+        }
         .task(id: scenePhase) {
             if scenePhase == .active {
                 if store.isFolderConnected { await store.refreshReminders() }
@@ -96,6 +113,32 @@ struct OrgendaRootView: View {
 }
 
 private extension OrgendaRootView {
+    var actionableShortcutID: UUID? {
+        guard scenePhase == .active, !store.isStartingWorkspace, !store.isPerformingFileAction,
+              store.isFolderConnected || isUITestWorkspace else { return nil }
+        return sceneDelegate.pendingAction?.id
+    }
+
+    func performQuickAction(_ action: OrgendaQuickAction) {
+        switch action {
+        case .newTask:
+            selectedTab = .dashboard
+            capture = .agenda(nil)
+        case .today:
+            store.selectedDate = .now.startOfDay
+            calendarNavigationID = UUID()
+            selectedTab = .calendar
+        case .search:
+            searchQuery = ""
+            searchNavigationID = UUID()
+            selectedTab = .search
+        case .files:
+            fileNavigationRequest = nil
+            filesNavigationID = UUID()
+            selectedTab = .files
+        }
+    }
+
     var workspaceUnavailable: some View {
         ContentUnavailableView {
             Label("Workspace unavailable", systemImage: "folder.badge.questionmark")
@@ -124,14 +167,17 @@ private extension OrgendaRootView {
                     capture = .agenda(date)
                 }, onShowInFile: showInFile, onShowOverdue: showOverdue,
                    expectsConnectedWorkspace: !isUITestWorkspace)
+                .id(calendarNavigationID)
                 .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
             Tab("Files", systemImage: "folder.fill", value: .files) {
                 FilesView(store: store, navigationRequest: $fileNavigationRequest)
+                    .id(filesNavigationID)
                     .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
             Tab(value: .search, role: .search) {
-                SearchView(store: store, query: $searchQuery)
+                SearchView(store: store, query: $searchQuery, focusRequest: searchNavigationID)
+                    .id(searchNavigationID)
                     .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
         }

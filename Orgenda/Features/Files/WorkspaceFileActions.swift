@@ -15,23 +15,56 @@ struct WorkspaceBrowserRow: View {
 
     var body: some View {
         ZStack {
-            Button {
-                if offset != 0 { close() } else { onOpen() }
-            } label: {
-                HStack(spacing: 8) {
-                    WorkspaceFileRow(
-                        document: document,
-                        showsPath: showsPath,
-                        headingCount: store.parsedDocuments[document.path]?.headings.count
-                    )
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: document.kind == .folder ? "folder.fill" : "doc.text")
+                    .font(.system(size: 20))
+                    .foregroundStyle(document.kind == .folder ? Color.orange : OrgendaTheme.accentText)
+                    .frame(width: 24, height: 56)
+                    .contentShape(Rectangle())
+                    .draggable(store.fileTransfer(document))
+                    .onTapGesture {
+                        if offset != 0 { close() } else { onOpen() }
+                    }
+                    .accessibilityLabel(document.title)
+                    .accessibilityIdentifier("files.drag.\(document.path)")
+                Button {
+                    if offset != 0 { close() } else { onOpen() }
+                } label: {
+                    HStack(spacing: 8) {
+                        WorkspaceFileRow(
+                            document: document,
+                            showsPath: showsPath,
+                            showsIcon: false,
+                            headingCount: store.parsedDocuments[document.path]?.headings.count
+                        )
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+                    }
+                    .padding(.vertical, 6)
+                    .frame(minHeight: 56)
+                    .contentShape(Rectangle())
                 }
-                .padding(.vertical, 6)
-                .frame(minHeight: 56)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("files.open.\(document.path)")
+                .contextMenu {
+                    Button("Open", systemImage: document.kind == .folder ? "folder" : "doc.text") {
+                        close()
+                        onOpen()
+                    }
+                    .accessibilityIdentifier("files.context.open")
+                    Button("Move", systemImage: "folder") {
+                        close()
+                        moveRequest = store.fileTransfer(document)
+                    }
+                    .accessibilityIdentifier("files.context.move")
+                    Button("Delete", systemImage: "trash", role: .destructive) {
+                        close()
+                        deletion = store.fileTransfer(document)
+                    }
+                    .accessibilityIdentifier("files.context.delete")
+                } preview: {
+                    WorkspaceDocumentContextPreview(document: document, store: store)
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("files.open.\(document.path)")
             .background(Color(uiColor: .systemBackground))
             .offset(x: offset)
             .gesture(OrgendaHorizontalPan(onChange: { translation, began in
@@ -58,13 +91,9 @@ struct WorkspaceBrowserRow: View {
             guard document.kind == .folder, files.count == 1, let file = files.first,
                   store.canMoveFile(file, to: document.path) else { return false }
             close()
-            Task { await store.moveFile(file, to: document.path) }
+            Task { OrgendaHaptics.result(await store.moveFile(file, to: document.path)) }
             return true
         } isTargeted: { dropTargeted = $0 }
-        .draggable(store.fileTransfer(document)) {
-            Label(document.title, systemImage: document.kind == .folder ? "folder.fill" : "doc.text")
-                .padding(14).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        }
         .accessibilityActions {
             Button("Move") { moveRequest = store.fileTransfer(document) }
             Button("Delete") { deletion = store.fileTransfer(document) }
@@ -77,7 +106,7 @@ struct WorkspaceBrowserRow: View {
         ), presenting: deletion) { file in
             Button("Delete", role: .destructive) {
                 close()
-                Task { await store.deleteFile(file) }
+                Task { OrgendaHaptics.result(await store.deleteFile(file)) }
             }
             Button("Cancel", role: .cancel) {}
         } message: { _ in
@@ -165,7 +194,9 @@ private struct WorkspaceMoveSheet: View {
     private func destination(_ path: String, title: String) -> some View {
         Button {
             Task {
-                if await store.moveFile(transfer, to: path) { dismiss() }
+                let succeeded = await store.moveFile(transfer, to: path)
+                OrgendaHaptics.result(succeeded)
+                if succeeded { dismiss() }
                 else { error = store.fileActionError; store.fileActionError = nil }
             }
         } label: { Label(title, systemImage: "folder") }
@@ -190,7 +221,9 @@ struct WorkspaceRecentlyDeleted: View {
                         }.frame(maxWidth: .infinity, alignment: .leading)
                         Button("Restore") {
                             Task {
-                                if !(await store.restoreFile(entry)) { error = store.fileActionError; store.fileActionError = nil }
+                                let succeeded = await store.restoreFile(entry)
+                                OrgendaHaptics.result(succeeded)
+                                if !succeeded { error = store.fileActionError; store.fileActionError = nil }
                             }
                         }
                         .buttonStyle(.borderless).frame(minHeight: 44)
@@ -233,7 +266,12 @@ struct WorkspaceFileFeedback: ViewModifier {
                 if let undo = store.fileUndo {
                     HStack(spacing: 12) {
                         Text(undo.message).font(.subheadline).frame(maxWidth: .infinity, alignment: .leading)
-                        Button("Undo", systemImage: "arrow.uturn.backward") { Task { await store.undoFileAction() } }
+                        Button("Undo", systemImage: "arrow.uturn.backward") {
+                            Task {
+                                await store.undoFileAction()
+                                OrgendaHaptics.result(store.fileActionError == nil)
+                            }
+                        }
                             .labelStyle(.iconOnly)
                             .font(.subheadline.bold()).frame(width: 44, height: 44)
                             .accessibilityIdentifier("files.action.undo")

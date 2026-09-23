@@ -9,7 +9,7 @@ struct AgendaPerspectiveContent<Row: View>: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 20) {
+            LazyVStack(alignment: .leading, spacing: option == .dashboard ? 8 : 20) {
                 if groups.allSatisfy({ $0.items.isEmpty }) && deadlines.isEmpty && overdue.isEmpty {
                     ContentUnavailableView(
                         option == .dashboard ? "No items in Dashboard" : "No items",
@@ -24,7 +24,7 @@ struct AgendaPerspectiveContent<Row: View>: View {
                     if !overdue.isEmpty {
                         configuredGroup(OrgAgendaGroup(title: String(localized: "Overdue"), items: overdue))
                     }
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text(String(localized: "Next 7 days"))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
@@ -40,8 +40,10 @@ struct AgendaPerspectiveContent<Row: View>: View {
                     if !deadlines.isEmpty {
                         configuredGroup(OrgAgendaGroup(title: String(localized: "Deadlines · next 3 days"), items: deadlines))
                     }
-                    ForEach(groups.filter { !$0.isDateGroup && !$0.items.isEmpty }) { group in
-                        configuredGroup(group)
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(groups.filter { !$0.isDateGroup && !$0.items.isEmpty }) { group in
+                            configuredGroup(group)
+                        }
                     }
                 } else {
                     ForEach(groups) { group in

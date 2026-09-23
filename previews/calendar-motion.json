@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "app": "Orgenda",
+  "transition": "month-year",
+  "parameters": {
+    "opacityMax": 1,
+    "opacityMiddle": 0.66,
+    "opacityBend": 6,
+    "opacityEnd": 1,
+    "blurMax": 5,
+    "blurEnd": 1,
+    "blurPower": 1.65,
+    "morphPower": 1,
+    "snapDuration": 0.32,
+    "playDuration": 1.5
+  },
+  "preview": { "year": 2026, "month": 9, "day": 22, "progress": 0.7867 },
+  "curves": {
+    "opacity": "opacityMax * descendingS(progress / opacityEnd, opacityMiddle, opacityBend)",
+    "descendingS": "p = clamp(progress); p <= 0.5 ? middle + (1-middle)*pow(1-2*p,bend) : middle*(1-pow(2*p-1,bend))",
+    "blur": "blurMax * (1 - smootherstep(pow(clamp(progress / blurEnd), blurPower)))",
+    "geometry": "pow(progress, morphPower)",
+    "smootherstep": "x*x*x*(x*(x*6-15)+10), x clamped to [0,1]"
+  }
+}

@@ -454,6 +454,7 @@ struct OrgItemEditor: View {
         if let target { success = await store.moveItem(originalDraft, to: target) }
         else { success = await store.archiveItem(originalDraft) }
         isMoving = false
+        OrgendaHaptics.result(success)
         if success { dismiss() } else { showsMoveFailure = true }
     }
 
@@ -517,8 +518,10 @@ struct OrgItemEditor: View {
                       captureTemplate: usesCaptureTemplates ? captureTemplate : nil,
                       captureFirstAction: usesCaptureTemplates && captureTemplate.isProject ? firstAction : nil,
                       stateNote: requiresStateNote ? stateNote : nil) {
+            OrgendaHaptics.result(true)
             dismiss()
         } else {
+            OrgendaHaptics.result(false)
             showsSaveFailure = true
         }
     }

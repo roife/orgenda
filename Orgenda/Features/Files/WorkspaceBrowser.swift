@@ -49,17 +49,20 @@ struct WorkspaceFolderView: View {
 struct WorkspaceFileRow: View {
     let document: WorkspaceDocument
     var showsPath = false
+    var showsIcon = true
     /// Heading count from the parsed index; when nil (not indexed yet or a
     /// non-Org file) the detail falls back to scanning the source.
     var headingCount: Int? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: document.kind == .folder ? "folder.fill" : "doc.text")
-                .font(.system(size: 20))
-                .foregroundStyle(document.kind == .folder ? Color.orange : OrgendaTheme.accentText)
-                .frame(width: 24, height: 26)
-                .accessibilityHidden(true)
+            if showsIcon {
+                Image(systemName: document.kind == .folder ? "folder.fill" : "doc.text")
+                    .font(.system(size: 20))
+                    .foregroundStyle(document.kind == .folder ? Color.orange : OrgendaTheme.accentText)
+                    .frame(width: 24, height: 26)
+                    .accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(document.title)
                     .font(.body)

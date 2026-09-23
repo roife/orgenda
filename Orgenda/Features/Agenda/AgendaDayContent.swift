@@ -79,6 +79,8 @@ struct AgendaDayContent<Row: View>: View {
                 }
                 Button("Show in File", systemImage: "doc.text.magnifyingglass") { onShowInFile(item) }
                     .accessibilityIdentifier("agenda.item.showInFile")
+            } preview: {
+                OrgItemContextPreview(item: item)
             }
             .accessibilityAction(named: "Show in File") { onShowInFile(item) }
             .padding(.horizontal, 16)

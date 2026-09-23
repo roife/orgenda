@@ -1,6 +1,71 @@
 import XCTest
 
 final class DatePresentationUITests: XCTestCase {
+    func testCalendarResizeFrameCadence() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchEnvironment["ORGENDA_CALENDAR_PROFILE"] = ProcessInfo.processInfo.environment["ORGENDA_CALENDAR_PROFILE"] ?? "baseline"
+        app.launch()
+        defer { app.terminate() }
+        app.tabBars.buttons["Calendar"].tap()
+        app.dragCalendarHandle(by: 230)
+        for _ in 0..<3 {
+            for distance: CGFloat in [117, -117] {
+                let start = app.calendarDensityHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: distance)),
+                            withVelocity: XCUIGestureVelocity(rawValue: 60), thenHoldForDuration: 0.1)
+                XCTAssertEqual(app.calendarDensityHandle.value as? String, distance > 0 ? "Year" : "Month")
+            }
+        }
+    }
+
+    func testYearMonthTapSelectsMonthAndKeepsResizeWorking() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        defer { app.terminate() }
+        app.tabBars.buttons["Calendar"].tap()
+        app.dragCalendarHandle(by: 347)
+        XCTAssertEqual(app.calendarDensityHandle.value as? String, "Year")
+
+        let calendar = Calendar.current
+        let previousYear = calendar.date(byAdding: .year, value: -1, to: .now)!
+        let years = app.scrollViews["orgenda.calendar.years"]
+        years.swipeDown()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", previousYear.formatted(.dateTime.year())), object: years
+        )], timeout: 3), .completed)
+
+        let month = try XCTUnwrap(calendar.date(from: DateComponents(
+            year: calendar.component(.year, from: previousYear), month: 4, day: 1
+        )))
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        let monthKey = formatter.string(from: month)
+        let monthButton = app.buttons["orgenda.calendar.month.\(monthKey)"]
+        XCTAssertTrue(monthButton.isHittable)
+        monthButton.tap()
+
+        let months = app.scrollViews["orgenda.calendar.months"]
+        XCTAssertTrue(months.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.calendarDensityHandle.value as? String, "Month")
+        XCTAssertEqual(months.value as? String, month.formatted(.dateTime.month(.wide).year()))
+        let selectedDay = months.buttons.matching(NSPredicate(
+            format: "identifier == %@ AND selected == true", "orgenda.calendar.day.\(monthKey)"
+        )).firstMatch
+        XCTAssertTrue(selectedDay.isHittable)
+        XCTAssertEqual(app.staticTexts["orgenda.calendar.date.heading"].label,
+                       month.formatted(date: .complete, time: .omitted))
+
+        app.dragCalendarHandle(by: 117)
+        XCTAssertEqual(app.calendarDensityHandle.value as? String, "Year")
+        XCTAssertEqual(years.value as? String, previousYear.formatted(.dateTime.year()))
+        XCTAssertTrue(app.buttons["orgenda.calendar.month.\(monthKey)"].isSelected)
+    }
+
     func testCalendarHandleResizesThroughWeekMonthAndYear() throws {
         continueAfterFailure = false
         let app = XCUIApplication()

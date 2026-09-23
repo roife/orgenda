@@ -1,6 +1,79 @@
 import XCTest
 
 final class MotionFlowUITests: XCTestCase {
+    func testHabitContextPreviewShowsHistoryWithoutOpeningEditor() {
+        let app = gestureApp()
+        defer { app.terminate() }
+        let habit = app.staticTexts["Evening walk"].firstMatch
+        let timeline = app.scrollViews["orgenda.agenda.timeline"]
+        for _ in 0..<3 where !habit.isHittable { timeline.swipeUp() }
+        XCTAssertTrue(habit.isHittable)
+        habit.press(forDuration: 1)
+        XCTAssertTrue(app.staticTexts["28-day history"].waitForExistence(timeout: 3))
+        let history = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'habit.history.'"))
+        XCTAssertEqual(history.count, 28)
+        XCTAssertFalse(app.textFields["item.editor.title"].exists)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Habit Haptic Touch history"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    func testHapticTouchFilePreviewOpenAndMove() {
+        let app = fileGestureApp()
+        defer { app.terminate() }
+        let inbox = app.buttons["files.open.inbox.org"]
+        XCTAssertTrue(inbox.waitForExistence(timeout: 3))
+        inbox.press(forDuration: 1)
+        let open = app.buttons["files.context.open"]
+        XCTAssertTrue(open.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'File gesture probe'")).firstMatch.exists)
+        XCTAssertFalse(app.buttons["org.document.outline"].exists, "Previewing must not navigate into the document")
+        let preview = XCTAttachment(screenshot: app.screenshot())
+        preview.name = "Haptic Touch file preview"
+        preview.lifetime = .keepAlways
+        add(preview)
+        open.tap()
+        XCTAssertTrue(app.buttons["org.document.outline"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["File gesture probe"].exists)
+        edgeBack(in: app)
+
+        inbox.press(forDuration: 1)
+        app.buttons["files.context.move"].tap()
+        let destination = app.buttons["files.move.destination.destination"]
+        XCTAssertTrue(destination.waitForExistence(timeout: 3))
+        destination.tap()
+        XCTAssertTrue(inbox.waitForNonExistence(timeout: 4))
+        app.buttons["files.action.undo"].tap()
+        XCTAssertTrue(inbox.waitForExistence(timeout: 3))
+    }
+
+    func testHapticTouchFolderDeleteRequiresConfirmationAndCanUndo() {
+        let app = fileGestureApp()
+        defer { app.terminate() }
+        let projects = app.buttons["files.open.projects"]
+        XCTAssertTrue(projects.waitForExistence(timeout: 3))
+        projects.press(forDuration: 1)
+        let delete = app.buttons["files.context.delete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Child"].exists)
+        delete.tap()
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 3))
+        app.alerts.buttons["Cancel"].tap()
+        XCTAssertTrue(projects.exists)
+
+        projects.press(forDuration: 1)
+        delete.tap()
+        app.alerts.buttons["Delete"].tap()
+        XCTAssertTrue(projects.waitForNonExistence(timeout: 4))
+        app.buttons["files.action.undo"].tap()
+        XCTAssertTrue(projects.waitForExistence(timeout: 3))
+        projects.tap()
+        app.buttons["files.open.projects/child"].tap()
+        app.buttons["files.open.projects/child/notes.org"].tap()
+        XCTAssertTrue(app.staticTexts["Nested content 中文"].waitForExistence(timeout: 3))
+    }
+
     func testPlainBirthdayOffersInlineCompletionAndUndo() {
         let app = gestureApp()
         app.tabBars.buttons["Files"].tap()
@@ -42,7 +115,7 @@ final class MotionFlowUITests: XCTestCase {
         let projects = app.buttons["files.open.projects"]
         let destination = app.buttons["files.open.destination"]
         XCTAssertTrue(projects.waitForExistence(timeout: 3))
-        projects.press(forDuration: 0.7, thenDragTo: destination)
+        app.descendants(matching: .any).matching(identifier: "files.drag.projects").firstMatch.press(forDuration: 0.7, thenDragTo: destination)
         XCTAssertTrue(app.buttons["files.action.undo"].waitForExistence(timeout: 4))
         XCTAssertFalse(projects.exists)
         destination.tap()
@@ -62,6 +135,8 @@ final class MotionFlowUITests: XCTestCase {
         XCTAssertTrue(nested.waitForNonExistence(timeout: 4))
         edgeBack(in: app)
         XCTAssertTrue(projects.waitForExistence(timeout: 3))
+        app.descendants(matching: .any).matching(identifier: "files.drag.projects").firstMatch.tap()
+        XCTAssertTrue(app.buttons["files.open.projects/child"].waitForExistence(timeout: 3))
     }
 
     func testFileBrowserSwipeDeleteCancelUndoAndRecentlyDeletedRestore() {
@@ -101,7 +176,7 @@ final class MotionFlowUITests: XCTestCase {
         let app = fileGestureApp()
         let inbox = app.buttons["files.open.inbox.org"]
         XCTAssertTrue(inbox.waitForExistence(timeout: 3))
-        inbox.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        app.descendants(matching: .any).matching(identifier: "files.drag.inbox.org").firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.7, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7)))
         XCTAssertTrue(inbox.exists)
         XCTAssertFalse(app.buttons["files.action.undo"].exists)
@@ -260,7 +335,8 @@ final class MotionFlowUITests: XCTestCase {
         let app = gestureApp()
         let title = app.staticTexts["Review quarterly roadmap"]
         XCTAssertTrue(title.waitForExistence(timeout: 3))
-        title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let drag = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'agenda.item.complete.' AND value BEGINSWITH 'Review quarterly roadmap'")).firstMatch
+        drag.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.7, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)))
         XCTAssertFalse(app.buttons["agenda.gesture.undo"].exists)
         let calendar = Calendar.autoupdatingCurrent
@@ -269,7 +345,7 @@ final class MotionFlowUITests: XCTestCase {
         formatter.dateFormat = "yyyy-MM-dd"
         let day = app.buttons["orgenda.calendar.day.\(formatter.string(from: target))"]
         XCTAssertTrue(day.isHittable)
-        title.press(forDuration: 0.7, thenDragTo: day)
+        drag.press(forDuration: 0.7, thenDragTo: day)
         let undo = app.buttons["agenda.gesture.undo"]
         XCTAssertTrue(undo.waitForExistence(timeout: 4))
         undo.tap()

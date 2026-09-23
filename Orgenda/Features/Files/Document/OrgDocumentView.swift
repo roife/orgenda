@@ -85,13 +85,13 @@ struct OrgDocumentView: View {
                     outlineButton
                 }
             }
-            .task(id: searchQuery) {
-                guard let query = searchQuery?.trimmingCharacters(in: .whitespacesAndNewlines),
+            .task(id: mode == .edit ? searchQuery : nil) {
+                guard mode == .edit,
+                      let query = searchQuery?.trimmingCharacters(in: .whitespacesAndNewlines),
                       !query.isEmpty, handledSearchQuery != query,
                       let contents = store.documents.first(where: { $0.path == path })?.contents,
                       contents.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil else { return }
                 handledSearchQuery = query
-                mode = .edit
                 await Task.yield()
                 guard !Task.isCancelled else { return }
                 editorSession.selectSearchMatch(query)

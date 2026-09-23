@@ -3,6 +3,8 @@ import SwiftUI
 struct SearchView: View {
     let store: WorkspaceStore
     @Binding var query: String
+    var focusRequest: UUID? = nil
+    @FocusState private var isSearchFocused: Bool
     @State private var scope: SearchScope = .all
     @State private var presentation: SearchPresentation?
     @State private var results: [SearchResult] = []
@@ -41,6 +43,10 @@ struct SearchView: View {
                 .sensoryFeedback(.selection, trigger: scope)
         }
         .searchable(text: $query, prompt: "Search orgenda")
+        .searchFocused($isSearchFocused)
+        .task(id: focusRequest) {
+            if focusRequest != nil { isSearchFocused = true }
+        }
         .task { scheduleSearch() }
         // Debounced, cancellable search: scanning every document on each
         // keystroke blocked the main thread. Data changes re-run the active

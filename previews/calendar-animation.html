@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Orgenda · 日历动画调试</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f4f6f7; --surface: #fff; --ink: #18242b; --muted: #63747e;
+      --line: #e1e7ea; --accent: #2e6e87; --accent-soft: #e8f2f5;
+      --purple: #8a65ae; --orange: #c88330; --weekend: #6d4a91;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--page); color: var(--ink); font-size: 14px; }
+    button, input, select { font: inherit; }
+    button, select { cursor: pointer; }
+    button { border: 1px solid var(--line); border-radius: 10px; padding: 9px 13px; background: var(--surface); color: var(--ink); }
+    button:hover { background: var(--accent-soft); }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #8bc3d5; outline-offset: 3px; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.primary:hover { background: #265b70; }
+    button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+    input[type="range"] { width: 100%; height: 22px; margin: 0; accent-color: var(--accent); cursor: ew-resize; }
+    output, .number { font-variant-numeric: tabular-nums; }
+    .shell { max-width: 1160px; margin: auto; padding: 30px 28px 40px; }
+    .page-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 25px; }
+    .brand { color: var(--accent); font-size: 11px; font-weight: 750; letter-spacing: 2px; margin-bottom: 8px; }
+    h1 { font-size: 26px; letter-spacing: -.6px; margin: 0 0 8px; font-weight: 650; }
+    .subtitle { margin: 0; color: var(--muted); line-height: 1.6; }
+    .head-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .workspace { display: grid; grid-template-columns: minmax(300px,390px) minmax(360px,1fr); gap: 40px; align-items: start; }
+    .preview-column { position: sticky; top: 18px; }
+    .preview-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 8px; }
+    .eyebrow { font-size: 12px; font-weight: 650; letter-spacing: .3px; color: var(--muted); }
+    .month-picker { border: 1px solid var(--line); background: var(--surface); padding: 7px 10px; border-radius: 8px; color: var(--ink); }
+    .phone { width: 100%; height: 790px; background: #fff; color: #14181b; border-radius: 36px; border: 1px solid #d6dfe3; box-shadow: 0 20px 60px #1937460c, 0 4px 14px #19374608; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+    .status { height: 44px; flex: 0 0 44px; display: flex; justify-content: space-between; align-items: center; padding: 0 27px; font-size: 13px; font-weight: 650; }
+    .island { width: 97px; height: 25px; border-radius: 20px; background: #121518; position: absolute; left: 50%; transform: translateX(-50%); top: 10px; }
+    .status-symbols { letter-spacing: 1px; font-size: 11px; }
+    .calendar-panel { padding: 0 16px; flex: 0 0 auto; }
+    .calendar-heading { height: 76px; position: relative; display: flex; align-items: center; }
+    .month-caption { position: absolute; inset: 0; display: flex; gap: 12px; align-items: center; transform-origin: left center; }
+    .big-day { font-size: 48px; font-weight: 730; letter-spacing: -1.8px; line-height: 1; }
+    .date-context { display: flex; flex-direction: column; gap: 3px; }
+    .weekday-caption { font-size: 14px; color: #7c858a; font-weight: 600; }
+    .month-line { display: flex; align-items: baseline; gap: 5px; font-size: 18px; font-weight: 600; line-height: 1.2; white-space: nowrap; }
+    .year-slot { visibility: hidden; }
+    .year-caption { position: absolute; top: 0; left: 0; font-size: 18px; line-height: 1.2; font-weight: 600; transform-origin: left top; will-change: transform; }
+    .capture { position: absolute; right: 0; width: 39px; height: 39px; border-radius: 50%; border: 1px solid #e8edef; background: #fafcfd; color: var(--accent); display: grid; place-items: center; font-size: 27px; font-weight: 300; }
+    .calendar-stage { position: relative; overflow: hidden; isolation: isolate; height: 297px; }
+    .year-layer { position: absolute; top: 0; left: 0; width: 100%; height: 414px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: repeat(4,96px); gap: 10px 12px; transform: translateZ(0); }
+    .mini-month { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+    .mini-label { height: 18px; flex: 0 0 18px; font-size: 14px; font-weight: 600; text-align: center; line-height: 18px; }
+    .mini-grid { height: 71px; display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); grid-template-rows: repeat(6,11px); gap: 1px; }
+    .mini-day { position: relative; display: grid; place-items: center; min-width: 0; font-size: 9px; line-height: 11px; white-space: nowrap; overflow: visible; }
+    .mini-day.selected::before { content: ""; width: 14px; height: 14px; position: absolute; background: var(--accent); border-radius: 50%; }
+    .mini-day span { position: relative; z-index: 1; }
+    .mini-day.selected { color: #fff; font-weight: 600; }
+    .veil { position: absolute; inset: 0 0 auto; height: 414px; background: #fff; pointer-events: none; }
+    .weekdays { position: absolute; top: 0; left: 0; width: 100%; height: 17px; display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; align-items: center; font-size: 11px; font-weight: 600; color: #879095; text-align: center; }
+    .weekdays span:first-child, .weekdays span:last-child { color: var(--weekend); }
+    .morph-month { position: absolute; left: 0; top: 23px; display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); background: transparent; will-change: transform,width,height; }
+    .morph-day { position: relative; display: grid; place-items: center; min-width: 0; overflow: visible; }
+    .morph-number { position: relative; display: grid; place-items: center; border-radius: 50%; white-space: nowrap; overflow: visible; line-height: 1; font-variant-numeric: tabular-nums; }
+    .morph-number.selected { color: #fff !important; background: var(--accent); font-weight: 600; }
+    .event-dot { position: absolute; left: calc(50% - 1.5px); top: calc(50% - 1.5px); width: 3px; height: 3px; border-radius: 50%; background: var(--accent); }
+    .handle-wrap { height: 22px; margin-top: 2px; position: relative; display: flex; justify-content: center; }
+    .drag-handle { width: 100px; height: 22px; border: 0; padding: 2px 0 15px; border-radius: 0; background: transparent; display: grid; justify-items: center; touch-action: none; cursor: ns-resize; }
+    .drag-handle::before { content: ""; display: block; width: 36px; height: 5px; border-radius: 5px; background: #ced3d7; }
+    .drag-handle:hover, .drag-handle:active { background: transparent; }
+    .drag-handle:hover::before, .drag-handle.dragging::before { background: var(--accent); }
+    .timeline { padding: 3px 16px 14px; overflow: hidden; min-height: 0; flex: 1; }
+    .today-row { display: flex; align-items: baseline; gap: 9px; padding: 7px 0 17px; font-size: 13px; }
+    .today-row strong { font-size: 12px; }
+    .today-row span { color: #92999d; }
+    .today-row .count { margin-left: auto; }
+    .overdue { display: inline-block; color: #fff; background: #c60055; padding: 4px 9px; border-radius: 15px; font-size: 11px; font-weight: 600; margin-bottom: 17px; }
+    .event { width: fit-content; padding: 4px 6px; background: #e5f3f6; color: var(--accent); font-size: 12px; font-weight: 600; border-radius: 4px; margin-bottom: 10px; }
+    .task { display: flex; gap: 9px; margin-top: 15px; font-size: 12px; }
+    .task-check { width: 15px; height: 15px; border: 1.4px solid #9aa5aa; border-radius: 50%; flex: 0 0 auto; }
+    .task-text small { display: block; color: #909ba0; font-size: 10px; margin-top: 4px; }
+    .tabbar { height: 65px; flex: 0 0 65px; margin: 0 10px 10px; padding: 5px; border: 1px solid #eef0f1; border-radius: 32px; background: #fbfcfce8; display: flex; gap: 3px; box-shadow: 0 1px 6px #18242b06; }
+    .tab { flex: 1; text-align: center; font-size: 9px; font-weight: 600; border-radius: 25px; padding-top: 6px; }
+    .tab-symbol { display: block; font-size: 22px; line-height: 25px; }
+    .tab.active { color: var(--accent); background: #edf2f4; }
+    .preview-note { color: var(--muted); font-size: 12px; line-height: 1.7; margin: 13px 4px 0; }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+    .panel-section { padding: 20px 23px; border-bottom: 1px solid var(--line); }
+    .panel-section:last-child { border: 0; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+    h2 { font-size: 16px; margin: 0; font-weight: 650; }
+    .progress-value { font-size: 20px; color: var(--accent); font-weight: 650; }
+    .endpoint-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin: 4px 0 12px; }
+    .transport { display: flex; align-items: center; gap: 8px; }
+    .transport .primary { flex: 1; }
+    .chart { display: block; width: 100%; height: 164px; touch-action: none; cursor: crosshair; }
+    .chart text { font-family: inherit; font-size: 11px; fill: var(--muted); }
+    .chart .grid-line { stroke: #e8edef; stroke-width: 1; }
+    .chart .curve { fill: none; stroke-width: 2.4; stroke-linecap: round; }
+    .chart .guide { stroke: #b2bfc6; stroke-width: 1; stroke-dasharray: 3 4; }
+    .live-values { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 7px 12px; padding-top: 5px; font-size: 12px; }
+    .live-value { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+    .swatch { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+    .live-value output { color: var(--ink); min-width: 42px; }
+    .param-group + .param-group { margin-top: 25px; padding-top: 19px; border-top: 1px solid var(--line); }
+    .group-title { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; font-size: 13px; font-weight: 650; }
+    .param { margin-bottom: 17px; }
+    .param:last-child { margin-bottom: 0; }
+    .param-label { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 5px; font-size: 13px; }
+    .param-label output { color: var(--accent); white-space: nowrap; }
+    .param-hint { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; line-height: 1.5; }
+    .footer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .status-message { margin: 12px 0 0; color: var(--muted); font-size: 12px; min-height: 18px; line-height: 1.5; }
+    .saved-note { color: var(--muted); font-size: 11px; margin: 14px 2px 0; line-height: 1.6; }
+    .copy-fallback { display: block; width: 100%; margin-top: 12px; min-height: 180px; border: 1px solid var(--line); padding: 10px; border-radius: 8px; font: 12px/1.6 ui-monospace, monospace; }
+    [hidden] { display: none !important; }
+    @media (max-width: 880px) {
+      .shell { padding: 23px 18px 30px; }
+      .workspace { gap: 22px; grid-template-columns: minmax(280px,350px) minmax(300px,1fr); }
+      .panel-section { padding: 18px; }
+      .phone { height: 766px; border-radius: 29px; }
+      .head-actions button { padding: 8px 10px; }
+    }
+    @media (max-width: 680px) {
+      .page-head { align-items: flex-start; flex-direction: column; gap: 15px; }
+      .workspace { grid-template-columns: 1fr; }
+      .preview-column { position: static; width: min(390px,100%); margin: auto; }
+      .phone { height: 790px; }
+      .control-column { min-width: 0; }
+      .head-actions { justify-content: flex-start; }
+      h1 { font-size: 24px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <main class="shell" id="calendar-lab">
+    <header class="page-head">
+      <div><div class="brand">ORGENDA / MOTION LAB</div><h1>月／年过渡调试</h1><p class="subtitle">拖动横条感受变化，调整曲线找到合适的手感。</p></div>
+      <div class="head-actions"><button type="button" id="reset">恢复预览默认值</button><button type="button" id="copy-top">复制参数</button></div>
+    </header>
+    <div class="workspace">
+      <section class="preview-column" aria-label="日历动画预览">
+        <div class="preview-heading"><span class="eyebrow">实时预览</span><label><span class="eyebrow">预览月份 </span><select class="month-picker" id="month" aria-label="预览月份"></select></label></div>
+        <div class="phone">
+          <div class="status"><span>9:41</span><div class="island" aria-hidden="true"></div><span class="status-symbols" aria-hidden="true">▴ ◔ ▰</span></div>
+          <div class="calendar-panel">
+            <div class="calendar-heading">
+              <div class="month-caption" id="month-caption"><span class="big-day">22</span><div class="date-context"><span class="weekday-caption" id="weekday-caption">TUE</span><span class="month-line"><span id="month-name">Sep</span><span class="year-slot" id="year-slot" aria-hidden="true">2026</span></span></div></div>
+              <div class="year-caption" id="year-caption">2026</div><div class="capture" aria-hidden="true">+</div>
+            </div>
+            <div class="calendar-stage" id="stage" role="img" aria-label="2026 年日历，月视图与年视图之间的连续变换">
+              <div class="year-layer" id="year-layer"></div><div class="veil" id="veil"></div>
+              <div class="weekdays" id="weekdays"><span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span></div>
+              <div class="morph-month" id="morph-month"></div>
+            </div>
+            <div class="handle-wrap"><button type="button" class="drag-handle" id="handle" aria-label="拖动切换月和年；方向键可微调" aria-valuetext="月年切换进度 50%"></button></div>
+          </div>
+          <div class="timeline" aria-hidden="true">
+            <div class="today-row"><strong>TODAY</strong><span id="timeline-date">Sep 22</span><span class="count">6</span></div>
+            <div class="overdue">! &nbsp;1 overdue</div><div class="event">orgenda anniversary — 6 years</div><div class="event">Weekend review</div>
+            <div class="task"><div class="task-check"></div><div class="task-text">Review quarterly roadmap<small>9:30 AM &nbsp; calendar</small></div></div>
+            <div class="task"><div class="task-check"></div><div class="task-text">Design sync<small>11:00 AM &nbsp; calendar</small></div></div>
+            <div class="task"><div class="task-check"></div><div class="task-text">Write tree-sitter queries<small>2:00 PM &nbsp; editor · org</small></div></div>
+          </div>
+          <div class="tabbar" aria-hidden="true"><div class="tab"><span class="tab-symbol">▦</span>Dashboard</div><div class="tab active"><span class="tab-symbol">▦</span>Calendar</div><div class="tab"><span class="tab-symbol">▣</span>Files</div><div class="tab"><span class="tab-symbol">⌕</span>Search</div></div>
+        </div>
+        <p class="preview-note">横条上下拖动，松手吸附。用进度滑块，可停在任意中间位置检查细节。</p>
+      </section>
+      <aside class="control-column" aria-label="动画曲线控制">
+        <div class="panel">
+          <section class="panel-section">
+            <div class="section-head"><h2>拖动进度</h2><output class="progress-value" id="progress-value" for="progress">50%</output></div>
+            <input type="range" id="progress" aria-label="月年切换进度" min="0" max="100" step="0.1" value="50">
+            <div class="endpoint-labels"><span>月 · 0%</span><span>年 · 100%</span></div>
+            <div class="transport"><button type="button" id="to-month">到月</button><button type="button" id="play" class="primary" aria-pressed="false">往返播放</button><button type="button" id="to-year">到年</button></div>
+          </section>
+          <section class="panel-section" aria-label="实时动画曲线">
+            <div class="section-head"><h2>曲线</h2><span class="eyebrow">横轴：拖动进度</span></div>
+            <svg class="chart" id="chart" role="img" aria-label="遮罩不透明度、模糊程度和月份变换的进度曲线"></svg>
+            <div class="live-values">
+              <span class="live-value"><i class="swatch" style="background:var(--accent)"></i>遮罩 <output id="opacity-value">89.6%</output></span>
+              <span class="live-value"><i class="swatch" style="background:var(--purple)"></i>模糊 <output id="blur-value">0 px</output></span>
+              <span class="live-value"><i class="swatch" style="background:var(--orange)"></i>变换 <output id="morph-value">50%</output></span>
+            </div>
+          </section>
+          <section class="panel-section" id="parameters" aria-label="曲线参数滑块"></section>
+          <section class="panel-section">
+            <div class="footer-actions"><button type="button" class="primary" id="copy">复制参数</button><button type="button" id="download">下载 JSON</button></div>
+            <p class="status-message" id="message" role="status">调整会自动保存在此浏览器。复制参数后可发回对话，应用到 iOS。</p>
+            <textarea id="copy-fallback" class="copy-fallback" aria-label="当前动画参数，复制后发回对话" readonly hidden></textarea>
+          </section>
+        </div>
+        <p class="saved-note">遮罩使用“先下降 → 中段平缓 → 再下降”的 S 型曲线。选中日期为 2026 年所选月份的 22 日；调好的参数可复制回对话，同步到 iOS。</p>
+      </aside>
+    </div>
+  </main>
+  <script>
+  (() => {
+    'use strict';
+    const root = document.getElementById('calendar-lab');
+    const $ = id => root.querySelector('#' + id);
+    const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
+    const mix = (a, b, p) => a + (b - a) * p;
+    const smooth = p => { const x = clamp(p); return x * x * x * (x * (x * 6 - 15) + 10); };
+    const defaults = Object.freeze({ opacityMax: 1, opacityMiddle: .66, opacityBend: 6, opacityEnd: 1, blurMax: 5, blurEnd: 1, blurPower: 1.65, morphPower: 1, snapDuration: .32, playDuration: 1.5 });
+    const storageKey = 'orgenda-calendar-animation-v1';
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const weekdays = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    const groups = [
+      { title: '遮罩不透明度', color: 'var(--accent)', items: [
+        ['opacityMax','月端不透明度',0,1,.01,'percent','月视图一端，遮罩最强时的厚度。'],
+        ['opacityMiddle','中段保留比例',.1,.95,.01,'percent','控制 S 型平缓段的高度，相对于月端不透明度。'],
+        ['opacityBend','中段平缓程度',2,6,.1,'power','越大，中段越平缓，下降越集中在两端。'],
+        ['opacityEnd','完全透明的位置',.4,1,.01,'percent','到达该拖动位置后，白色遮罩完全消失。']
+      ]},
+      { title: '背景模糊', color: 'var(--purple)', items: [
+        ['blurMax','最大模糊半径',0,16,.25,'pixels','月端最强，向年视图逐渐减弱。'],
+        ['blurEnd','模糊归零的位置',.1,1,.01,'percent','越小，背景越早恢复清晰；后续保持为零。'],
+        ['blurPower','模糊消退偏向',.35,3,.05,'power','越大，模糊在前段保留越久。']
+      ]},
+      { title: '月份变换与播放', color: 'var(--orange)', items: [
+        ['morphPower','移动／缩放偏向',.5,2.5,.05,'power','1.00 为线性跟手；大于 1 会把变换推向后段。'],
+        ['snapDuration','松手吸附时长',.12,.8,.01,'seconds','仅影响松开日历横条后的吸附。'],
+        ['playDuration','单程播放时长',.4,4,.1,'seconds','放慢播放，便于观察中段；不改变拖动手感。']
+      ]}
+    ];
+    const specs = new Map(groups.flatMap(group => group.items.map(item => [item[0], item])));
+    const state = { params: { ...defaults }, progress: .5, month: 8 };
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey));
+      if (saved?.version === 1 || saved?.version === 2) {
+        for (const [key, spec] of specs) if (Number.isFinite(saved.params?.[key])) state.params[key] = clamp(saved.params[key], spec[2], spec[3]);
+        // Preserve the previous curve's midpoint while changing its shape.
+        if (saved.version === 1 && Number.isFinite(saved.params?.opacityPower)) {
+          state.params.opacityMiddle = clamp(1-smooth(Math.pow(.5,saved.params.opacityPower)),.1,.95);
+        }
+        if (Number.isFinite(saved.progress)) state.progress = clamp(saved.progress);
+        if (Number.isInteger(saved.month)) state.month = clamp(saved.month, 0, 11);
+      }
+    } catch (_) { /* File URLs or privacy settings can disable local storage. */ }
+
+    function descendingS(progress, middle, bend) {
+      const p = clamp(progress);
+      // Fast descent into a horizontal tangent, then another descent. Both
+      // halves share their value and a zero slope at the midpoint.
+      return p <= .5
+        ? middle + (1-middle) * Math.pow(1-2*p,bend)
+        : middle * (1-Math.pow(2*p-1,bend));
+    }
+    const curves = p => {
+      const c = state.params;
+      return {
+        opacity: c.opacityMax * descendingS(p / c.opacityEnd,c.opacityMiddle,c.opacityBend),
+        blur: c.blurMax * (1 - smooth(Math.pow(clamp(p / c.blurEnd), c.blurPower))),
+        morph: Math.pow(clamp(p), c.morphPower)
+      };
+    };
+    const format = (value, kind) => ({
+      percent: () => Math.round(value * 100) + '%',
+      power: () => value.toFixed(2),
+      pixels: () => Number(value.toFixed(2)) + ' px',
+      seconds: () => Number(value.toFixed(2)) + ' s'
+    }[kind]());
+    const persist = () => {
+      try { localStorage.setItem(storageKey, JSON.stringify({ version: 2, params: state.params, progress: state.progress, month: state.month })); } catch (_) {}
+    };
+
+    for (const group of groups) {
+      const section = document.createElement('div'); section.className = 'param-group';
+      const heading = document.createElement('div'); heading.className = 'group-title';
+      const dot = document.createElement('i'); dot.className = 'swatch'; dot.style.background = group.color;
+      heading.append(dot, document.createTextNode(group.title)); section.append(heading);
+      for (const [key, label, min, max, step, kind, hint] of group.items) {
+        const field = document.createElement('div'); field.className = 'param';
+        const labelRow = document.createElement('label'); labelRow.className = 'param-label'; labelRow.htmlFor = 'param-' + key;
+        const output = document.createElement('output'); output.id = 'out-' + key; output.htmlFor = 'param-' + key;
+        labelRow.append(document.createTextNode(label), output);
+        const input = document.createElement('input'); input.type = 'range'; input.id = 'param-' + key;
+        input.dataset.param = key; input.min = min; input.max = max; input.step = step; input.value = state.params[key];
+        const help = document.createElement('span'); help.className = 'param-hint'; help.id = 'hint-' + key; help.textContent = hint;
+        input.setAttribute('aria-describedby', help.id);
+        input.addEventListener('input', () => { state.params[key] = Number(input.value); refreshControls(); drawCurves(); render(); persist(); });
+        field.append(labelRow, input, help); section.append(field);
+      }
+      $('parameters').append(section);
+    }
+    function refreshControls() {
+      for (const [key, spec] of specs) {
+        $('param-' + key).value = state.params[key];
+        $('out-' + key).textContent = format(state.params[key], spec[5]);
+      }
+    }
+    for (let month = 0; month < 12; month++) {
+      const option = document.createElement('option'); option.value = month; option.textContent = (month + 1) + ' 月'; $('month').append(option);
+    }
+    $('month').value = state.month;
+
+    function datesFor(month) {
+      const first = new Date(Date.UTC(2026, month, 1));
+      return Array.from({ length: 42 }, (_, i) => new Date(Date.UTC(2026, month, 1 - first.getUTCDay() + i)));
+    }
+    let cells = [], captionOrigin = null;
+    function buildCalendar() {
+      const yearFragment = document.createDocumentFragment();
+      for (let month = 0; month < 12; month++) {
+        const block = document.createElement('div'); block.className = 'mini-month';
+        const label = document.createElement('div'); label.className = 'mini-label'; label.textContent = monthNames[month];
+        const grid = document.createElement('div'); grid.className = 'mini-grid';
+        if (month === state.month) grid.style.visibility = 'hidden';
+        for (const date of datesFor(month)) {
+          const cell = document.createElement('div'); cell.className = 'mini-day';
+          if (date.getUTCMonth() === month) {
+            const text = document.createElement('span'); text.textContent = date.getUTCDate(); cell.append(text);
+            if (month === state.month && date.getUTCDate() === 22) cell.classList.add('selected');
+          }
+          grid.append(cell);
+        }
+        block.append(label, grid); yearFragment.append(block);
+      }
+      $('year-layer').replaceChildren(yearFragment);
+      const fragment = document.createDocumentFragment(); cells = [];
+      for (const date of datesFor(state.month)) {
+        const inMonth = date.getUTCMonth() === state.month;
+        const selected = inMonth && date.getUTCDate() === 22;
+        const cell = document.createElement('div'); cell.className = 'morph-day';
+        const number = document.createElement('span'); number.className = 'morph-number' + (selected ? ' selected' : ''); number.textContent = date.getUTCDate();
+        cell.append(number);
+        let dot = null;
+        if (inMonth && [5,12,21,22,24].includes(date.getUTCDate())) { dot = document.createElement('i'); dot.className = 'event-dot'; cell.append(dot); }
+        cells.push({ cell, number, dot, selected, inMonth, weekend: [0,6].includes(date.getUTCDay()) }); fragment.append(cell);
+      }
+      $('morph-month').replaceChildren(fragment);
+      $('month-name').textContent = monthNames[state.month];
+      captionOrigin = null;
+      $('weekday-caption').textContent = weekdays[new Date(Date.UTC(2026, state.month, 22)).getUTCDay()];
+      $('timeline-date').textContent = monthNames[state.month] + ' 22';
+      $('stage').setAttribute('aria-label', `2026 年 ${state.month + 1} 月 22 日，月年过渡预览`);
+    }
+
+    let chartWidth = 400;
+    const chartHeight = 164, plot = { left: 34, top: 10, bottom: 29, right: 13 };
+    const ns = 'http://www.w3.org/2000/svg';
+    function svgNode(tag, attrs, text) {
+      const node = document.createElementNS(ns, tag);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+      if (text != null) node.textContent = text;
+      return node;
+    }
+    const chartX = p => plot.left + p * (chartWidth - plot.left - plot.right);
+    const chartY = value => plot.top + (1 - clamp(value)) * (chartHeight - plot.top - plot.bottom);
+    function drawCurves() {
+      const chart = $('chart'); chartWidth = Math.max(220, chart.getBoundingClientRect().width);
+      chart.setAttribute('viewBox', `0 0 ${chartWidth} ${chartHeight}`); chart.replaceChildren();
+      for (const value of [0,.5,1]) {
+        const y = chartY(value); chart.append(svgNode('line', { x1: plot.left, x2: chartWidth - plot.right, y1: y, y2: y, class: 'grid-line' }));
+        chart.append(svgNode('text', { x: plot.left - 8, y: y + 4, 'text-anchor': 'end' }, Math.round(value * 100) + '%'));
+      }
+      for (const p of [0,.25,.5,.75,1]) chart.append(svgNode('text', { x: chartX(p), y: chartHeight - 6, 'text-anchor': p === 0 ? 'start' : p === 1 ? 'end' : 'middle' }, Math.round(p * 100) + '%'));
+      for (const [key, color] of [['opacity','var(--accent)'],['blur','var(--purple)'],['morph','var(--orange)']]) {
+        const d = Array.from({ length: 151 }, (_, i) => {
+          const p = i / 150, value = curves(p)[key];
+          return (i ? 'L' : 'M') + chartX(p).toFixed(2) + ',' + chartY(key === 'blur' ? (state.params.blurMax ? value / state.params.blurMax : 0) : value).toFixed(2);
+        }).join(' ');
+        chart.append(svgNode('path', { d, stroke: color, class: 'curve', 'data-curve': key }));
+      }
+      chart.append(svgNode('line', { id: 'chart-guide', y1: plot.top, y2: chartHeight - plot.bottom, class: 'guide' }));
+      for (const [key, color] of [['opacity','var(--accent)'],['blur','var(--purple)'],['morph','var(--orange)']]) chart.append(svgNode('circle', { id: 'dot-' + key, r: 4, fill: color, stroke: '#fff', 'stroke-width': 1.5 }));
+      updateGuide();
+    }
+    function updateGuide() {
+      if (!$('chart-guide')) return;
+      const p = state.progress, value = curves(p), x = chartX(p);
+      $('chart-guide').setAttribute('x1', x); $('chart-guide').setAttribute('x2', x);
+      for (const key of ['opacity','blur','morph']) {
+        $('dot-' + key).setAttribute('cx', x);
+        $('dot-' + key).setAttribute('cy', chartY(key === 'blur' ? (state.params.blurMax ? value.blur / state.params.blurMax : 0) : value[key]));
+      }
+    }
+    function render() {
+      const p = state.progress, values = curves(p), q = values.morph;
+      const width = $('stage').clientWidth, miniWidth = (width - 24) / 3;
+      const targetX = (state.month % 3) * (miniWidth + 12);
+      const targetY = Math.floor(state.month / 3) * 106 + 24.5;
+      $('stage').style.height = mix(297,414,p) + 'px';
+      $('year-layer').style.filter = `blur(${values.blur.toFixed(3)}px)`;
+      $('veil').style.opacity = values.opacity;
+      $('weekdays').style.opacity = Math.max(0, 1 - q * 3);
+      const morph = $('morph-month');
+      Object.assign(morph.style, {
+        width: mix(width,miniWidth,q) + 'px', height: mix(274,71,q) + 'px', top: '0px',
+        transform: `translate(${targetX * q}px,${mix(23,targetY,q)}px)`,
+        columnGap: mix(4,1,q) + 'px', rowGap: mix(2,1,q) + 'px', gridTemplateRows: `repeat(6,${mix(44,11,q)}px)`
+      });
+      for (const { number, dot, selected, inMonth, weekend } of cells) {
+        const diameter = mix(34,14,q);
+        Object.assign(number.style, { width: diameter + 'px', height: diameter + 'px', fontSize: mix(17,9,q) + 'px', transform: `translateY(${-2.5 * (1-q)}px)` });
+        if (!selected) {
+          const from = weekend ? [109,74,145] : [20,24,27];
+          const to = [20,24,27];
+          number.style.color = `rgba(${from.map((c,i) => Math.round(mix(c,to[i],q))).join(',')},${inMonth ? 1 : .55 * (1-q)})`;
+        }
+        if (dot) dot.style.transform = `translateY(${18 * (1-q)}px) scale(${1-q})`;
+      }
+      if (!captionOrigin) {
+        const slot = $('year-slot').getBoundingClientRect();
+        const caption = $('month-caption').getBoundingClientRect();
+        captionOrigin = { x:slot.left-caption.left, y:slot.top-caption.top };
+      }
+      $('month-caption').style.opacity = 1-smooth(q/.5); $('month-caption').style.transform = `translateY(${-6*q}px)`;
+      const yearScale = mix(1,34/18,q);
+      const yearTargetY = (76-34*1.2)/2;
+      // One persistent year label moves and scales; it never crossfades with a duplicate.
+      $('year-caption').style.transform = `translate(${mix(captionOrigin.x,0,q)}px,${mix(captionOrigin.y,yearTargetY,q)}px) scale(${yearScale})`;
+      $('year-caption').style.fontWeight = Math.round(mix(600,750,q));
+      $('progress').value = p * 100; $('progress-value').textContent = (p * 100).toFixed(1).replace('.0','') + '%';
+      $('handle').setAttribute('aria-valuetext', '月年切换进度 ' + Math.round(p * 100) + '%');
+      $('opacity-value').textContent = (values.opacity * 100).toFixed(1) + '%';
+      $('blur-value').textContent = values.blur.toFixed(2) + ' px';
+      $('morph-value').textContent = Math.round(q * 100) + '%';
+      updateGuide();
+    }
+    let animation = null, raf = 0, looping = false;
+    function stop() {
+      cancelAnimationFrame(raf); raf = 0; animation = null; looping = false;
+      $('play').textContent = '往返播放'; $('play').setAttribute('aria-pressed','false');
+    }
+    function setProgress(p) { state.progress = clamp(p); render(); }
+    function animateTo(target, seconds, kind = 'play', loop = false) {
+      cancelAnimationFrame(raf);
+      animation = { from: state.progress, target, started: performance.now(), duration: Math.max(.06,seconds) * 1000, kind, loop };
+      raf = requestAnimationFrame(tick);
+    }
+    function tick(time) {
+      if (!animation) return;
+      const a = animation, elapsed = clamp((time-a.started)/a.duration);
+      const eased = a.kind === 'snap' ? (1-(1+9*elapsed)*Math.exp(-9*elapsed))/(1-10*Math.exp(-9)) : elapsed;
+      setProgress(mix(a.from,a.target,eased));
+      if (elapsed < 1) { raf = requestAnimationFrame(tick); return; }
+      setProgress(a.target); persist();
+      if (a.loop && looping) {
+        animation = { from: a.target, target: 1-a.target, started: time+380, duration: state.params.playDuration*1000, kind: 'play', loop: true };
+        raf = requestAnimationFrame(tick);
+      } else { animation = null; raf = 0; }
+    }
+    $('progress').addEventListener('input', event => { stop(); setProgress(Number(event.target.value)/100); persist(); });
+    $('to-month').addEventListener('click', () => { stop(); animateTo(0,state.params.playDuration * Math.max(.1,state.progress)); });
+    $('to-year').addEventListener('click', () => { stop(); animateTo(1,state.params.playDuration * Math.max(.1,1-state.progress)); });
+    $('play').addEventListener('click', () => {
+      if (looping) { stop(); persist(); return; }
+      stop(); looping = true; $('play').textContent = '暂停播放'; $('play').setAttribute('aria-pressed','true');
+      const target = state.progress >= .999 ? 0 : 1;
+      animateTo(target,state.params.playDuration * Math.max(.1,Math.abs(target-state.progress)),'play',true);
+    });
+    let handleDrag = null;
+    $('handle').addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      stop(); handleDrag = { id:event.pointerId, y:event.clientY, progress:state.progress };
+      event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.classList.add('dragging'); event.preventDefault();
+    });
+    $('handle').addEventListener('pointermove', event => {
+      if (handleDrag?.id === event.pointerId) setProgress(handleDrag.progress+(event.clientY-handleDrag.y)/117);
+    });
+    function releaseHandle(event) {
+      if (!handleDrag || (event.pointerId != null && handleDrag.id !== event.pointerId)) return;
+      handleDrag = null; $('handle').classList.remove('dragging');
+      animateTo(state.progress >= .5 ? 1 : 0,state.params.snapDuration,'snap');
+    }
+    $('handle').addEventListener('pointerup',releaseHandle); $('handle').addEventListener('pointercancel',releaseHandle); $('handle').addEventListener('lostpointercapture',releaseHandle);
+    $('handle').addEventListener('keydown', event => {
+      const keys = { ArrowUp: -.025, ArrowLeft: -.025, ArrowDown: .025, ArrowRight: .025 };
+      if (keys[event.key] != null) { event.preventDefault(); stop(); setProgress(state.progress+keys[event.key]); persist(); }
+      if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); stop(); setProgress(event.key === 'Home' ? 0 : 1); persist(); }
+    });
+    let chartDragging = false;
+    function chartScrub(event) {
+      const rect = $('chart').getBoundingClientRect(); setProgress((event.clientX-rect.left-plot.left)/(rect.width-plot.left-plot.right)); persist();
+    }
+    $('chart').addEventListener('pointerdown', event => { if (event.button !== 0) return; stop(); chartDragging=true; event.currentTarget.setPointerCapture(event.pointerId); chartScrub(event); });
+    $('chart').addEventListener('pointermove', event => { if (chartDragging) chartScrub(event); });
+    $('chart').addEventListener('pointerup', () => chartDragging=false); $('chart').addEventListener('pointercancel', () => chartDragging=false);
+    $('month').addEventListener('change', () => { state.month = Number($('month').value); buildCalendar(); render(); persist(); });
+    $('reset').addEventListener('click', () => { stop(); state.params={...defaults}; refreshControls(); drawCurves(); render(); persist(); $('message').textContent='已恢复 S 型曲线的预览默认值。'; });
+
+    function configuration() {
+      return { version:2, app:'Orgenda', transition:'month-year', parameters:{...state.params}, preview:{year:2026,month:state.month+1,day:22,progress:Number(state.progress.toFixed(4))}, curves:{opacity:'opacityMax * descendingS(progress / opacityEnd, opacityMiddle, opacityBend)',descendingS:'p = clamp(progress); p <= 0.5 ? middle + (1-middle)*pow(1-2*p,bend) : middle*(1-pow(2*p-1,bend))',blur:'blurMax * (1 - smootherstep(pow(clamp(progress / blurEnd), blurPower)))',geometry:'pow(progress, morphPower)',smootherstep:'x*x*x*(x*(x*6-15)+10), x clamped to [0,1]'} };
+    }
+    async function copyConfiguration() {
+      const text = JSON.stringify(configuration(),null,2);
+      const area=$('copy-fallback'); area.value=text; area.hidden=false;
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+        await navigator.clipboard.writeText(text); $('message').textContent='参数已复制，可发回对话应用到 iOS。下方可查看完整配置。';
+      } catch (_) {
+        area.focus(); area.select();
+        $('message').textContent='参数已选中，请按 ⌘C 或 Ctrl+C 复制。';
+      }
+    }
+    $('copy').addEventListener('click',copyConfiguration); $('copy-top').addEventListener('click',copyConfiguration);
+    $('download').addEventListener('click', () => {
+      const url=URL.createObjectURL(new Blob([JSON.stringify(configuration(),null,2)],{type:'application/json'}));
+      const link=document.createElement('a'); link.href=url; link.download='orgenda-calendar-motion.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
+      $('message').textContent='已导出当前参数。';
+    });
+    refreshControls(); buildCalendar(); drawCurves(); render();
+    // A drag changes height every frame; only width changes need a layout pass.
+    let lastStageWidth = $('stage').clientWidth;
+    new ResizeObserver(entries => {
+      const width = entries[0].contentRect.width;
+      if (Math.abs(width-lastStageWidth) > .1) { lastStageWidth=width; captionOrigin=null; render(); }
+    }).observe($('stage'));
+    new ResizeObserver(drawCurves).observe($('chart'));
+    window.addEventListener('pagehide',persist);
+  })();
+  </script>
+</body>
+</html>

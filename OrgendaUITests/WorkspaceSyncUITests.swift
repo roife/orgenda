@@ -21,7 +21,7 @@ final class WorkspaceSyncUITests: XCTestCase {
         XCTAssertEqual(search.value as? String, "Appearance")
     }
 
-    func testSearchDocumentOpensEditableSourceAndKeepsResults() {
+    func testSearchDocumentOpensPreviewAndKeepsResults() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
@@ -36,10 +36,15 @@ final class WorkspaceSyncUITests: XCTestCase {
         XCTAssertFalse(app.buttons["search.setting.workflow"].exists)
         result.tap()
         let editor = app.textViews["Org source editor"]
+        XCTAssertTrue(app.scrollViews["org.preview.scroll"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Preview"].isSelected)
+        XCTAssertFalse(editor.isHittable)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        app.buttons["Edit"].tap()
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["Edit"].isSelected)
         XCTAssertTrue(app.buttons["Preview"].exists)
-        // The first match is selected; typing replaces it in the real editor.
+        // Explicitly entering Edit selects the first match in the real editor.
         editor.typeText("workflow revised")
         XCTAssertTrue((editor.value as? String)?.contains("workflow revised") == true)
         app.navigationBars.buttons["Search"].tap()

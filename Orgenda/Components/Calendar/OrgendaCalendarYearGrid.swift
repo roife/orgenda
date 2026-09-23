@@ -8,7 +8,9 @@ struct OrgendaCalendarYearGrid: View {
     let selectionNamespace: Namespace.ID
     let reduceMotion: Bool
     let yearRowHeight: CGFloat
+    let monthLabelHeight: CGFloat
     let exposesAccessibility: Bool
+    var hiddenMonth: Date? = nil
     let onSelectMonth: (Date) -> Void
     private let calendar = Calendar.autoupdatingCurrent
 
@@ -36,6 +38,7 @@ struct OrgendaCalendarYearGrid: View {
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+                    .frame(height: monthLabelHeight)
                 if !dynamicTypeSize.isAccessibilitySize {
                     MiniMonth(
                         month: month,
@@ -44,6 +47,7 @@ struct OrgendaCalendarYearGrid: View {
                         selectionNamespace: selectionNamespace,
                         reduceMotion: reduceMotion
                     )
+                    .opacity(hiddenMonth.map { calendar.isDate($0, equalTo: month, toGranularity: .month) } == true ? 0 : 1)
                     .accessibilityHidden(true)
                 }
             }
@@ -86,8 +90,9 @@ private struct MiniMonth: View {
                 ZStack {
                     if selected {
                         Circle()
-                            .fill(Color.secondary.opacity(0.72))
-                            .frame(width: 10, height: 10)
+                            .fill(OrgendaTheme.accent)
+                            .frame(width: OrgendaCalendarLayout.miniMonthSelectionDiameter,
+                                   height: OrgendaCalendarLayout.miniMonthSelectionDiameter)
                             .modifier(
                                 CalendarSelectionGeometry(
                                     id: selectionID,
@@ -98,9 +103,12 @@ private struct MiniMonth: View {
                     }
 
                     Text(String(calendar.component(.day, from: date)))
-                        .font(.system(size: 9, weight: selected ? .bold : .regular))
+                        .font(.system(size: 9, weight: selected ? .semibold : .regular, design: .rounded))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: true)
                         .foregroundStyle(inMonth ? (selected ? Color.white : Color.primary) : Color.clear)
                 }
+                .frame(maxWidth: .infinity)
                 .frame(height: 11)
             }
         }

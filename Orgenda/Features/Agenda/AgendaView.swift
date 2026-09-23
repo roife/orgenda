@@ -225,7 +225,7 @@ struct AgendaView: View {
         }, onReschedule: { reschedulingItem = canonical }, onShowInFile: {
             showInFile(item)
         }, dragItem: canonical, topPadding: mode == .agenda ? 4.5 : 9,
-           bottomPadding: mode == .agenda ? 3.5 : 9,
+           bottomPadding: mode == .agenda ? 6 : 9,
            tagSpacing: mode == .agenda ? 2 : 6,
            allowsSwipeActions: mode != .calendar,
            revealedItemID: $revealedItemID)
@@ -244,13 +244,26 @@ struct AgendaView: View {
             let change = store.gestureChange(for: item, label: label) {
                 store.toggleDone(item)
             }
-            if let change { gestureUndo = change }
+            if let change {
+                gestureUndo = change
+                if item.state.isTerminal { OrgendaHaptics.selectionChanged() }
+                else { OrgendaHaptics.result(true) }
+            }
         }
-        if store.operationError != nil { showsCompletionError = true }
+        if store.operationError != nil {
+            OrgendaHaptics.result(false)
+            showsCompletionError = true
+        }
     }
 
     private func reschedule(_ item: OrgItem, to date: Date) {
-        if let change = store.reschedule(item, to: date) { gestureUndo = change }
-        if store.operationError != nil { showsCompletionError = true }
+        if let change = store.reschedule(item, to: date) {
+            gestureUndo = change
+            OrgendaHaptics.result(true)
+        }
+        if store.operationError != nil {
+            OrgendaHaptics.result(false)
+            showsCompletionError = true
+        }
     }
 }

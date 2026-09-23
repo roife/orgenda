@@ -49,6 +49,9 @@ struct OrgendaCalendar: View {
     @State private var dropDate: Date?
     @State private var densityDragOrigin: CGFloat?
     @State private var densityDragPosition: CGFloat?
+    @State private var pendingDensityTransition: Density?
+    @State private var densityTransitionGeneration = 0
+    @State private var resizeSnapshot: OrgendaCalendarResizeSnapshot?
     @GestureState private var isDraggingDensity = false
 
     private let calendar = Calendar.autoupdatingCurrent
@@ -97,6 +100,28 @@ struct OrgendaCalendar: View {
             Group {
                 if let position = densityDragPosition {
                     OrgendaCalendarResizePreview(position: position, content: calendarDragPreview)
+                        .onAppear {
+                            #if DEBUG
+                            OrgendaCalendarFrameProbe.shared.start()
+                            #endif
+                        }
+                        .onDisappear {
+                            #if DEBUG
+                            OrgendaCalendarFrameProbe.shared.stop()
+                            #endif
+                        }
+                        .task {
+                            guard let target = pendingDensityTransition else { return }
+                            let generation = densityTransitionGeneration
+                            // Mount the shared preview at its source position
+                            // before animating a tap or accessibility adjustment.
+                            await Task.yield()
+                            guard !Task.isCancelled, generation == densityTransitionGeneration,
+                                  pendingDensityTransition == target, densityDragOrigin == nil,
+                                  !isDraggingDensity else { return }
+                            pendingDensityTransition = nil
+                            settleDensity(to: target)
+                        }
                 } else {
                     VStack(spacing: 6) {
                         if density != .year && !dynamicTypeSize.isAccessibilitySize {
@@ -134,6 +159,7 @@ struct OrgendaCalendar: View {
             if !isDragging { finishDensityDrag() }
         }
         .onChange(of: selectedDate) { _, newValue in
+            if densityDragPosition != nil { prepareResizeSnapshot() }
             if !isUpdatingSelectionFromMonthScroll {
                 preferredDayOfMonth = calendar.component(.day, from: newValue)
             }
@@ -192,32 +218,17 @@ struct OrgendaCalendar: View {
     }
 
     private var calendarTitle: some View {
-        // Keep the heading's height stable as the handle crosses into Year.
-        ZStack(alignment: .leading) {
-            OrgendaDateHeading(date: selectedDate, displayedMonth: visibleMonth)
-                .opacity(1 - yearTitleProgress)
-                .offset(y: reduceMotion ? 0 : -6 * yearTitleProgress)
-                .accessibilityHidden(displayedDensity == .year)
-                .accessibilityIdentifier("orgenda.calendar.date.heading")
-            Text(visibleMonth.formatted(.dateTime.year()))
-                .font(dynamicTypeSize.isAccessibilitySize ? .subheadline.bold() : .largeTitle.bold())
-                .fontDesign(.rounded)
-                .foregroundStyle(OrgendaTheme.ink)
-                .contentTransition(reduceMotion ? .opacity : .numericText(
-                    value: Double(calendar.component(.year, from: visibleMonth))
-                ))
-                .opacity(yearTitleProgress)
-                .offset(y: reduceMotion ? 0 : 6 * (1 - yearTitleProgress))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityHidden(displayedDensity != .year)
-                .accessibilityAddTraits(.isHeader)
-        }
+        OrgendaDateHeading(date: selectedDate, displayedMonth: visibleMonth, yearExpansion: yearTitleProgress)
+            .accessibilityIdentifier("orgenda.calendar.date.heading")
+            .accessibilityAddTraits(.isHeader)
     }
 
     private var yearTitleProgress: CGFloat {
         guard let position = densityDragPosition else { return density == .year ? 1 : 0 }
         let month = sizing.dragPosition(for: .month)
-        return min(max((position - month) / (sizing.dragPosition(for: .year) - month), 0), 1)
+        return OrgendaCalendarTransition.morphProgress(
+            at: (position - month) / (sizing.dragPosition(for: .year) - month)
+        )
     }
 
     private var weekdayHeader: some View {
@@ -302,10 +313,15 @@ struct OrgendaCalendar: View {
                 }
                 let origin = densityDragOrigin ?? densityDragPosition ?? sizing.dragPosition(for: density)
                 let position = min(max(origin + value.translation.height, 0), sizing.dragPosition(for: .year))
+                if densityDragOrigin == nil { prepareResizeSnapshot() }
                 var transaction = Transaction(animation: nil)
                 transaction.isContinuous = true
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
+                    if densityDragOrigin == nil {
+                        densityTransitionGeneration &+= 1
+                        pendingDensityTransition = nil
+                    }
                     densityDragOrigin = origin
                     densityDragPosition = position
                 }
@@ -317,10 +333,16 @@ struct OrgendaCalendar: View {
         guard densityDragOrigin != nil, let position = densityDragPosition else { return }
         densityDragOrigin = nil
         let target = sizing.density(at: position)
-        withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.9)) {
+        settleDensity(to: target)
+    }
+
+    private func settleDensity(to target: Density) {
+        let generation = densityTransitionGeneration
+        withAnimation(reduceMotion ? nil : .spring(response: OrgendaCalendarTransition.snapDuration, dampingFraction: 0.9)) {
             densityDragPosition = sizing.dragPosition(for: target)
         } completion: {
-            guard densityDragOrigin == nil, !isDraggingDensity,
+            guard generation == densityTransitionGeneration,
+                  densityDragOrigin == nil, !isDraggingDensity,
                   densityDragPosition == sizing.dragPosition(for: target) else { return }
             setDensity(target, animated: false)
             densityDragPosition = nil
@@ -331,19 +353,32 @@ struct OrgendaCalendar: View {
         densityDragPosition.map { sizing.density(at: $0) } ?? density
     }
 
+    @ViewBuilder
     private func calendarDragPreview(at position: CGFloat) -> some View {
-        OrgendaCalendarResizeContent(
-            position: position, visibleMonth: visibleMonth,
-            selectedWeekOffset: selectedWeekOffset, sizing: sizing,
-            monthGrid: { monthGrid(for: visibleMonth, exposesAccessibility: false) },
-            yearGrid: { yearGrid(for: visibleMonth, exposesAccessibility: false) },
-            weekdayHeader: { weekdayHeader },
-            accessibleDays: { isWeek in
-                dayGrid(
-                    dates: isWeek ? dates.daysInWeek(containing: selectedDate) : dates.daysInMonth(for: visibleMonth),
-                    displayedIn: visibleMonth, exposesAccessibility: false
-                )
-            }
+        if let resizeSnapshot {
+            OrgendaCalendarResizeContent(
+                position: position, snapshot: resizeSnapshot,
+                selectedWeekOffset: selectedWeekOffset, sizing: sizing,
+                monthGrid: { monthGrid(for: visibleMonth, exposesAccessibility: false) },
+                yearGrid: { hiddenMonth in
+                    yearGrid(for: visibleMonth, exposesAccessibility: false, hiddenMonth: hiddenMonth)
+                },
+                weekdayHeader: { weekdayHeader },
+                accessibleDays: { isWeek in
+                    dayGrid(
+                        dates: isWeek ? dates.daysInWeek(containing: selectedDate) : dates.daysInMonth(for: visibleMonth),
+                        displayedIn: visibleMonth, exposesAccessibility: false
+                    )
+                }
+            )
+        }
+    }
+
+    private func prepareResizeSnapshot() {
+        guard resizeSnapshot?.matches(month: visibleMonth, selectedDate: selectedDate,
+                                      markedDates: markedDates, calendar: calendar) != true else { return }
+        resizeSnapshot = OrgendaCalendarResizeSnapshot(
+            month: visibleMonth, selectedDate: selectedDate, markedDates: markedDates, calendar: calendar
         )
     }
 
@@ -529,13 +564,32 @@ struct OrgendaCalendar: View {
 
     private func setDensity(_ nextDensity: Density, animated: Bool = true) {
         guard nextDensity != density else { return }
+        if animated && !reduceMotion {
+            prepareResizeSnapshot()
+            densityTransitionGeneration &+= 1
+            if densityDragPosition != nil {
+                pendingDensityTransition = nil
+                settleDensity(to: nextDensity)
+            } else {
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    pendingDensityTransition = nextDensity
+                    densityDragPosition = sizing.dragPosition(for: density)
+                }
+            }
+            return
+        }
+
         if nextDensity == .month {
             scrollToMonth(containing: visibleMonth, animated: false)
         } else if nextDensity == .year {
             scrollToYear(containing: visibleMonth, animated: false)
         }
 
-        withAnimation(animated && !reduceMotion ? densityAnimation : nil) {
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
             if nextDensity == .week { visibleMonth = selectedDate }
             verticalDrag = 0
             density = nextDensity
@@ -545,15 +599,19 @@ struct OrgendaCalendar: View {
     private func selectMonth(_ month: Date) {
         pageDirection = month < visibleMonth ? .backward : .forward
         scrollToMonth(containing: month, animated: false)
-        withAnimation(reduceMotion ? nil : densityAnimation) {
-            visibleMonth = month
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
             selectedDate = month
-            density = .month
         }
+        setDensity(.month)
     }
 
     private func selectDay(_ date: Date) {
         let date = date.startOfDay
+        if !calendar.isDate(date, inSameDayAs: selectedDate) {
+            OrgendaHaptics.selectionChanged()
+        }
         preferredDayOfMonth = calendar.component(.day, from: date)
         let granularity: Calendar.Component = density == .week ? .weekOfYear : .month
         let changesPage = !calendar.isDate(date, equalTo: visibleMonth, toGranularity: granularity)
@@ -623,10 +681,6 @@ struct OrgendaCalendar: View {
         reduceMotion ? .easeOut(duration: 0.12) : .snappy(duration: 0.22)
     }
 
-    private var densityAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.14) : .smooth(duration: 0.22)
-    }
-
     private var pageTransition: AnyTransition {
         guard !reduceMotion else { return .opacity }
 
@@ -662,11 +716,13 @@ struct OrgendaCalendar: View {
 
     private var dates: OrgCalendarDates { OrgCalendarDates(calendar: calendar) }
 
-    private func yearGrid(for year: Date, exposesAccessibility: Bool) -> some View {
+    private func yearGrid(for year: Date, exposesAccessibility: Bool, hiddenMonth: Date? = nil) -> some View {
         OrgendaCalendarYearGrid(
             year: year, selectedDate: selectedDate, selectionID: selectionGeometryID,
             selectionNamespace: selectionNamespace, reduceMotion: reduceMotion,
-            yearRowHeight: sizing.yearRowHeight, exposesAccessibility: exposesAccessibility,
+            yearRowHeight: sizing.yearRowHeight, monthLabelHeight: sizing.monthLabelHeight,
+            exposesAccessibility: exposesAccessibility,
+            hiddenMonth: hiddenMonth,
             onSelectMonth: selectMonth
         )
     }

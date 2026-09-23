@@ -1,10 +1,49 @@
 import SwiftUI
 
 enum OrgendaCalendarLayout {
+    static let miniMonthSelectionDiameter: CGFloat = 14
     static let monthRowSpacing: CGFloat = 2
     static let monthRowCount = 6
     static let monthHeight = OrgendaDateLayout.dayCellHeight * CGFloat(monthRowCount)
         + monthRowSpacing * CGFloat(monthRowCount - 1)
+}
+
+/// Accepted Motion Lab settings; keep in sync with previews/calendar-motion.json.
+enum OrgendaCalendarTransition {
+    static let opacityMax = 1.0
+    static let opacityMiddle = 0.66
+    static let opacityBend = 6.0
+    static let opacityEnd = 1.0
+    static let blurMax = 5.0
+    static let blurEnd = 1.0
+    static let blurPower = 1.65
+    static let morphPower = 1.0
+    static let snapDuration = 0.32
+
+    static func veilOpacity(at progress: CGFloat) -> Double {
+        let value = clamped(Double(progress) / opacityEnd)
+        let opacity = value <= 0.5
+            ? opacityMiddle + (1 - opacityMiddle) * pow(1 - 2 * value, opacityBend)
+            : opacityMiddle * (1 - pow(2 * value - 1, opacityBend))
+        return opacityMax * opacity
+    }
+
+    static func blurRadius(at progress: CGFloat) -> CGFloat {
+        let value = pow(clamped(Double(progress) / blurEnd), blurPower)
+        return CGFloat(blurMax * (1 - smootherStep(value)))
+    }
+
+    static func morphProgress(at progress: CGFloat) -> CGFloat {
+        CGFloat(pow(clamped(Double(progress)), morphPower))
+    }
+
+    private static func smootherStep(_ value: Double) -> Double {
+        value * value * value * (value * (value * 6 - 15) + 10)
+    }
+
+    private static func clamped(_ value: Double) -> Double {
+        min(max(value, 0), 1)
+    }
 }
 
 /// Geometry for week, month, year, and the resize transition between them.
