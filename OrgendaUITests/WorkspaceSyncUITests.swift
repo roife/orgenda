@@ -150,9 +150,107 @@ final class WorkspaceSyncUITests: XCTestCase {
         let choose = app.buttons["workspace.chooseFolder"]
         XCTAssertTrue(choose.waitForExistence(timeout: 5))
         choose.tap()
-        let cancel = app.buttons["Cancel"]
+        let local = app.buttons["storage.provider.local"]
+        XCTAssertTrue(local.waitForExistence(timeout: 5))
+        local.tap()
+        let cancel = app.buttons.matching(NSPredicate(format: "label == 'Cancel' AND identifier != 'storage.cancel'")).firstMatch
         XCTAssertTrue(cancel.waitForExistence(timeout: 5))
         cancel.tap()
+        XCTAssertTrue(local.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["storage.connectionError"].exists)
+        app.buttons["storage.cancel"].tap()
+        XCTAssertTrue(app.buttons["storage.cancel"].waitForNonExistence(timeout: 3))
         XCTAssertTrue(choose.waitForExistence(timeout: 5))
+    }
+
+    func testStoragePickerShowsEveryProviderAndCancelKeepsWorkspace() {
+        let app = openWorkspaceSettings()
+        defer { app.terminate() }
+        app.buttons["workspace.chooseFolder"].tap()
+        for provider in ["iCloud", "oneDrive", "googleDrive", "dropbox", "webDAV", "local"] {
+            XCTAssertTrue(app.buttons["storage.provider.\(provider)"].waitForExistence(timeout: 3))
+        }
+        app.buttons["storage.cancel"].tap()
+        XCTAssertTrue(app.buttons["storage.cancel"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Workspace & Sync"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["workspace.error"].exists)
+    }
+
+    func testWebDAVFormRejectsInsecureAddressWithoutConnecting() {
+        let app = openWorkspaceSettings()
+        defer { app.terminate() }
+        app.buttons["workspace.chooseFolder"].tap()
+        app.buttons["storage.provider.webDAV"].tap()
+        XCTAssertTrue(app.navigationBars["Connect WebDAV"].waitForExistence(timeout: 3))
+        let connect = app.buttons["storage.webDAV.connect"]
+        XCTAssertFalse(connect.isEnabled)
+        let server = app.textFields["storage.webDAV.server"]
+        server.tap()
+        server.typeText("http://dav.example.com")
+        let username = app.textFields["storage.webDAV.username"]
+        username.tap()
+        username.typeText("alice")
+        let password = app.secureTextFields["storage.webDAV.password"]
+        password.tap()
+        password.typeText("test-password")
+        app.textFields["storage.webDAV.directory"].tap()
+        app.textFields["storage.webDAV.directory"].typeText("\n")
+        let error = app.staticTexts["storage.webDAV.error"]
+        XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertEqual(error.label, "Enter a valid HTTPS server address without a username, password, query, or fragment.")
+        XCTAssertTrue(app.navigationBars["Connect WebDAV"].exists)
+    }
+
+    func testConflictPreviewAndReplacementConfirmation() {
+        let app = openWorkspaceSettings(extraArguments: ["--storage-sync-fixture"])
+        defer { app.terminate() }
+        app.buttons["workspace.syncStatus"].tap()
+        app.buttons["storage.sync.conflicts"].tap()
+        let conflict = app.buttons["storage.conflict.notes.org"]
+        XCTAssertTrue(conflict.waitForExistence(timeout: 3))
+        conflict.tap()
+        XCTAssertTrue(app.scrollViews["storage.conflict.local"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.scrollViews["storage.conflict.remote"].exists)
+        let replace = app.buttons["storage.conflict.useRemote"]
+        if !replace.isHittable { app.swipeUp() }
+        replace.tap()
+        dismissConfirmation(in: app, navigationTitle: "Resolve Conflict")
+        XCTAssertTrue(app.navigationBars["Resolve Conflict"].exists)
+    }
+
+    func testChangingStorageWithPendingEditsRequiresKeepingCopies() {
+        let app = openWorkspaceSettings(extraArguments: ["--storage-sync-fixture"])
+        defer { app.terminate() }
+        app.buttons["workspace.chooseFolder"].tap()
+        XCTAssertTrue(app.buttons["Keep Copies and Continue"].waitForExistence(timeout: 3))
+        dismissConfirmation(in: app, navigationTitle: "Workspace & Sync")
+        XCTAssertTrue(app.navigationBars["Workspace & Sync"].exists)
+        XCTAssertFalse(app.buttons["storage.provider.webDAV"].exists)
+    }
+
+    private func openWorkspaceSettings(extraArguments: [String] = []) -> XCUIApplication {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
+        app.launch()
+        app.tabBars.buttons["Files"].tap()
+        app.buttons["files.settings"].tap()
+        let workspace = app.buttons["settings.workspace"]
+        XCTAssertTrue(workspace.waitForExistence(timeout: 5))
+        workspace.tap()
+        XCTAssertTrue(app.buttons["workspace.chooseFolder"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func dismissConfirmation(in app: XCUIApplication, navigationTitle: String) {
+        let cancel = app.buttons["Cancel"]
+        if cancel.exists {
+            cancel.tap()
+        } else {
+            // Popover-style confirmation dialogs omit a visible cancel row.
+            // Tapping the title outside the popover dismisses it without choosing an action.
+            app.navigationBars[navigationTitle]
+                .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
     }
 }

@@ -23,6 +23,13 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ORGENDA_ONEDRIVE_CLIENT_ID: ""
+    ORGENDA_ONEDRIVE_REDIRECT_URI: "orgenda-onedrive://oauth"
+    ORGENDA_GOOGLE_CLIENT_ID: ""
+    ORGENDA_GOOGLE_URL_SCHEME: "orgenda-google"
+    ORGENDA_GOOGLE_REDIRECT_URI: "$(ORGENDA_GOOGLE_URL_SCHEME):/oauth2redirect"
+    ORGENDA_DROPBOX_CLIENT_ID: ""
+    ORGENDA_DROPBOX_REDIRECT_URI: "orgenda-dropbox://oauth"
 
 packages:
   Highlighter:

@@ -18,7 +18,8 @@ Orgenda/
 │   ├── Settings/        可搜索、可导航的设置目录
 │   └── Workspace/       文档、文件传输与保存状态
 ├── Services/            工作区协调及外部能力
-│   ├── Workspace/      可观察的共享状态、编辑、持久化、同步
+│   ├── Workspace/      可观察的共享状态、编辑和工作区生命周期
+│   ├── Storage/        持久快照、同步队列、云服务适配和认证
 │   ├── Indexing/       解析、索引和语法高亮数据
 │   ├── Images/         工作区图片读取与缓存
 │   └── Reminders/      系统通知调度
@@ -42,7 +43,11 @@ Orgenda/
 
 ## 数据与状态
 
-`OrgendaRootView` 持有工作区。`WorkspaceStore` 提供可观察的工作区状态，协调编辑、索引、文件同步和通知；其按职责拆分的扩展共享同一个实例。文件系统操作由 `WorkspaceFileStore` 等服务处理，Org 源码规则放在 `Domain/Org`。
+`OrgendaRootView` 持有工作区。`WorkspaceStore` 提供可观察的工作区状态，协调编辑、索引、文件同步和通知；其按职责拆分的扩展共享同一个实例。`WorkspaceFileAccess` 是页面功能使用的文件边界；实际连接由 `WorkspaceSession` 持有，原有 `WorkspaceFileStore` 负责本机／系统提供器的协调读写。Org 源码规则放在 `Domain/Org`。
+
+`WorkspaceSession` 先将正文写入不可变 blob，再原子提交 `SyncManifest`；manifest 是本机保存完成的依据。它记录远端基线、待上传版本、冲突和未完成文件操作。iCloud 与原生云盘都从最近完整快照恢复，网络或授权失败不阻止读取已有内容。四种远端适配器实现 `RemoteWorkspaceBackend`，负责完整列举／增量检查、版本绑定下载、条件上传及禁止覆盖的移动。
+
+`dirtyFilePaths` 只表示尚未提交本机快照的编辑，`pendingUploadPaths` 表示已持久化但尚未被存储位置确认的内容；不能把两者合并成一个“未保存”状态。UI 草稿保留最初的字节基线，旧异步结果按工作区会话和 manifest 提交序号过滤。远端版本变化不会自动授予覆盖权限。冲突选择也必须与用户看到的版本一致。
 
 常见数据流是：页面发起操作 → `WorkspaceStore` 调用领域规则修改源码 → 更新索引和派生集合 → 观察该状态的页面刷新 → 持久化服务保存文件。预览从已有语法树生成展示内容，不重新定义一套文档真值。
 

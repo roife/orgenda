@@ -186,6 +186,7 @@ struct FilesView: View {
     }
 
     private var workspaceStatusIcon: String {
+        if store.syncState == .offline { return "icloud.slash" }
         if store.fileSyncError != nil { return "exclamationmark.triangle.fill" }
         if store.pendingFileCount > 0 { return "arrow.trianglehead.2.clockwise.rotate.90" }
         return store.isFolderConnected ? "checkmark.circle.fill" : "info.circle"
@@ -198,6 +199,7 @@ struct FilesView: View {
     }
 
     private var workspaceStatusLabel: String {
+        if store.storageConnection != nil { return store.syncState.title }
         if store.fileSyncError != nil { return String(localized: "Changes need attention") }
         if store.pendingFileCount > 0 { return String(localized: "Saving changes") }
         return store.isFolderConnected ? String(localized: "All changes saved to folder") : String(localized: "Workspace unavailable")

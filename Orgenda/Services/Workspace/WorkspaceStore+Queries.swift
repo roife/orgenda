@@ -87,6 +87,9 @@ extension WorkspaceStore {
         guard documents.contains(where: { $0.path == path }) else { return .unavailable }
         guard isFolderConnected else { return .unavailable }
         if let error = fileSaveErrors[path] { return .failed(error) }
-        return dirtyFilePaths.contains(path) ? .saving : .saved
+        if dirtyFilePaths.contains(path) { return .saving }
+        if syncConflicts.contains(where: { $0.path == path }) { return .conflict }
+        if pendingUploadPaths.contains(path) { return .pendingSync }
+        return storageConnection?.provider.isRemote == true ? .savedOnDevice : .saved
     }
 }

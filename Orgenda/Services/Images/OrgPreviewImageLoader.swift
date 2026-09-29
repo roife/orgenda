@@ -62,7 +62,7 @@ actor OrgPreviewImageLoader {
         self.maxPixelDimension = max(1, maxPixelDimension)
     }
 
-    func load(candidates: [String], fileStore: WorkspaceFileStore?, workspaceID: UUID) async throws -> UIImage {
+    func load(candidates: [String], fileStore: (any WorkspaceFileAccess)?, workspaceID: UUID) async throws -> UIImage {
         try Task.checkCancellation()
         // The workspace ID is part of the call contract for view task identity.
         // There is no local cache shared across workspaces.
@@ -151,6 +151,7 @@ actor OrgPreviewImageLoader {
     }
 
     private static func isMissingFile(_ error: Error) -> Bool {
+        if case .http(404) = error as? StorageError { return true }
         let error = error as NSError
         if error.domain == NSCocoaErrorDomain,
            error.code == CocoaError.fileReadNoSuchFile.rawValue || error.code == CocoaError.fileNoSuchFile.rawValue {

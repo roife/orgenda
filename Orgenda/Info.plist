@@ -2,6 +2,30 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>ORGENDAOneDriveClientID</key>
+	<string>$(ORGENDA_ONEDRIVE_CLIENT_ID)</string>
+	<key>ORGENDAOneDriveRedirectURI</key>
+	<string>$(ORGENDA_ONEDRIVE_REDIRECT_URI)</string>
+	<key>ORGENDAGoogleDriveClientID</key>
+	<string>$(ORGENDA_GOOGLE_CLIENT_ID)</string>
+	<key>ORGENDAGoogleDriveRedirectURI</key>
+	<string>$(ORGENDA_GOOGLE_REDIRECT_URI)</string>
+	<key>ORGENDADropboxClientID</key>
+	<string>$(ORGENDA_DROPBOX_CLIENT_ID)</string>
+	<key>ORGENDADropboxRedirectURI</key>
+	<string>$(ORGENDA_DROPBOX_REDIRECT_URI)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key><string>orgenda.cloud-auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>orgenda-onedrive</string>
+				<string>$(ORGENDA_GOOGLE_URL_SCHEME)</string>
+				<string>orgenda-dropbox</string>
+			</array>
+		</dict>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationShortcutItems</key>

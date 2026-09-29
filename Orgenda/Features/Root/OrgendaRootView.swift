@@ -14,6 +14,7 @@ struct OrgendaRootView: View {
     @EnvironmentObject private var sceneDelegate: OrgendaSceneDelegate
     @AppStorage("appearance") private var appearance = "System"
     @State private var store = WorkspaceStore.startup()
+    @State private var storageNetwork = StorageNetworkMonitor()
     @State private var selectedTab: OrgendaTab = .dashboard
     @State private var searchQuery = ""
     @State private var dashboardPerspective: OrgAgendaPerspective = .todos
@@ -27,7 +28,7 @@ struct OrgendaRootView: View {
 
     var body: some View {
         Group {
-            if !store.isStartingWorkspace && !store.isFolderConnected && !isUITestWorkspace {
+            if !store.isStartingWorkspace && !store.isWorkspaceReady && !isUITestWorkspace {
                 workspaceUnavailable
             } else {
                 workspaceTabs
@@ -107,12 +108,16 @@ struct OrgendaRootView: View {
             if scenePhase == .active {
                 if store.isFolderConnected { await store.refreshReminders() }
                 while !Task.isCancelled {
-                    await store.synchronizeFiles()
-                    try? await Task.sleep(for: .seconds(3))
+                    await store.synchronizeFiles(automatic: true)
+                    try? await Task.sleep(for: .seconds(store.storageConnection?.provider.isRemote == true ? 30 : 3))
                 }
             } else {
-                await store.synchronizeFiles()
+                await store.finishStorageBeforeSuspending()
             }
+        }
+        .onChange(of: storageNetwork.recoveryGeneration) { _, _ in
+            guard scenePhase == .active else { return }
+            Task { await store.synchronizeFiles() }
         }
         .preferredColorScheme(
             appearance == "Light" ? .light
@@ -124,7 +129,7 @@ struct OrgendaRootView: View {
 private extension OrgendaRootView {
     var actionableShortcutID: UUID? {
         guard scenePhase == .active, !store.isStartingWorkspace, !store.isPerformingFileAction,
-              store.isFolderConnected || isUITestWorkspace else { return nil }
+              store.isWorkspaceReady || isUITestWorkspace else { return nil }
         return sceneDelegate.pendingAction?.id
     }
 

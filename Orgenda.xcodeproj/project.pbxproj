@@ -10,18 +10,22 @@
 		008B9FDB76F0AE50F76FB61A /* JournalComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3228AB415C66218594923C9A /* JournalComposer.swift */; };
 		01D77F1BDA9B92530C601B41 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978F62ED3D23946E4F82A9F8 /* AppearanceSettingsView.swift */; };
 		0307CDE3EBE1D1A664A59D31 /* OrgPreviewHeading.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9507D6FEC0E1FD9EDAAC65D /* OrgPreviewHeading.swift */; };
+		0309C54B71CAB8102271ED20 /* WebDAVBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43556262B099537C824E1B92 /* WebDAVBackend.swift */; };
 		06A57CEDFA0A3C3C0EAB9ECE /* OrgSyntaxPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339FCDBA5F4DA412D5EFC4DB /* OrgSyntaxPresentation.swift */; };
 		07B311588DA438C1FFB84554 /* OrgPreviewOutline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9094FC863073E3EBDD6908C /* OrgPreviewOutline.swift */; };
 		07EEDB1F10BCAB42B48F7ECE /* SettingsDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = B21CB0A2E079961F097D395B /* SettingsDestination.swift */; };
 		0A26DDECFD07D5799D3D65DE /* OrgWorkflowControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70C0375943103A72CBEBCA3 /* OrgWorkflowControls.swift */; };
 		0BA4C3355ACB5E7DCD56298B /* OrgContextPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F0873D9EC1E935F3EBAF78 /* OrgContextPreview.swift */; };
 		0D7DC1F172EB43AD009E2A91 /* OrgItemEditorField.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC7A200DB4B5C89C6FC26272 /* OrgItemEditorField.swift */; };
+		0E434D7BDF84D3BCE3516A84 /* StorageNetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9CBB5660A3057B7DBCDBC7 /* StorageNetworkMonitor.swift */; };
 		0FA9D78792B592AB42A644C3 /* OrgSourceMutationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7463A76B14AE946F23D232E /* OrgSourceMutationTests.swift */; };
 		14CBAEE9C18DED1EF2FBD88F /* OrgWorkflowOperationsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9750E1AF296F466FE6B46FA5 /* OrgWorkflowOperationsTests.swift */; };
 		16D477C4B48A627805A89BCF /* OrgLatexCompatibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774E6DD86E3B95C31A2F3B10 /* OrgLatexCompatibility.swift */; };
 		1A49845C428E8EE8DF4F5BEA /* OrgCalendarDatesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18424328507F49BD990B0E8B /* OrgCalendarDatesTests.swift */; };
 		1A59690F84F498D46295F04F /* WorkspaceStore+Indexing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5215ABF6D16B3DECF00F5D90 /* WorkspaceStore+Indexing.swift */; };
 		1B9B5BEE35401EB9C339F136 /* OrgPreviewMathFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 888B990FFA570D68D5B2C948 /* OrgPreviewMathFlow.swift */; };
+		1D35E06C4558B5CCB3F4B153 /* WorkspaceSession+Sync.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE84B5FEF4BD57F7FA4059B3 /* WorkspaceSession+Sync.swift */; };
+		2071AA251B36D02B738B0570 /* WorkspaceFileAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F6047EC03B3002550B092AE /* WorkspaceFileAccess.swift */; };
 		2364624005AAC6A25967965C /* IPadLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D0177289D07F20C602B4328 /* IPadLayoutUITests.swift */; };
 		23DB9258221DE93E5AB15803 /* WorkspaceConnectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C64CBE4FF0B7AD06EDDDEC07 /* WorkspaceConnectionTests.swift */; };
 		25B51D43328EEDE6A583084A /* MotionFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D278DF975BF47D6247F2401E /* MotionFlowUITests.swift */; };
@@ -34,15 +38,20 @@
 		2BA1D68B03AC110D11A6216C /* OrgPreviewSourceBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C292153EF100A985A301C6 /* OrgPreviewSourceBlock.swift */; };
 		2E4A11976A3A90E018B3E8A8 /* OrgPreviewRichText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC5055F12DDB730192A82EB /* OrgPreviewRichText.swift */; };
 		2E4EAB8FE1E2DF296222D99B /* AgendaPerspectiveContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 696BA40727DE2EB1295F2D17 /* AgendaPerspectiveContent.swift */; };
+		2E7E8DD772DB87C5088660C9 /* WorkspaceSession+FileOperations.swift in Sources */ = {isa = PBXBuildFile; fileRef = B787C21526B66FBDB8B0DA92 /* WorkspaceSession+FileOperations.swift */; };
+		2E9EADA8D6F76CA46179978D /* StorageConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CCA22E4C304F73CE6CDA55B /* StorageConnection.swift */; };
 		302702B3F40C5205429F1401 /* DatePresentationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 072D3C59FCDF0622D78DDF09 /* DatePresentationUITests.swift */; };
 		30492AD01D97FD5EF6ED96BE /* OrgCodeHighlighting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 953EF669B82935717FE52572 /* OrgCodeHighlighting.swift */; };
+		32C71DE98A8D275F04C6C2D1 /* CloudAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A690B4D979A6BA9724371E /* CloudAuthorization.swift */; };
 		32D046394C308FC5B7238FA8 /* ParsedOrgDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F80B8B90F04EFC0AB9C9908 /* ParsedOrgDocument.swift */; };
 		34DEDCB08E3229E5B7A888F4 /* OrgendaMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3910C6BEB9BDF31E3918653F /* OrgendaMotion.swift */; };
 		3517026C81B5E609408FCEE1 /* OrgInputCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222C59006519C78E69D5BCB5 /* OrgInputCommands.swift */; };
+		36B69557B811739B4F97F8A2 /* StorageReconnectAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A7A350EFB13B494E4329C6 /* StorageReconnectAction.swift */; };
 		37D9365A337372F053082946 /* OrgSyntaxTextEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1CCC795479D6D8C9BE7FED /* OrgSyntaxTextEditorTests.swift */; };
 		38E19647A0A20462A7FB0E20 /* OrgendaCalendarResizePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1CB758B96E4BBB5FBE3B5A /* OrgendaCalendarResizePreview.swift */; };
 		38EB9BD5BB484F4447E09863 /* OrgPlanningEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F91987209ADE2AA89512475E /* OrgPlanningEditorSheet.swift */; };
 		38FB3A4EAA9E1DBD85C4F78D /* WorkspaceMoves.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F61290E97CEB27C418D6C5 /* WorkspaceMoves.swift */; };
+		399E8FD2198838AF59619D2B /* StorageWebDAVView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD0F34DFB8BD6D1242FE451 /* StorageWebDAVView.swift */; };
 		3A1B72D726AE975012BB750F /* AgendaStartupSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B14EA7C2CEBD74F5097B4F /* AgendaStartupSkeleton.swift */; };
 		3B7F462259B7C56642781F47 /* OrgendaTagList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2863BCB82E0D28BA50D10560 /* OrgendaTagList.swift */; };
 		3BE4FBB57AA0A9D8389F062C /* OrgReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1DAE97AD1C2DBB88EB18E2 /* OrgReminderScheduler.swift */; };
@@ -51,6 +60,7 @@
 		3EF69B6982E19DF10C1D1DB3 /* WorkspaceFileOperations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D9AB73505032B40DD0ADFEE /* WorkspaceFileOperations.swift */; };
 		418CF20E8456E9CA62F16576 /* OrgendaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928E80355FD6FC02D16F718F /* OrgendaTheme.swift */; };
 		41EBE8CBA2FE3424E35E8A40 /* OrgPreviewInlineFragment.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7E46C94C98937D4B2ACCF3 /* OrgPreviewInlineFragment.swift */; };
+		42032B6360061D2B07CD3D63 /* StorageSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4371148C81C94D3A66337C48 /* StorageSyncView.swift */; };
 		43172CF5BF8E2A406BC4F79D /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = 010F1978BAB44FFCC9B73CA9 /* SwiftMath */; };
 		466ABAA4EA1066EF60E731F0 /* OrgPreviewImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E20D352749EC4073BB6E64B /* OrgPreviewImageView.swift */; };
 		4700516BA81968F7C3967252 /* OrgPreviewDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BEBFA5BB822F047753E2E3A /* OrgPreviewDrawer.swift */; };
@@ -62,6 +72,7 @@
 		4D925B9FCCA66E53ED96600D /* JournalEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C63899680985E92C59705A61 /* JournalEntry.swift */; };
 		4DD567377C9DE7CB363F4647 /* OrgPreviewImagePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C51CBC4CAFB3C63F78DF4059 /* OrgPreviewImagePresentationTests.swift */; };
 		4EA397088E4AA37C9AB3E6F4 /* OrgSyntaxHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD4F6DC12B626D6929676780 /* OrgSyntaxHighlighter.swift */; };
+		502FAA237002A32BB21B1607 /* WorkspaceStorageIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89D8F7A0826EE4FC8C0E1C39 /* WorkspaceStorageIntegrationTests.swift */; };
 		514AF6B3FB99934952A8FE38 /* WorkspaceStore+Editing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A6DE59F4366B1A39786674 /* WorkspaceStore+Editing.swift */; };
 		5657795275FBEE8BFF004181 /* Welcome.org in Resources */ = {isa = PBXBuildFile; fileRef = 79DD43ABC921F3EC2D490B3B /* Welcome.org */; };
 		5BAED4DC2EA6D5FA8B0D9BC1 /* OrgPreviewPlanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B6C7E2F1AF2924B583E277A /* OrgPreviewPlanning.swift */; };
@@ -72,6 +83,7 @@
 		5EB1753D7C9FF669A2E2BD80 /* OrgCalendarDates.swift in Sources */ = {isa = PBXBuildFile; fileRef = D31F09402F7ED1AC06B1A141 /* OrgCalendarDates.swift */; };
 		5F09256F175AD3E37EF0E5B5 /* OrgendaCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8882F0AC03BC93B9FC38F7F9 /* OrgendaCalendar.swift */; };
 		602151D48121454CE2F2933B /* OrgendaCalendarYearGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19D9431011CBEEF522887104 /* OrgendaCalendarYearGrid.swift */; };
+		616C0CBE4A26D32ABE728588 /* StorageProviderPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCAC2C23047E475C5AAB5819 /* StorageProviderPicker.swift */; };
 		61940E606EE8BB238C0EDF6C /* OrgCaptureTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89C50D5ADA4BB7F3F0DFC8D3 /* OrgCaptureTemplate.swift */; };
 		61FB485A3EC635DA17907B77 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 380B55B89CEB85244C93998D /* SettingsView.swift */; };
 		623DCE07B0D33DBE9CC64BB1 /* OrgSyntaxTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EAED600523440C488277BC4 /* OrgSyntaxTextEditor.swift */; };
@@ -90,7 +102,9 @@
 		6D36A6AD2D446E9CBE9D25A9 /* SearchSuggestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14A875AB91A05CBF4D2408C2 /* SearchSuggestionsView.swift */; };
 		6E63832A0D35CF37FB000755 /* SourceLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A9C4A5596CFA134A31F92F /* SourceLocation.swift */; };
 		72A254B83A26FBD9CED7A739 /* AgendaRescheduleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30620276FF4AA2D3FF46F7AE /* AgendaRescheduleSheet.swift */; };
+		747ADD653545C711FA12345A /* GoogleDriveBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F793236CAC5FECDCC47864 /* GoogleDriveBackend.swift */; };
 		76527B8519232A1DD3FAC503 /* WorkspaceFileActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5900C0D508C0C7815DC70D84 /* WorkspaceFileActions.swift */; };
+		780B7B84EECA1B89E4030AB7 /* WorkspaceSession+Attachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9C8A492059537D0BCB18A7 /* WorkspaceSession+Attachments.swift */; };
 		785DDE1B40685340F7176561 /* OrgPreviewImageLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BA2A701154BF43F2A62A281 /* OrgPreviewImageLoaderTests.swift */; };
 		7895DAF9F390B618D1E2A8AE /* DocumentOutline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30FA67561B8C6229126887AA /* DocumentOutline.swift */; };
 		78B337C1285FEEA8B330528D /* SearchListSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C8036F5CD1F2FBC5036FB9 /* SearchListSurface.swift */; };
@@ -104,13 +118,17 @@
 		7FF2DFDFA2372259B285B371 /* OrgKeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B498DA8A1AEAA6606D0DC100 /* OrgKeyboardAccessory.swift */; };
 		80C70F3DB0E8E139A3811642 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 1B2178C873C967EC425810A1 /* InfoPlist.strings */; };
 		80D5F4B9302428D76EBCB1A5 /* OrgendaFlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3821077B34EC8125CF4BCB7B /* OrgendaFlowLayout.swift */; };
+		81EB471E9ED292D8D9232096 /* OneDriveBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 737526F9E96FD7462371D984 /* OneDriveBackend.swift */; };
 		82656B274274F0757DFF5A8E /* OrgendaRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28B9525814C506B68D6B0A7 /* OrgendaRootView.swift */; };
 		82A7AFED80FE45ECC49C1F54 /* DocumentEditingControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3BF94B2CBC8ABA1341B7A29 /* DocumentEditingControls.swift */; };
 		86DE3697EC4BE32F768009EB /* WorkspaceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9E317F1E72EA6F42F14DD26 /* WorkspaceStore.swift */; };
+		87EB4FE8B4B838AC0D61C752 /* WorkspaceSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BD32AADA884E7BE28612D6D /* WorkspaceSession.swift */; };
 		8A2423B9C3459B2196B76C80 /* SearchExcerpt.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4D12FD4DA592DAA7FCE2EC /* SearchExcerpt.swift */; };
 		8A2E950FB27681F95D0AA6AB /* JournalDateStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD9082F806C3AEB9AAF37066 /* JournalDateStrip.swift */; };
+		8BD7F8956AC5AAED7BAC1399 /* WorkspaceStore+StorageFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91FB98D767BEDED8586D37BD /* WorkspaceStore+StorageFixture.swift */; };
 		8C134A27B0A51F22E110D48C /* OrgItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC9376757BA50DF80E22C11 /* OrgItemRow.swift */; };
 		8C5A54682FA7899114E22A47 /* OrgMathRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5EF5F3E2BF1C5B5B7172D60 /* OrgMathRendering.swift */; };
+		8DC9B1BD4CF1203E0E5A35CA /* StorageHTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7744F4168975723DC87BE79A /* StorageHTTP.swift */; };
 		8DE3982D92BB93FA968B8123 /* EmacsProfileIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4D8FA705ADA97783BB4447 /* EmacsProfileIntegrationTests.swift */; };
 		8EBDDECA5ACCFCD3AC2BD6BB /* SearchPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72EF199FE4A5CEA26ECB5EB0 /* SearchPresentation.swift */; };
 		8EFF847A864CA3EC455B71F8 /* OrgSyntaxHighlighterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1525D7644C6866AE65A4166D /* OrgSyntaxHighlighterTests.swift */; };
@@ -118,10 +136,14 @@
 		92F34C8F3A9D8BC005A64DA9 /* OrgPreviewDateText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BD6F9ADB08A6812A7F7231 /* OrgPreviewDateText.swift */; };
 		941E58CA03B18D9DFA432533 /* WorkspaceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCEF71D6BD2ACA31FFDE46D5 /* WorkspaceSettingsView.swift */; };
 		96D94F3A310BBD0837F074F7 /* WorkspaceDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7603B5B291DC4AAA65694446 /* WorkspaceDocument.swift */; };
+		97C0F5CB199D1BC881D4167A /* WorkspaceStore+BackgroundStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1F80CD178A88C78C3455AB /* WorkspaceStore+BackgroundStorage.swift */; };
 		98B9F3BA1107260BBB62AF8E /* OrgPreviewFontMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19781128D7EE42ACA96D04A5 /* OrgPreviewFontMetrics.swift */; };
+		9B53DD5FA7E55DB45411714F /* SyncManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE0103C0AABD470A9EDDD7D /* SyncManifest.swift */; };
 		9B80FB787D74350F497D66F8 /* OrgItemEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C77308E1AF3B50DCA3A58FE /* OrgItemEditor.swift */; };
+		9CD1346348B4E098867158F8 /* DropboxBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD889F899B4C7736002F8ECF /* DropboxBackend.swift */; };
 		9E5318264831005B704AD7D9 /* InteractiveOrgPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D8D741C4F4896B29DE23593 /* InteractiveOrgPreview.swift */; };
 		9EB455DBFAE278386F9EF0ED /* OrgWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0AE3D293CEBD9E92CD66444 /* OrgWorkflow.swift */; };
+		9F6227E3BB1F77929D763971 /* RemoteWorkspaceBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB7EC8866F0FBA8D45BE86E2 /* RemoteWorkspaceBackend.swift */; };
 		A07A79801CE616DCA9087C04 /* WorkspaceStore+Queries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2831DD538E49B568819B3698 /* WorkspaceStore+Queries.swift */; };
 		A22C02B38F1D585F6DC0DB24 /* OrgHeadingBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F5FE7B0AA9FC300CEE598D /* OrgHeadingBody.swift */; };
 		A268123C58A1BCCD00FDECC2 /* OrgendaCalendarDayGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5702D483F61D27F042FB64B3 /* OrgendaCalendarDayGrid.swift */; };
@@ -144,8 +166,10 @@
 		BD35DB833300959694A50911 /* OrgendaCalendarSizingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B35E061137898D4B31312059 /* OrgendaCalendarSizingTests.swift */; };
 		BDDD410C4B603725F9860A04 /* WorkspaceSyncUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55D8CD9C0CF7C33EDADDD43 /* WorkspaceSyncUITests.swift */; };
 		BE98426006138FB5571C6EF3 /* OrgItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C2332C24A973D026846C42 /* OrgItem.swift */; };
+		BEBF17027706C7B0ED6A14FF /* CloudConnectionFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0154540B04D732730B42AE0D /* CloudConnectionFactory.swift */; };
 		BF15CF42C8698775E1B5B301 /* WorkspaceImageReadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 411514BFEDFBFF31ECD21CFC /* WorkspaceImageReadTests.swift */; };
 		BF4670D5A7AAB1B870D372EB /* OrgPreviewCustomBlockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D5A08E5E37D27C91B625A5E /* OrgPreviewCustomBlockTests.swift */; };
+		BF501DAD5F92B216A2F1F9E2 /* CloudBackendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EBAA4975407A928F67B7627 /* CloudBackendTests.swift */; };
 		BFE07989334D163F9785C5B1 /* OrgPreviewImageReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3359F3F2CE6D3C3FF3FFBE29 /* OrgPreviewImageReference.swift */; };
 		C019CACCDE9E63C7BAEE4177 /* OrgItemEditorSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F32DAA201C6D906A2E19D2C /* OrgItemEditorSupport.swift */; };
 		C1E79FA2DF79556A75311B70 /* OrgendaQuickActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B188C59A38734474A4CE27 /* OrgendaQuickActions.swift */; };
@@ -164,6 +188,7 @@
 		D4B9655CE40707D20449C0D5 /* OrgendaQuickActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA6D3FFA2035229392B087C5 /* OrgendaQuickActionsTests.swift */; };
 		D8366ED7F3B1E6B1C578D240 /* OrgPlanningDrafts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D99EA65E1ECC298D945F5E8 /* OrgPlanningDrafts.swift */; };
 		DA878F636F4A2C9E325947F6 /* WorkspaceStore+ImageFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2B520F0B3E90FC8259379F /* WorkspaceStore+ImageFixture.swift */; };
+		DB55CB0FDF01F24094E042F8 /* WorkspaceStore+Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC7FA1DCD946BDE55CC86AB7 /* WorkspaceStore+Storage.swift */; };
 		DBC0F90C1D51FF2A90E67CE1 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51351A35A3FAD6DD77EBFFD /* SearchResultRow.swift */; };
 		DC6E2DAB1C157BF88247C68F /* OrgWorkflow+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35CE3D4E500BD3D830E82EDB /* OrgWorkflow+Presentation.swift */; };
 		DCE4E807FC2EB500489F5752 /* OrgTaskTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A729747F2ADCB23A611B22E /* OrgTaskTransfer.swift */; };
@@ -180,8 +205,11 @@
 		F1CA821096FD2B4ECC81333D /* AgendaTaskLists.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B9456E037964B05722A8553 /* AgendaTaskLists.swift */; };
 		F3A6281B818174119E4F79E9 /* PerformanceAblationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 631F932146738714128AE076 /* PerformanceAblationTests.swift */; };
 		F4088D90DDB52A15131FB4E1 /* OrgRepeater.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0559EA826F4ED23FD7CE2E /* OrgRepeater.swift */; };
+		F438A1B1DCD61DBD2C9BF80E /* StorageConflictView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EB84B8AC26D62237520EE78 /* StorageConflictView.swift */; };
 		F7254D7BCC0FA035C02B55BF /* OrgendaDateButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3295BDE82739EB166D17E7 /* OrgendaDateButton.swift */; };
 		F799310BC24EFEB7988600B6 /* OrgHeadingContinuity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A581456481EF0F059980B63 /* OrgHeadingContinuity.swift */; };
+		FAF43A5110EEECEA18A65868 /* WorkspaceSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BF01903767673AD44A70AA1 /* WorkspaceSessionTests.swift */; };
+		FD852FD925B6815D2C4DC536 /* WorkspaceStorageConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBCF1B92153A9004B45EAEE /* WorkspaceStorageConcurrencyTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -202,6 +230,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0154540B04D732730B42AE0D /* CloudConnectionFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudConnectionFactory.swift; sourceTree = "<group>"; };
 		05C8036F5CD1F2FBC5036FB9 /* SearchListSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchListSurface.swift; sourceTree = "<group>"; };
 		072D3C59FCDF0622D78DDF09 /* DatePresentationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatePresentationUITests.swift; sourceTree = "<group>"; };
 		08882EC32FA20BCC3A25D454 /* OrgHeadingMoveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgHeadingMoveTests.swift; sourceTree = "<group>"; };
@@ -220,6 +249,8 @@
 		19D9431011CBEEF522887104 /* OrgendaCalendarYearGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaCalendarYearGrid.swift; sourceTree = "<group>"; };
 		1BA2A701154BF43F2A62A281 /* OrgPreviewImageLoaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewImageLoaderTests.swift; sourceTree = "<group>"; };
 		1BEBFA5BB822F047753E2E3A /* OrgPreviewDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewDrawer.swift; sourceTree = "<group>"; };
+		1BF01903767673AD44A70AA1 /* WorkspaceSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSessionTests.swift; sourceTree = "<group>"; };
+		1CCA22E4C304F73CE6CDA55B /* StorageConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageConnection.swift; sourceTree = "<group>"; };
 		1D99EA65E1ECC298D945F5E8 /* OrgPlanningDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPlanningDrafts.swift; sourceTree = "<group>"; };
 		1DF7EA84E3F24F0BD8D72EFD /* OrgendaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaApp.swift; sourceTree = "<group>"; };
 		222C59006519C78E69D5BCB5 /* OrgInputCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgInputCommands.swift; sourceTree = "<group>"; };
@@ -231,6 +262,7 @@
 		28F61290E97CEB27C418D6C5 /* WorkspaceMoves.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceMoves.swift; sourceTree = "<group>"; };
 		293D22BE07ED2408597BF71B /* OrgHeadingMove.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgHeadingMove.swift; sourceTree = "<group>"; };
 		29BBA48D8A28C3ED5CDEE8CA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		2BD32AADA884E7BE28612D6D /* WorkspaceSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSession.swift; sourceTree = "<group>"; };
 		2D2C6378E618DBEA83A4E15F /* DocumentSaveStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSaveStatus.swift; sourceTree = "<group>"; };
 		2D5A08E5E37D27C91B625A5E /* OrgPreviewCustomBlockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewCustomBlockTests.swift; sourceTree = "<group>"; };
 		2F80B8B90F04EFC0AB9C9908 /* ParsedOrgDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsedOrgDocument.swift; sourceTree = "<group>"; };
@@ -255,9 +287,14 @@
 		40A4D1A5A8466A88F22AA80F /* OrgDocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgDocumentView.swift; sourceTree = "<group>"; };
 		40F5FE7B0AA9FC300CEE598D /* OrgHeadingBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgHeadingBody.swift; sourceTree = "<group>"; };
 		411514BFEDFBFF31ECD21CFC /* WorkspaceImageReadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceImageReadTests.swift; sourceTree = "<group>"; };
+		43556262B099537C824E1B92 /* WebDAVBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVBackend.swift; sourceTree = "<group>"; };
+		4371148C81C94D3A66337C48 /* StorageSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageSyncView.swift; sourceTree = "<group>"; };
 		46E39521999E2B7D1225D4FC /* WorkspaceDocumentContextPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDocumentContextPreview.swift; sourceTree = "<group>"; };
+		4A9C8A492059537D0BCB18A7 /* WorkspaceSession+Attachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceSession+Attachments.swift"; sourceTree = "<group>"; };
+		4CE0103C0AABD470A9EDDD7D /* SyncManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncManifest.swift; sourceTree = "<group>"; };
 		4D0023C893AC67A478EB380A /* OrgPreviewMarkup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewMarkup.swift; sourceTree = "<group>"; };
 		4D0177289D07F20C602B4328 /* IPadLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadLayoutUITests.swift; sourceTree = "<group>"; };
+		4EB84B8AC26D62237520EE78 /* StorageConflictView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageConflictView.swift; sourceTree = "<group>"; };
 		4F32DAA201C6D906A2E19D2C /* OrgItemEditorSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgItemEditorSupport.swift; sourceTree = "<group>"; };
 		4FC5055F12DDB730192A82EB /* OrgPreviewRichText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewRichText.swift; sourceTree = "<group>"; };
 		512D3C0984BE7E6A426F33FC /* OrgAgendaPerspective+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OrgAgendaPerspective+Presentation.swift"; sourceTree = "<group>"; };
@@ -265,7 +302,9 @@
 		540C172440E26F7E534E9D73 /* SearchJournalDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchJournalDetail.swift; sourceTree = "<group>"; };
 		552EA4A56C92B7767B0B48F7 /* OrgendaHorizontalPan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaHorizontalPan.swift; sourceTree = "<group>"; };
 		5702D483F61D27F042FB64B3 /* OrgendaCalendarDayGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaCalendarDayGrid.swift; sourceTree = "<group>"; };
+		58A7A350EFB13B494E4329C6 /* StorageReconnectAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageReconnectAction.swift; sourceTree = "<group>"; };
 		5900C0D508C0C7815DC70D84 /* WorkspaceFileActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFileActions.swift; sourceTree = "<group>"; };
+		5A1F80CD178A88C78C3455AB /* WorkspaceStore+BackgroundStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceStore+BackgroundStorage.swift"; sourceTree = "<group>"; };
 		5A5D82D65FF0FA0310ECB685 /* OrgWorkflowOperations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgWorkflowOperations.swift; sourceTree = "<group>"; };
 		5F4BED302E267275EB55B942 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		5F8C7C572535340215C98B18 /* WorkspaceStore+Reminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceStore+Reminders.swift"; sourceTree = "<group>"; };
@@ -284,10 +323,13 @@
 		6EAED600523440C488277BC4 /* OrgSyntaxTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgSyntaxTextEditor.swift; sourceTree = "<group>"; };
 		6F212F57E16E410DF506D0BF /* WorkspaceFileTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFileTransfer.swift; sourceTree = "<group>"; };
 		6F2640B870C713DED48BE2C0 /* JournalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalView.swift; sourceTree = "<group>"; };
+		6F6047EC03B3002550B092AE /* WorkspaceFileAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFileAccess.swift; sourceTree = "<group>"; };
 		72EF199FE4A5CEA26ECB5EB0 /* SearchPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchPresentation.swift; sourceTree = "<group>"; };
+		737526F9E96FD7462371D984 /* OneDriveBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneDriveBackend.swift; sourceTree = "<group>"; };
 		74C2332C24A973D026846C42 /* OrgItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgItem.swift; sourceTree = "<group>"; };
 		74FB67C92863FFC342B3A2DD /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		7603B5B291DC4AAA65694446 /* WorkspaceDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDocument.swift; sourceTree = "<group>"; };
+		7744F4168975723DC87BE79A /* StorageHTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageHTTP.swift; sourceTree = "<group>"; };
 		774E6DD86E3B95C31A2F3B10 /* OrgLatexCompatibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgLatexCompatibility.swift; sourceTree = "<group>"; };
 		795286A32693E901BE1D5A72 /* JournalDayContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalDayContent.swift; sourceTree = "<group>"; };
 		79DD43ABC921F3EC2D490B3B /* Welcome.org */ = {isa = PBXFileReference; path = Welcome.org; sourceTree = "<group>"; };
@@ -301,13 +343,16 @@
 		8882F0AC03BC93B9FC38F7F9 /* OrgendaCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaCalendar.swift; sourceTree = "<group>"; };
 		888B990FFA570D68D5B2C948 /* OrgPreviewMathFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewMathFlow.swift; sourceTree = "<group>"; };
 		89C50D5ADA4BB7F3F0DFC8D3 /* OrgCaptureTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgCaptureTemplate.swift; sourceTree = "<group>"; };
+		89D8F7A0826EE4FC8C0E1C39 /* WorkspaceStorageIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceStorageIntegrationTests.swift; sourceTree = "<group>"; };
 		8B6C7E2F1AF2924B583E277A /* OrgPreviewPlanning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewPlanning.swift; sourceTree = "<group>"; };
 		8B9456E037964B05722A8553 /* AgendaTaskLists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaTaskLists.swift; sourceTree = "<group>"; };
 		8D5B9F07E63E9387DCE88825 /* OrgPreviewContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewContent.swift; sourceTree = "<group>"; };
 		8DCE824E285C2C3C78AF808F /* OrgPreviewParagraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewParagraph.swift; sourceTree = "<group>"; };
 		8E20D352749EC4073BB6E64B /* OrgPreviewImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewImageView.swift; sourceTree = "<group>"; };
+		8EBAA4975407A928F67B7627 /* CloudBackendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBackendTests.swift; sourceTree = "<group>"; };
 		8FC9376757BA50DF80E22C11 /* OrgItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgItemRow.swift; sourceTree = "<group>"; };
 		9086E6751246008523A75F22 /* WorkspaceConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceConnection.swift; sourceTree = "<group>"; };
+		91FB98D767BEDED8586D37BD /* WorkspaceStore+StorageFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceStore+StorageFixture.swift"; sourceTree = "<group>"; };
 		928E80355FD6FC02D16F718F /* OrgendaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaTheme.swift; sourceTree = "<group>"; };
 		953EF669B82935717FE52572 /* OrgCodeHighlighting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgCodeHighlighting.swift; sourceTree = "<group>"; };
 		966BDBD870A8DF9E6F71E7A5 /* AgendaDayContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaDayContent.swift; sourceTree = "<group>"; };
@@ -317,6 +362,7 @@
 		9C1DAE97AD1C2DBB88EB18E2 /* OrgReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgReminderScheduler.swift; sourceTree = "<group>"; };
 		9C77308E1AF3B50DCA3A58FE /* OrgItemEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgItemEditor.swift; sourceTree = "<group>"; };
 		9D9AB73505032B40DD0ADFEE /* WorkspaceFileOperations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFileOperations.swift; sourceTree = "<group>"; };
+		A4A690B4D979A6BA9724371E /* CloudAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudAuthorization.swift; sourceTree = "<group>"; };
 		A4A6DE59F4366B1A39786674 /* WorkspaceStore+Editing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceStore+Editing.swift"; sourceTree = "<group>"; };
 		A4B929B637C9ED9E1949D0A2 /* AgendaDayHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaDayHeader.swift; sourceTree = "<group>"; };
 		A55D8CD9C0CF7C33EDADDD43 /* WorkspaceSyncUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSyncUITests.swift; sourceTree = "<group>"; };
@@ -334,6 +380,8 @@
 		B498DA8A1AEAA6606D0DC100 /* OrgKeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgKeyboardAccessory.swift; sourceTree = "<group>"; };
 		B51351A35A3FAD6DD77EBFFD /* SearchResultRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultRow.swift; sourceTree = "<group>"; };
 		B70C0375943103A72CBEBCA3 /* OrgWorkflowControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgWorkflowControls.swift; sourceTree = "<group>"; };
+		B787C21526B66FBDB8B0DA92 /* WorkspaceSession+FileOperations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceSession+FileOperations.swift"; sourceTree = "<group>"; };
+		BCAC2C23047E475C5AAB5819 /* StorageProviderPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageProviderPicker.swift; sourceTree = "<group>"; };
 		C0663587B7C46FD16022C8B6 /* OrgendaCalendarResizeContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaCalendarResizeContent.swift; sourceTree = "<group>"; };
 		C07717E61E9A7EB11AFD8F5A /* OrgCaptureTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgCaptureTemplateTests.swift; sourceTree = "<group>"; };
 		C0CC08BFACD14D4B7C116F1F /* OrgendaUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OrgendaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -341,8 +389,11 @@
 		C5EF5F3E2BF1C5B5B7172D60 /* OrgMathRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgMathRendering.swift; sourceTree = "<group>"; };
 		C63899680985E92C59705A61 /* JournalEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalEntry.swift; sourceTree = "<group>"; };
 		C64CBE4FF0B7AD06EDDDEC07 /* WorkspaceConnectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceConnectionTests.swift; sourceTree = "<group>"; };
+		C6F793236CAC5FECDCC47864 /* GoogleDriveBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveBackend.swift; sourceTree = "<group>"; };
 		C7463A76B14AE946F23D232E /* OrgSourceMutationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgSourceMutationTests.swift; sourceTree = "<group>"; };
+		CA9CBB5660A3057B7DBCDBC7 /* StorageNetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageNetworkMonitor.swift; sourceTree = "<group>"; };
 		CB2B520F0B3E90FC8259379F /* WorkspaceStore+ImageFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceStore+ImageFixture.swift"; sourceTree = "<group>"; };
+		CB7EC8866F0FBA8D45BE86E2 /* RemoteWorkspaceBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWorkspaceBackend.swift; sourceTree = "<group>"; };
 		CBA78864F114B76F9AA4E930 /* SearchModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModels.swift; sourceTree = "<group>"; };
 		CD0559EA826F4ED23FD7CE2E /* OrgRepeater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgRepeater.swift; sourceTree = "<group>"; };
 		CD5CA9359FC8F20097583307 /* FilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesView.swift; sourceTree = "<group>"; };
@@ -367,10 +418,14 @@
 		EA181FEB7C302BFBA0EDDAB8 /* HighlightedOrgEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightedOrgEditor.swift; sourceTree = "<group>"; };
 		EA6D3FFA2035229392B087C5 /* OrgendaQuickActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaQuickActionsTests.swift; sourceTree = "<group>"; };
 		EA869EC1C6A519095B62E6CD /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		EAD0F34DFB8BD6D1242FE451 /* StorageWebDAVView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageWebDAVView.swift; sourceTree = "<group>"; };
 		EC7A200DB4B5C89C6FC26272 /* OrgItemEditorField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgItemEditorField.swift; sourceTree = "<group>"; };
+		EC7FA1DCD946BDE55CC86AB7 /* WorkspaceStore+Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceStore+Storage.swift"; sourceTree = "<group>"; };
 		ECBA6FA5106B5BD523F9CE9D /* HabitHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitHistoryView.swift; sourceTree = "<group>"; };
+		EE84B5FEF4BD57F7FA4059B3 /* WorkspaceSession+Sync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceSession+Sync.swift"; sourceTree = "<group>"; };
 		EEED065BA90E4AB53E426E3F /* AgendaCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaCalendarView.swift; sourceTree = "<group>"; };
 		EFB2451248C7B2B40D3CB3FC /* OrgendaDatePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaDatePresentation.swift; sourceTree = "<group>"; };
+		EFBCF1B92153A9004B45EAEE /* WorkspaceStorageConcurrencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceStorageConcurrencyTests.swift; sourceTree = "<group>"; };
 		F6388B10C682312E35091C8B /* SettingsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRow.swift; sourceTree = "<group>"; };
 		F77DBEC52C8216BC4C085828 /* OrgSourceMutation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgSourceMutation.swift; sourceTree = "<group>"; };
 		F91987209ADE2AA89512475E /* OrgPlanningEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPlanningEditorSheet.swift; sourceTree = "<group>"; };
@@ -378,6 +433,7 @@
 		FA240436D73CD9D1848FE196 /* SearchSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSuggestions.swift; sourceTree = "<group>"; };
 		FB21395106A811633F889CF7 /* WorkspaceStore+Agenda.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceStore+Agenda.swift"; sourceTree = "<group>"; };
 		FCEF71D6BD2ACA31FFDE46D5 /* WorkspaceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSettingsView.swift; sourceTree = "<group>"; };
+		FD889F899B4C7736002F8ECF /* DropboxBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropboxBackend.swift; sourceTree = "<group>"; };
 		FD90229EEB7BCD5D8EABB512 /* MotionPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionPolicyTests.swift; sourceTree = "<group>"; };
 		FD9082F806C3AEB9AAF37066 /* JournalDateStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalDateStrip.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -438,6 +494,7 @@
 				FE8AEF87B6D179644D9F2F9D /* Images */,
 				2B65ADF94C93045970469361 /* Indexing */,
 				6812129B6BF2851001F1F514 /* Reminders */,
+				6BEC7602FBF79BED071664E5 /* Storage */,
 				F7840824A094CB406A927012 /* Workspace */,
 			);
 			path = Services;
@@ -472,6 +529,15 @@
 				DCA7194B1486DC656477406B /* OrgPreviewTable.swift */,
 			);
 			path = Blocks;
+			sourceTree = "<group>";
+		};
+		2536619B9068324A750647B3 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				8EBAA4975407A928F67B7627 /* CloudBackendTests.swift */,
+				1BF01903767673AD44A70AA1 /* WorkspaceSessionTests.swift */,
+			);
+			path = Storage;
 			sourceTree = "<group>";
 		};
 		25D62293396426C085D58640 /* Preview */ = {
@@ -645,6 +711,27 @@
 			path = Reminders;
 			sourceTree = "<group>";
 		};
+		6BEC7602FBF79BED071664E5 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				A4A690B4D979A6BA9724371E /* CloudAuthorization.swift */,
+				0154540B04D732730B42AE0D /* CloudConnectionFactory.swift */,
+				FD889F899B4C7736002F8ECF /* DropboxBackend.swift */,
+				C6F793236CAC5FECDCC47864 /* GoogleDriveBackend.swift */,
+				737526F9E96FD7462371D984 /* OneDriveBackend.swift */,
+				CB7EC8866F0FBA8D45BE86E2 /* RemoteWorkspaceBackend.swift */,
+				7744F4168975723DC87BE79A /* StorageHTTP.swift */,
+				CA9CBB5660A3057B7DBCDBC7 /* StorageNetworkMonitor.swift */,
+				4CE0103C0AABD470A9EDDD7D /* SyncManifest.swift */,
+				43556262B099537C824E1B92 /* WebDAVBackend.swift */,
+				2BD32AADA884E7BE28612D6D /* WorkspaceSession.swift */,
+				4A9C8A492059537D0BCB18A7 /* WorkspaceSession+Attachments.swift */,
+				B787C21526B66FBDB8B0DA92 /* WorkspaceSession+FileOperations.swift */,
+				EE84B5FEF4BD57F7FA4059B3 /* WorkspaceSession+Sync.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
 		6D2EA67151376E3ECE0F0761 /* Gestures */ = {
 			isa = PBXGroup;
 			children = (
@@ -811,6 +898,7 @@
 			children = (
 				CB2B520F0B3E90FC8259379F /* WorkspaceStore+ImageFixture.swift */,
 				14AE0CDCC29E5941E9008338 /* WorkspaceStore+SampleData.swift */,
+				91FB98D767BEDED8586D37BD /* WorkspaceStore+StorageFixture.swift */,
 			);
 			path = Fixtures;
 			sourceTree = "<group>";
@@ -869,6 +957,7 @@
 			children = (
 				7B6A0A10ECA8277326A4C870 /* Images */,
 				71A9641E8441F878612AA0E9 /* Indexing */,
+				2536619B9068324A750647B3 /* Storage */,
 				F12267009C51BFFA858ED490 /* Workspace */,
 			);
 			path = Services;
@@ -899,6 +988,7 @@
 			isa = PBXGroup;
 			children = (
 				2D2C6378E618DBEA83A4E15F /* DocumentSaveStatus.swift */,
+				1CCA22E4C304F73CE6CDA55B /* StorageConnection.swift */,
 				7603B5B291DC4AAA65694446 /* WorkspaceDocument.swift */,
 				6F212F57E16E410DF506D0BF /* WorkspaceFileTransfer.swift */,
 			);
@@ -913,6 +1003,11 @@
 				F6388B10C682312E35091C8B /* SettingsRow.swift */,
 				0991CE272943ADDFFD1540DE /* SettingsValueRow.swift */,
 				380B55B89CEB85244C93998D /* SettingsView.swift */,
+				4EB84B8AC26D62237520EE78 /* StorageConflictView.swift */,
+				BCAC2C23047E475C5AAB5819 /* StorageProviderPicker.swift */,
+				58A7A350EFB13B494E4329C6 /* StorageReconnectAction.swift */,
+				4371148C81C94D3A66337C48 /* StorageSyncView.swift */,
+				EAD0F34DFB8BD6D1242FE451 /* StorageWebDAVView.swift */,
 				FCEF71D6BD2ACA31FFDE46D5 /* WorkspaceSettingsView.swift */,
 			);
 			path = Settings;
@@ -1019,6 +1114,8 @@
 				C64CBE4FF0B7AD06EDDDEC07 /* WorkspaceConnectionTests.swift */,
 				81358A073373D8DE6BE72ECD /* WorkspaceFileStoreTests.swift */,
 				411514BFEDFBFF31ECD21CFC /* WorkspaceImageReadTests.swift */,
+				EFBCF1B92153A9004B45EAEE /* WorkspaceStorageConcurrencyTests.swift */,
+				89D8F7A0826EE4FC8C0E1C39 /* WorkspaceStorageIntegrationTests.swift */,
 				3DD89B0DEF325132AD3538CE /* WorkspaceStoreTests.swift */,
 			);
 			path = Workspace;
@@ -1037,15 +1134,18 @@
 			isa = PBXGroup;
 			children = (
 				9086E6751246008523A75F22 /* WorkspaceConnection.swift */,
+				6F6047EC03B3002550B092AE /* WorkspaceFileAccess.swift */,
 				9D9AB73505032B40DD0ADFEE /* WorkspaceFileOperations.swift */,
 				CEC169E58341EC1CC44CD769 /* WorkspaceFileStore.swift */,
 				28F61290E97CEB27C418D6C5 /* WorkspaceMoves.swift */,
 				A9E317F1E72EA6F42F14DD26 /* WorkspaceStore.swift */,
 				FB21395106A811633F889CF7 /* WorkspaceStore+Agenda.swift */,
+				5A1F80CD178A88C78C3455AB /* WorkspaceStore+BackgroundStorage.swift */,
 				A4A6DE59F4366B1A39786674 /* WorkspaceStore+Editing.swift */,
 				5215ABF6D16B3DECF00F5D90 /* WorkspaceStore+Indexing.swift */,
 				2831DD538E49B568819B3698 /* WorkspaceStore+Queries.swift */,
 				5F8C7C572535340215C98B18 /* WorkspaceStore+Reminders.swift */,
+				EC7FA1DCD946BDE55CC86AB7 /* WorkspaceStore+Storage.swift */,
 			);
 			path = Workspace;
 			sourceTree = "<group>";
@@ -1205,11 +1305,15 @@
 				F1CA821096FD2B4ECC81333D /* AgendaTaskLists.swift in Sources */,
 				5C305FE49F26B521C2ADC208 /* AgendaView.swift in Sources */,
 				01D77F1BDA9B92530C601B41 /* AppearanceSettingsView.swift in Sources */,
+				32C71DE98A8D275F04C6C2D1 /* CloudAuthorization.swift in Sources */,
+				BEBF17027706C7B0ED6A14FF /* CloudConnectionFactory.swift in Sources */,
 				AA0A3F488D50FFE48A91C27A /* Date+Orgenda.swift in Sources */,
 				82A7AFED80FE45ECC49C1F54 /* DocumentEditingControls.swift in Sources */,
 				7895DAF9F390B618D1E2A8AE /* DocumentOutline.swift in Sources */,
 				29F8A42AF162405A18F39FD3 /* DocumentSaveStatus.swift in Sources */,
+				9CD1346348B4E098867158F8 /* DropboxBackend.swift in Sources */,
 				2A5CFD2D5107AB13D1FD1FF0 /* FilesView.swift in Sources */,
+				747ADD653545C711FA12345A /* GoogleDriveBackend.swift in Sources */,
 				D0D9575548EDB1DF457E3665 /* HabitHistoryView.swift in Sources */,
 				6300B2FFB5F6EE728A5DF7B8 /* HighlightedOrgEditor.swift in Sources */,
 				9E5318264831005B704AD7D9 /* InteractiveOrgPreview.swift in Sources */,
@@ -1219,6 +1323,7 @@
 				4D925B9FCCA66E53ED96600D /* JournalEntry.swift in Sources */,
 				486A15EF805B1E8748EA9FA0 /* JournalFileIndex.swift in Sources */,
 				CA9D83C0E938882344C4DED7 /* JournalView.swift in Sources */,
+				81EB471E9ED292D8D9232096 /* OneDriveBackend.swift in Sources */,
 				C5E31DA58516EF08FC2A0CF2 /* OrgAgendaPerspective+Presentation.swift in Sources */,
 				7F6C55BF649888F6AAE5D28D /* OrgAgendaPerspective.swift in Sources */,
 				5EB1753D7C9FF669A2E2BD80 /* OrgCalendarDates.swift in Sources */,
@@ -1301,6 +1406,7 @@
 				418CF20E8456E9CA62F16576 /* OrgendaTheme.swift in Sources */,
 				32D046394C308FC5B7238FA8 /* ParsedOrgDocument.swift in Sources */,
 				A5AB40FAD1390F1A2FF7446C /* ReminderSettingsView.swift in Sources */,
+				9F6227E3BB1F77929D763971 /* RemoteWorkspaceBackend.swift in Sources */,
 				8A2423B9C3459B2196B76C80 /* SearchExcerpt.swift in Sources */,
 				A9915F77D13A474F4691A730 /* SearchJournalDetail.swift in Sources */,
 				78B337C1285FEEA8B330528D /* SearchListSurface.swift in Sources */,
@@ -1316,23 +1422,41 @@
 				65AC9B688472F285F9101AE6 /* SettingsValueRow.swift in Sources */,
 				61FB485A3EC635DA17907B77 /* SettingsView.swift in Sources */,
 				6E63832A0D35CF37FB000755 /* SourceLocation.swift in Sources */,
+				F438A1B1DCD61DBD2C9BF80E /* StorageConflictView.swift in Sources */,
+				2E9EADA8D6F76CA46179978D /* StorageConnection.swift in Sources */,
+				8DC9B1BD4CF1203E0E5A35CA /* StorageHTTP.swift in Sources */,
+				0E434D7BDF84D3BCE3516A84 /* StorageNetworkMonitor.swift in Sources */,
+				616C0CBE4A26D32ABE728588 /* StorageProviderPicker.swift in Sources */,
+				36B69557B811739B4F97F8A2 /* StorageReconnectAction.swift in Sources */,
+				42032B6360061D2B07CD3D63 /* StorageSyncView.swift in Sources */,
+				399E8FD2198838AF59619D2B /* StorageWebDAVView.swift in Sources */,
+				9B53DD5FA7E55DB45411714F /* SyncManifest.swift in Sources */,
+				0309C54B71CAB8102271ED20 /* WebDAVBackend.swift in Sources */,
 				63C01505D08FEBE0C4B802B6 /* WorkspaceBrowser.swift in Sources */,
 				D2BF3FFE4099FB46491B6AA6 /* WorkspaceConnection.swift in Sources */,
 				96D94F3A310BBD0837F074F7 /* WorkspaceDocument.swift in Sources */,
 				E9CB217B653437E27BC6BB8B /* WorkspaceDocumentContextPreview.swift in Sources */,
+				2071AA251B36D02B738B0570 /* WorkspaceFileAccess.swift in Sources */,
 				76527B8519232A1DD3FAC503 /* WorkspaceFileActions.swift in Sources */,
 				3EF69B6982E19DF10C1D1DB3 /* WorkspaceFileOperations.swift in Sources */,
 				6C2D62E0418CD98FEAB41EAE /* WorkspaceFileStore.swift in Sources */,
 				65095E8888873C2319DD7B03 /* WorkspaceFileTransfer.swift in Sources */,
 				38FB3A4EAA9E1DBD85C4F78D /* WorkspaceMoves.swift in Sources */,
+				780B7B84EECA1B89E4030AB7 /* WorkspaceSession+Attachments.swift in Sources */,
+				2E7E8DD772DB87C5088660C9 /* WorkspaceSession+FileOperations.swift in Sources */,
+				1D35E06C4558B5CCB3F4B153 /* WorkspaceSession+Sync.swift in Sources */,
+				87EB4FE8B4B838AC0D61C752 /* WorkspaceSession.swift in Sources */,
 				941E58CA03B18D9DFA432533 /* WorkspaceSettingsView.swift in Sources */,
 				B98B15E651BD929E78FD74C7 /* WorkspaceStore+Agenda.swift in Sources */,
+				97C0F5CB199D1BC881D4167A /* WorkspaceStore+BackgroundStorage.swift in Sources */,
 				514AF6B3FB99934952A8FE38 /* WorkspaceStore+Editing.swift in Sources */,
 				DA878F636F4A2C9E325947F6 /* WorkspaceStore+ImageFixture.swift in Sources */,
 				1A59690F84F498D46295F04F /* WorkspaceStore+Indexing.swift in Sources */,
 				A07A79801CE616DCA9087C04 /* WorkspaceStore+Queries.swift in Sources */,
 				EFB18829C0B5BA1F12D68881 /* WorkspaceStore+Reminders.swift in Sources */,
 				B98E0DB90F116E7D0E681A17 /* WorkspaceStore+SampleData.swift in Sources */,
+				DB55CB0FDF01F24094E042F8 /* WorkspaceStore+Storage.swift in Sources */,
+				8BD7F8956AC5AAED7BAC1399 /* WorkspaceStore+StorageFixture.swift in Sources */,
 				86DE3697EC4BE32F768009EB /* WorkspaceStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1353,6 +1477,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BF501DAD5F92B216A2F1F9E2 /* CloudBackendTests.swift in Sources */,
 				A98C7CC0F67FD273B4CF34F6 /* DocumentOutlineFilterTests.swift in Sources */,
 				8DE3982D92BB93FA968B8123 /* EmacsProfileIntegrationTests.swift in Sources */,
 				EC109C2B679B9570BED7A4C3 /* JournalFileIndexTests.swift in Sources */,
@@ -1377,6 +1502,9 @@
 				23DB9258221DE93E5AB15803 /* WorkspaceConnectionTests.swift in Sources */,
 				B0C03BBA98E605AC2417FC0E /* WorkspaceFileStoreTests.swift in Sources */,
 				BF15CF42C8698775E1B5B301 /* WorkspaceImageReadTests.swift in Sources */,
+				FAF43A5110EEECEA18A65868 /* WorkspaceSessionTests.swift in Sources */,
+				FD852FD925B6815D2C4DC536 /* WorkspaceStorageConcurrencyTests.swift in Sources */,
+				502FAA237002A32BB21B1607 /* WorkspaceStorageIntegrationTests.swift in Sources */,
 				474C0AB16782B3F47A991E16 /* WorkspaceStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1469,6 +1597,13 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				ORGENDA_DROPBOX_CLIENT_ID = "";
+				ORGENDA_DROPBOX_REDIRECT_URI = "orgenda-dropbox://oauth";
+				ORGENDA_GOOGLE_CLIENT_ID = "";
+				ORGENDA_GOOGLE_REDIRECT_URI = "$(ORGENDA_GOOGLE_URL_SCHEME):/oauth2redirect";
+				ORGENDA_GOOGLE_URL_SCHEME = "orgenda-google";
+				ORGENDA_ONEDRIVE_CLIENT_ID = "";
+				ORGENDA_ONEDRIVE_REDIRECT_URI = "orgenda-onedrive://oauth";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -1599,6 +1734,13 @@
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				ORGENDA_DROPBOX_CLIENT_ID = "";
+				ORGENDA_DROPBOX_REDIRECT_URI = "orgenda-dropbox://oauth";
+				ORGENDA_GOOGLE_CLIENT_ID = "";
+				ORGENDA_GOOGLE_REDIRECT_URI = "$(ORGENDA_GOOGLE_URL_SCHEME):/oauth2redirect";
+				ORGENDA_GOOGLE_URL_SCHEME = "orgenda-google";
+				ORGENDA_ONEDRIVE_CLIENT_ID = "";
+				ORGENDA_ONEDRIVE_REDIRECT_URI = "orgenda-onedrive://oauth";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;

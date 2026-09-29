@@ -28,8 +28,8 @@ struct SettingsView: View {
                 } header: {
                     Text("Workspace")
                 } footer: {
-                    Label(workspaceStatus, systemImage: workspaceStatusIcon)
-                        .foregroundStyle(store.fileSyncError == nil ? Color.secondary : OrgendaTheme.overdue)
+                    Label(store.syncState.title, systemImage: store.syncState.storageSymbol)
+                        .foregroundStyle(store.syncState.storageColor)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -92,18 +92,6 @@ struct SettingsView: View {
                 .accessibilityLabel("Done")
                 .accessibilityIdentifier("settings.done")
         }
-    }
-
-    private var workspaceStatus: String {
-        if store.fileSyncError != nil { return String(localized: "Changes need attention") }
-        if store.pendingFileCount > 0 { return String(localized: "Saving changes…") }
-        return store.isFolderConnected ? String(localized: "Changes save to your folder") : String(localized: "Workspace not ready · Connect a folder")
-    }
-
-    private var workspaceStatusIcon: String {
-        if store.fileSyncError != nil { return "exclamationmark.triangle" }
-        if store.pendingFileCount > 0 { return "arrow.trianglehead.2.clockwise.rotate.90" }
-        return store.isFolderConnected ? "checkmark.circle" : "info.circle"
     }
 
     private var appVersion: String {

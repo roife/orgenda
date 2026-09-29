@@ -41,7 +41,24 @@ extension WorkspaceStore {
             for index in self.journalEntries.indices where WorkspaceFileTransfer.contains(self.journalEntries[index].source.file, in: source) {
                 self.journalEntries[index].source.file = destination + self.journalEntries[index].source.file.dropFirst(source.count)
             }
-            self.acceptFileActionDocuments(moved)
+            if let session = self.workspaceSession {
+                // Edits can finish while the provider is moving an item. Keep
+                // those unsaved bytes and their original baseline at its new
+                // path; a later save must never recreate the old source path.
+                let dirty = self.dirtyFilePaths
+                for path in dirty where WorkspaceFileTransfer.contains(path, in: source) {
+                    let target = destination + path.dropFirst(source.count)
+                    self.dirtyFilePaths.remove(path)
+                    self.dirtyFilePaths.insert(target)
+                    self.persistedContents[target] = self.persistedContents.removeValue(forKey: path)
+                    self.fileSaveErrors[target] = self.fileSaveErrors.removeValue(forKey: path)
+                }
+                self.documents = moved
+                self.applyStorageSnapshot(try await session.snapshot())
+                self.scheduleWorkspaceParse()
+            } else {
+                self.acceptFileActionDocuments(moved)
+            }
             if let document = self.documents.first(where: { $0.path == destination }) {
                 self.fileUndo = .move(self.fileTransfer(document), originalFolder: (source as NSString).deletingLastPathComponent)
             }
@@ -64,7 +81,15 @@ extension WorkspaceStore {
                 !WorkspaceFileTransfer.contains($0.path, in: transfer.document.path)
             }
             self.keepDemoParentFolders(of: transfer.document.path, in: &remaining)
-            self.acceptFileActionDocuments(remaining)
+            if let session = self.workspaceSession {
+                // A draft that arrived during deletion keeps its old baseline.
+                // Committing it against the now-missing item records a deletion
+                // conflict instead of silently resurrecting the source file.
+                self.applyStorageSnapshot(try await session.snapshot())
+                self.scheduleWorkspaceParse()
+            } else {
+                self.acceptFileActionDocuments(remaining)
+            }
             self.recentlyDeleted.insert(entry, at: 0)
             self.fileUndo = .delete(entry)
         }
@@ -83,7 +108,12 @@ extension WorkspaceStore {
                 // do not offer a second restore or report the payload as deleted.
                 self.recentlyDeleted.removeAll { $0.id == entry.id }
                 self.fileUndo = nil
-                self.acceptFileActionDocuments(try await disk.load())
+                if let session = self.workspaceSession {
+                    self.applyStorageSnapshot(try await session.snapshot())
+                    self.scheduleWorkspaceParse()
+                } else {
+                    self.acceptFileActionDocuments(try await disk.load())
+                }
             } else {
                 guard let restored = self.demoDeletedFiles.removeValue(forKey: entry.id) else {
                     throw WorkspaceFileActionError.changed
@@ -136,7 +166,7 @@ extension WorkspaceStore {
         defer { isPerformingFileAction = false }
         fileActionError = nil
         await synchronizeFiles()
-        guard !isSynchronizing, dirtyFilePaths.isEmpty, fileSyncError == nil, !Task.isCancelled else {
+        guard !isSynchronizing, !hasPendingStorageChanges, fileSyncError == nil, !Task.isCancelled else {
             fileActionError = WorkspaceFileActionError.busy.localizedDescription
             return false
         }
@@ -144,6 +174,7 @@ extension WorkspaceStore {
         defer { isSynchronizing = false }
         do {
             try await operation()
+            await persistFileEdits()
             await waitForWorkspaceIndex()
             lastFileSync = .now
             return true

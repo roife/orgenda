@@ -84,7 +84,7 @@ extension WorkspaceStore {
     private func performMove(_ baseline: OrgItem, target: OrgRefileTarget?) async -> Bool {
         await synchronizeFiles()
         await waitForWorkspaceIndex()
-        guard pendingFileCount == 0, !isSynchronizing,
+        guard pendingFileCount == 0, !isSynchronizing, fileSyncError == nil,
               let current = items.first(where: { $0.id == baseline.id }),
               current.hasSameEditableValues(as: baseline),
               let source = documents.first(where: { $0.path == current.source.file }) else {
@@ -116,9 +116,14 @@ extension WorkspaceStore {
                     operationError = String(localized: "The source or destination changed. Refresh and try again.")
                     return false
                 }
-                try await fileStore.write(path: plan.destination.path, contents: plan.destination.contents,
-                                          expectedContents: existingDestination?.contents)
-                if plan.source.path != plan.destination.path {
+                if let workspaceSession {
+                    try await workspaceSession.commitOnlineMove(source: plan.source, destination: plan.destination,
+                        expectedSource: source.contents, expectedDestination: existingDestination?.contents)
+                } else {
+                    try await fileStore.write(path: plan.destination.path, contents: plan.destination.contents,
+                                              expectedContents: existingDestination?.contents)
+                }
+                if workspaceSession == nil && plan.source.path != plan.destination.path {
                     // Never remove source text before the full destination exists.
                     guard documents == originalDocuments else {
                         operationError = String(localized: "A copy was saved, but an edit interrupted the move. Both copies are retained.")

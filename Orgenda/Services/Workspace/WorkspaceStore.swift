@@ -8,7 +8,9 @@ final class WorkspaceStore {
         didSet { rebuildDerivedCollections() }
     }
     var journalEntries: [JournalEntry]
-    var documents: [WorkspaceDocument]
+    var documents: [WorkspaceDocument] {
+        didSet { storageContentGeneration &+= 1 }
+    }
     var parserStatus = String(localized: "Tree-sitter parser is warming up")
     var parseDurationMilliseconds: Double = 0
     var parsedDocuments: [String: ParsedOrgDocument] = [:]
@@ -21,6 +23,14 @@ final class WorkspaceStore {
     var fileSyncError: String?
     var lastFileSync: Date?
     var pendingFileCount = 0
+    var storageConnection: StorageConnection?
+    var syncState: WorkspaceSyncState = .idle
+    var syncConflicts: [WorkspaceConflict] = []
+    var pendingUploadPaths: Set<String> = []
+    var hasPendingStorageOperation = false
+    var pendingUploadCount: Int { pendingUploadPaths.count }
+    var isWorkspaceReady: Bool { isFolderConnected }
+    var hasPendingStorageChanges: Bool { !dirtyFilePaths.isEmpty || !pendingUploadPaths.isEmpty || !syncConflicts.isEmpty || hasPendingStorageOperation }
     var fileSaveErrors: [String: String] = [:]
     var externalDocumentRevisions: [String: UInt64] = [:]
     var usesEmacsConfiguration = false {
@@ -49,7 +59,18 @@ final class WorkspaceStore {
     var reminderPermissionDenied = false
     @ObservationIgnored let reminderScheduler = OrgReminderScheduler()
 
-    @ObservationIgnored var fileStore: WorkspaceFileStore?
+    @ObservationIgnored var fileStore: (any WorkspaceFileAccess)?
+    @ObservationIgnored var workspaceSession: WorkspaceSession?
+    @ObservationIgnored var connectionDefaults: UserDefaults = .standard
+    @ObservationIgnored var isPersistingEdits = false
+    @ObservationIgnored var isChangingStorage = false
+    @ObservationIgnored var automaticSyncRetryAt: Date?
+    @ObservationIgnored var serverSyncRetryAt: Date?
+    @ObservationIgnored var syncFailureCount = 0
+    @ObservationIgnored var storageContentGeneration: UInt64 = 0
+    @ObservationIgnored var appliedStorageRevision: UInt64 = 0
+    @ObservationIgnored var storageCacheDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("Workspace Storage", isDirectory: true)
     @ObservationIgnored var folderAccessURL: URL?
     @ObservationIgnored var persistedContents: [String: String] = [:]
     var dirtyFilePaths: Set<String> = []

@@ -4,6 +4,19 @@ import UniformTypeIdentifiers
 @testable import Orgenda
 
 final class OrgPreviewImageLoaderTests: XCTestCase {
+    func testCloudAttachmentLookupTriesNextCandidateAfterMissingMetadata() async throws {
+        let root = try temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let backend = ImageWorkspaceBackend(bytes: try imageData(width: 12, height: 8))
+        let connection = StorageConnection(provider: .webDAV, displayName: "Images", rootID: "/org")
+        let store = try WorkspaceSession(connection: connection, cacheDirectory: root, remote: backend)
+        try await store.initialize()
+        let image = try await OrgPreviewImageLoader().load(
+            candidates: ["missing.png", "image.png"], fileStore: store, workspaceID: connection.id)
+        XCTAssertEqual(image.size.width, 12)
+        XCTAssertEqual(image.size.height, 8)
+    }
+
     func testLoadsLocalImageAndFallsBackOnlyWhenAFileIsMissing() async throws {
         let root = try temporaryFolder()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -209,6 +222,22 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         XCTAssertTrue(CGImageDestinationFinalize(destination))
         return data as Data
     }
+}
+
+private struct ImageWorkspaceBackend: RemoteWorkspaceBackend {
+    let bytes: Data
+    private var file: RemoteFile { RemoteFile(id: "image", path: "image.png", isDirectory: false, revision: "v1") }
+    func scan(cursor: String?) async throws -> RemoteScan { RemoteScan(files: [file]) }
+    func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload {
+        guard file.path == "image.png" else { throw StorageError.http(404) }
+        guard bytes.count <= maxBytes else { throw StorageError.tooLarge }
+        return RemoteDownload(file: self.file, data: bytes)
+    }
+    func upload(path: String, data: Data, existing: RemoteFile?, operationID: UUID) async throws -> RemoteFile {
+        throw StorageError.unsupported("Unexpected upload in image test")
+    }
+    func createDirectory(path: String) async throws -> RemoteFile { throw StorageError.unsupported("Unexpected mkdir in image test") }
+    func move(_ file: RemoteFile, to path: String) async throws -> RemoteFile { throw StorageError.unsupported("Unexpected move in image test") }
 }
 
 /// Every session in these tests uses this protocol: no request reaches the

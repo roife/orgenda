@@ -267,7 +267,7 @@ final class WorkspaceConnectionTests: XCTestCase {
         XCTAssertTrue(store.documents.isEmpty)
     }
 
-    func testDocumentStatusIsPerFileAndReflectsSaveFailureAndRetry() async throws {
+    func testDocumentStatusSeparatesDurableSaveFromSyncConflictAndRetry() async throws {
         let root = try folder()
         let url = root.appendingPathComponent("inbox.org")
         try "* Original\n".write(to: url, atomically: true, encoding: .utf8)
@@ -281,7 +281,9 @@ final class WorkspaceConnectionTests: XCTestCase {
         XCTAssertEqual(store.saveStatus(for: "other.org"), .saved)
         try "* Conflict\n".write(to: url, atomically: true, encoding: .utf8)
         await store.synchronizeFiles()
-        guard case .failed = store.saveStatus(for: "inbox.org") else { return XCTFail("Missing failure status") }
+        XCTAssertEqual(store.saveStatus(for: "inbox.org"), .conflict)
+        XCTAssertTrue(store.dirtyFilePaths.isEmpty, "Conflicting text is already saved on this device")
+        XCTAssertEqual(store.pendingUploadPaths, ["inbox.org"])
         XCTAssertEqual(store.saveStatus(for: "other.org"), .saved)
         XCTAssertEqual(store.externalDocumentRevisions["inbox.org"], revision)
         try "* Original\n".write(to: url, atomically: true, encoding: .utf8)
