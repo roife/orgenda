@@ -23,6 +23,8 @@ struct JournalView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 journalHeader
+                    .frame(maxWidth: 760)
+                    .frame(maxWidth: .infinity)
 
                 ScrollView {
                     ZStack(alignment: .topLeading) {
@@ -35,6 +37,8 @@ struct JournalView: View {
                     .frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
                     .padding(16)
                     .padding(.bottom, 24)
+                    .frame(maxWidth: 760)
+                    .frame(maxWidth: .infinity)
                     .animation(reduceMotion ? .easeOut(duration: 0.12) : JournalMotion.contentChange, value: contentID)
                     .offset(x: reduceMotion ? 0 : dayDrag)
                 }

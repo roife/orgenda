@@ -207,14 +207,18 @@ final class MotionFlowUITests: XCTestCase {
         app.buttons["files.open.projects/child/notes.org"].tap()
         app.buttons["Edit"].tap()
         let editor = app.textViews["Org source editor"]
-        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.95)).tap()
+        // The editor extends behind the floating tab bar, so its bottom edge
+        // can hit Search instead of placing the insertion point in the text.
+        editor.tap()
         let target = "文件定位测试🙂"
         editor.typeText("\n" + String(repeating: "中文\n", count: 12)
                         + "\n* TODO \(target)\n" + String(repeating: "正文\n", count: 35))
         let source = editor.value as? String
         app.buttons["Preview"].tap()
         app.tabBars.buttons["Dashboard"].tap()
-        chooseAgendaView("TODOs", in: app)
+        let perspective = app.buttons["agenda.viewMenu"]
+        XCTAssertTrue(perspective.waitForExistence(timeout: 3))
+        XCTAssertEqual(perspective.value as? String, "Unscheduled")
         let row = app.staticTexts[target]
         XCTAssertTrue(row.waitForExistence(timeout: 3))
         row.press(forDuration: 0.6)
@@ -227,10 +231,13 @@ final class MotionFlowUITests: XCTestCase {
         let heading = preview.staticTexts[target]
         XCTAssertTrue(heading.waitForExistence(timeout: 3))
         XCTAssertTrue(heading.isHittable)
-        XCTAssertTrue(app.staticTexts["projects/child/notes.org"].exists)
         XCTAssertTrue(app.buttons["Preview"].isSelected)
         app.buttons["Edit"].tap()
-        XCTAssertEqual(app.textViews["Org source editor"].value as? String, source)
+        let reopenedSource = app.textViews["Org source editor"].value as? String
+        // This fixture content identifies notes.org without relying on a
+        // permanent file-path label in the document toolbar.
+        XCTAssertTrue(reopenedSource?.contains("* Nested content 中文\n") == true)
+        XCTAssertEqual(reopenedSource, source)
         app.buttons["Preview"].tap()
         app.tabBars.buttons["Dashboard"].tap()
         XCTAssertTrue(app.buttons["agenda.viewMenu"].waitForExistence(timeout: 3))

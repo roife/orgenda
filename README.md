@@ -2,6 +2,10 @@
 
 基于 SwiftUI 的 Org 文件工作区，提供任务议程、日历、日记、搜索和可交互的 Org 编辑与预览。
 
+iPad 侧边栏上方提供 Calendar、Files、Search，下方 Dashboard 分组直接列出当前工作区可用的各个视图。侧边栏的显示方式及点选后的收起行为由 iPadOS 原生组件决定。顶部 Tab 栏通过同一个原生 Dashboard 分组呈现这些视图，切换侧栏时保留当前选择，无需增删 Tab 或改写选择状态。
+
+iPad 支持横竖屏和可调整大小的窗口，顶层标签可切换为侧边栏。普通 iPad 布局的日历仅提供月、年视图；进入底部标签栏的紧凑布局时也可使用周视图。空间充足时日历与当天任务或日记并排显示，窄窗口和辅助大字体使用上下布局，高度不足时可滚动整页。文件列表与文档使用分栏导航，阅读和搜索内容保持合适的行宽。在仪表盘可用外接键盘的 `⌘N` 新建任务。
+
 支持 Haptic Touch：长按议程条目可预览内容并使用快捷操作；长按文件或文件夹可预览内容、打开、移动或删除。日期选择、任务完成与保存、文件操作提供系统触觉反馈，实际振动效果需在支持触觉反馈的 iPhone 上体验。
 
 长按主屏幕上的 App 图标可直接新建任务、查看今天、搜索或打开文件列表。快捷操作会等待工作区加载完成；若已有编辑窗口，则在关闭该窗口后继续，保留当前草稿。
@@ -60,6 +64,14 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:OrgendaUITests test CODE_SIGNING_ALLOWED=NO
+```
+
+iPad 专项回归覆盖旋转、不同窗口尺寸、完整月历显示、分栏文件编辑和搜索导航。尺寸用例在全屏模拟器中以 760×480 和 600×600 视口渲染真实界面：
+
+```sh
+xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
+  -destination 'platform=iOS Simulator,name=iPad Pro 11-inch (M5)' \
+  -only-testing:OrgendaUITests/IPadLayoutUITests test CODE_SIGNING_ALLOWED=NO
 ```
 
 解析器可以独立验证：

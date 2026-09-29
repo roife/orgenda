@@ -3,6 +3,7 @@ import SwiftUI
 struct AgendaCalendarView<Row: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.orgendaCalendarMinimumDensity) private var minimumDensity
     @Bindable var store: WorkspaceStore
     let isActive: Bool
     let onCapture: (Date?) -> Void
@@ -37,60 +38,21 @@ struct AgendaCalendarView<Row: View>: View {
 
 
     var body: some View {
-        VStack(spacing: 0) {
-            OrgendaCalendar(
-                selectedDate: $store.selectedDate,
-                density: $density,
-                markedDates: store.markedAgendaDays,
-                showsNavigationControls: isActive,
-                controlsInHeader: true,
-                onCapture: {
-                    if calendarPage == .journal {
-                        journalCapture = JournalCapture(date: store.selectedDate)
-                    } else {
-                        onCapture(store.selectedDate)
-                    }
-                },
-                captureLabel: calendarPage == .journal ? "New journal entry" : "New task",
-                onScheduleTask: { transfer, date in onReschedule(transfer.item, date) },
-                onReturnToday: {
+        GeometryReader { geometry in
+            let usesColumns = UIDevice.current.userInterfaceIdiom == .pad
+                && minimumDensity == .month
+                && geometry.size.width >= 700 && !dynamicTypeSize.isAccessibilitySize
+            calendarLayout(usesColumns: usesColumns, availableSize: geometry.size)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("calendar.layout")
+            .accessibilityValue(usesColumns ? "Columns" : "Stacked")
+            .onChange(of: usesColumns) { previous, current in
+                if previous != current {
+                    // AnyLayout keeps the pages alive while resizing. Re-anchor
+                    // the timeline to the selected day after its width changes.
                     timelineScrollSelection = nil
                     timelineScrollRequest &+= 1
                 }
-            )
-
-            TabView(selection: $calendarPage) {
-                agendaTimeline
-                    .tag(CalendarPage.agenda)
-                    .accessibilityHidden(calendarPage != .agenda)
-
-                ScrollView {
-                    JournalDayContent(entries: store.journal(on: store.selectedDate)) {
-                        journalCapture = JournalCapture(date: store.selectedDate)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 24)
-                }
-                // Keep page identity stable as agenda scrolling selects dates.
-                // Replacing a page here rebuilds the pager during deceleration.
-                .scrollPosition($journalScrollPosition)
-                .onChange(of: store.selectedDate) { _, _ in
-                    journalScrollPosition.scrollTo(y: 0)
-                }
-                .scrollIndicators(.hidden)
-                .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-                .accessibilityIdentifier("calendar.journal.timeline")
-                .accessibilityValue(OrgendaDatePresentation.relativeDate(store.selectedDate))
-                .tag(CalendarPage.journal)
-                .accessibilityHidden(calendarPage != .journal)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .accessibilityAction(named: Text("Agenda")) { calendarPage = .agenda }
-            .accessibilityAction(named: Text("Journal")) { calendarPage = .journal }
-            .onChange(of: calendarPage) { _, _ in
-                onPageChange()
-                isScrollingTimeline = false
             }
         }
         .sheet(item: $journalCapture) { capture in
@@ -102,7 +64,7 @@ struct AgendaCalendarView<Row: View>: View {
             // Reserve room for the agenda on entry to larger text sizes.
             // Subsequent manual Month/Year choices remain under user control.
             if usesAccessibilityText {
-                density = .week
+                density = minimumDensity
             }
         }
         .onChange(of: dynamicTypeSize) { _, _ in
@@ -113,19 +75,129 @@ struct AgendaCalendarView<Row: View>: View {
         }
     }
 
+    @ViewBuilder
+    private func calendarLayout(usesColumns: Bool, availableSize: CGSize) -> some View {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            AgendaCalendarTabletLayout(usesColumns: usesColumns, availableSize: availableSize) {
+                calendarPanel
+            } detail: {
+                contentPanel(usesColumns: usesColumns)
+            }
+        } else {
+            VStack(spacing: 0) {
+                calendarPanel
+                contentPanel(usesColumns: false)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    private var calendarPanel: some View {
+        calendar
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("calendar.datePanel")
+    }
+
+    private func contentPanel(usesColumns: Bool) -> some View {
+        VStack(spacing: 0) {
+            if usesColumns {
+                Picker("Calendar", selection: $calendarPage) {
+                    Text("Agenda").tag(CalendarPage.agenda)
+                    Text("Journal").tag(CalendarPage.journal)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .accessibilityIdentifier("calendar.content.picker")
+            }
+            calendarPages
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("calendar.contentPanel")
+    }
+
+    private var calendar: some View {
+        OrgendaCalendar(
+            selectedDate: $store.selectedDate,
+            density: $density,
+            markedDates: store.markedAgendaDays,
+            showsNavigationControls: isActive,
+            controlsInHeader: true,
+            onCapture: {
+                if calendarPage == .journal {
+                    journalCapture = JournalCapture(date: store.selectedDate)
+                } else {
+                    onCapture(store.selectedDate)
+                }
+            },
+            captureLabel: calendarPage == .journal ? "New journal entry" : "New task",
+            onScheduleTask: { transfer, date in onReschedule(transfer.item, date) },
+            onReturnToday: {
+                timelineScrollSelection = nil
+                timelineScrollRequest &+= 1
+            }
+        )
+    }
+
+    private var calendarPages: some View {
+        TabView(selection: $calendarPage) {
+            agendaTimeline
+                .tag(CalendarPage.agenda)
+                .accessibilityHidden(calendarPage != .agenda)
+
+            ScrollView {
+                JournalDayContent(entries: store.journal(on: store.selectedDate)) {
+                    journalCapture = JournalCapture(date: store.selectedDate)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 24)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
+            }
+            // Keep page identity stable as agenda scrolling selects dates.
+            // Replacing a page here rebuilds the pager during deceleration.
+            .scrollPosition($journalScrollPosition)
+            .onChange(of: store.selectedDate) { _, _ in
+                journalScrollPosition.scrollTo(y: 0)
+            }
+            .scrollIndicators(.hidden)
+            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+            .accessibilityIdentifier("calendar.journal.timeline")
+            .accessibilityValue(OrgendaDatePresentation.relativeDate(store.selectedDate))
+            .tag(CalendarPage.journal)
+            .accessibilityHidden(calendarPage != .journal)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .accessibilityAction(named: Text("Agenda")) { calendarPage = .agenda }
+        .accessibilityAction(named: Text("Journal")) { calendarPage = .journal }
+        .onChange(of: calendarPage) { _, _ in
+            onPageChange()
+            isScrollingTimeline = false
+        }
+    }
+
     private var agendaTimeline: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4, pinnedViews: [.sectionHeaders]) {
                     ForEach(timelineDays) { day in
                         Section {
-                            AgendaDayContent(
-                                date: day.date, dayItems: store.items(on: day.date),
-                                overdueCount: store.overdueCount,
-                                onToggle: onToggle, onOpen: onOpen,
-                                onShowInFile: onShowInFile, onShowOverdue: onShowOverdue,
-                                row: row
-                            )
+                            // A recurring item keeps its source ID across days.
+                            // Give each day a layout boundary so LazyVStack does
+                            // not flatten those occurrences into duplicate rows.
+                            VStack(alignment: .leading, spacing: 4) {
+                                AgendaDayContent(
+                                    date: day.date, dayItems: store.items(on: day.date),
+                                    overdueCount: store.overdueCount,
+                                    onToggle: onToggle, onOpen: onOpen,
+                                    onShowInFile: onShowInFile, onShowOverdue: onShowOverdue,
+                                    row: row
+                                )
+                            }
+                            .fixedSize(horizontal: false, vertical: true)
                         } header: {
                             AgendaDayHeader(date: day.date, count: store.items(on: day.date).count)
                         }
@@ -134,6 +206,8 @@ struct AgendaCalendarView<Row: View>: View {
                 }
                 .scrollTargetLayout()
                 .padding(.bottom, 24)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
             .accessibilityIdentifier("orgenda.agenda.timeline")
@@ -215,4 +289,56 @@ struct AgendaCalendarView<Row: View>: View {
         }
     }
 
+}
+
+/// Keep the calendar's intrinsic height intact. A short tablet window scrolls
+/// the whole layout instead of cutting the month off above a pinned timeline.
+private struct AgendaCalendarTabletLayout<CalendarPanel: View, Detail: View>: View {
+    let usesColumns: Bool
+    let availableSize: CGSize
+    @ViewBuilder let calendar: () -> CalendarPanel
+    @ViewBuilder let detail: () -> Detail
+    @State private var calendarHeight: CGFloat = 0
+
+    var body: some View {
+        // The density handle extends its touch target beyond its visible grip.
+        // Keep that area clear of the agenda when the panels are stacked.
+        let spacing: CGFloat = usesColumns ? 0 : 16
+        let layout = usesColumns
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: 0))
+            : AnyLayout(VStackLayout(spacing: spacing))
+        let detailHeight = usesColumns
+            ? max(availableSize.height, calendarHeight)
+            : max(240, availableSize.height - calendarHeight - spacing)
+        ScrollView {
+            layout {
+                calendar()
+                    .frame(width: usesColumns ? min(max(availableSize.width * 0.38, 364), 400) : nil)
+                    // The resize grip's hit target extends 14 points beyond its
+                    // layout. Include that space in the outer scroll extent.
+                    .padding(.bottom, 14)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                        calendarHeight = $0
+                    }
+                    .overlay(alignment: .trailing) {
+                        if usesColumns {
+                            Rectangle()
+                                .fill(Color(uiColor: .separator))
+                                .frame(width: 0.5)
+                                .accessibilityHidden(true)
+                        }
+                    }
+
+                // A page-style TabView needs a finite proposal inside a scroll
+                // view. Leave a usable agenda viewport below the full calendar.
+                detail()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: detailHeight)
+            }
+            .frame(minHeight: availableSize.height, alignment: .top)
+            .contentShape(Rectangle())
+        }
+        .scrollBounceBehavior(.basedOnSize)
+    }
 }

@@ -116,6 +116,8 @@ struct OrgPreviewContent: View {
         .padding(.horizontal, 16)
         .padding(.top, 6)
         .padding(.bottom, 20)
+        .frame(maxWidth: 900, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
 }

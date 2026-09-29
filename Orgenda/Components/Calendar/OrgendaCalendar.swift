@@ -15,6 +15,11 @@ struct OrgendaCalendar: View {
         }
     }
 
+    static func minimumDensity(for sizeClass: UserInterfaceSizeClass?) -> Density {
+        UIDevice.current.userInterfaceIdiom == .pad && sizeClass != .compact ? .month : .week
+    }
+
+
     private enum PageDirection {
         case backward
         case forward
@@ -32,6 +37,7 @@ struct OrgendaCalendar: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.orgendaCalendarMinimumDensity) private var minimumDensity
     @ScaledMetric(relativeTo: .subheadline) private var monthLabelHeight = 18.0
     @ScaledMetric(relativeTo: .subheadline) private var dayNumberSize = OrgendaDateLayout.dayNumberSize
     @ScaledMetric(relativeTo: .footnote) private var weekdayLineHeight = OrgendaDateLayout.weekdayLineHeight
@@ -154,6 +160,17 @@ struct OrgendaCalendar: View {
             }
         }
         .sensoryFeedback(.selection, trigger: displayedDensity)
+        .onChange(of: minimumDensity, initial: true) { _, minimum in
+            // A live window resize can change tab placement mid-gesture. Stop
+            // the old transition before applying the new presentation range.
+            densityTransitionGeneration &+= 1
+            densityDragOrigin = nil
+            densityDragPosition = nil
+            pendingDensityTransition = nil
+            if density == .week && minimum == .month {
+                setDensity(.month, animated: false)
+            }
+        }
         .onChange(of: isDraggingDensity) { _, isDragging in
             // GestureState also resets when the system cancels a drag.
             if !isDragging { finishDensityDrag() }
@@ -288,13 +305,15 @@ struct OrgendaCalendar: View {
             .accessibilityElement()
             .accessibilityLabel("Calendar view")
             .accessibilityValue(displayedDensity.title)
-            .accessibilityHint("Drag up or down to switch between week, month, and year")
+            .accessibilityHint(minimumDensity == .month
+                ? Text("Drag up or down to switch between month and year")
+                : Text("Drag up or down to switch between week, month, and year"))
             .accessibilityAdjustableAction { direction in
                 switch direction {
                 case .increment:
                     setDensity(density == .week ? .month : .year)
                 case .decrement:
-                    setDensity(density == .year ? .month : .week)
+                    setDensity(density == .year ? .month : minimumDensity)
                 @unknown default:
                     break
                 }
@@ -312,7 +331,8 @@ struct OrgendaCalendar: View {
                     return
                 }
                 let origin = densityDragOrigin ?? densityDragPosition ?? sizing.dragPosition(for: density)
-                let position = min(max(origin + value.translation.height, 0), sizing.dragPosition(for: .year))
+                let position = min(max(origin + value.translation.height, sizing.dragPosition(for: minimumDensity)),
+                                   sizing.dragPosition(for: .year))
                 if densityDragOrigin == nil { prepareResizeSnapshot() }
                 var transaction = Transaction(animation: nil)
                 transaction.isContinuous = true
@@ -333,6 +353,14 @@ struct OrgendaCalendar: View {
         guard densityDragOrigin != nil, let position = densityDragPosition else { return }
         densityDragOrigin = nil
         let target = sizing.density(at: position)
+        if position == sizing.dragPosition(for: target) {
+            // At a clamped boundary there is no animation to wait for. Its
+            // completion can run before GestureState resets and leave the
+            // noninteractive resize preview covering the real calendar.
+            setDensity(target, animated: false)
+            densityDragPosition = nil
+            return
+        }
         settleDensity(to: target)
     }
 
@@ -562,7 +590,8 @@ struct OrgendaCalendar: View {
             }
     }
 
-    private func setDensity(_ nextDensity: Density, animated: Bool = true) {
+    private func setDensity(_ requestedDensity: Density, animated: Bool = true) {
+        let nextDensity = requestedDensity == .week ? minimumDensity : requestedDensity
         guard nextDensity != density else { return }
         if animated && !reduceMotion {
             prepareResizeSnapshot()
@@ -815,4 +844,17 @@ struct OrgendaCalendar: View {
     }
 
 
+}
+
+/// The root tab view owns this policy. Navigation columns can supply their own
+/// horizontal size class, which must not change the root navigation's choices.
+private struct OrgendaCalendarMinimumDensityKey: EnvironmentKey {
+    static let defaultValue: OrgendaCalendar.Density = .week
+}
+
+extension EnvironmentValues {
+    var orgendaCalendarMinimumDensity: OrgendaCalendar.Density {
+        get { self[OrgendaCalendarMinimumDensityKey.self] }
+        set { self[OrgendaCalendarMinimumDensityKey.self] = newValue }
+    }
 }

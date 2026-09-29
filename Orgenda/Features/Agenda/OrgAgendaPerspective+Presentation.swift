@@ -1,6 +1,10 @@
 import Foundation
 
 extension OrgAgendaPerspective {
+    static func dashboardViews(usesEmacsConfiguration: Bool) -> [Self] {
+        usesEmacsConfiguration ? allCases.filter { $0 != .agenda } : [.overdue, .todos]
+    }
+
     static let browsingViews: [Self] = [.dashboard, .overdue, .todos]
     static let taskViews: [Self] = [.urgent, .next, .waiting, .projects, .someday]
 

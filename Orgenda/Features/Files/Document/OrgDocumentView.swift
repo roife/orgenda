@@ -73,7 +73,7 @@ struct OrgDocumentView: View {
                         backButton
                     }
                 }
-                ToolbarItem(placement: .principal) {
+                ToolbarItem(placement: .topBarTrailing) {
                     ViewThatFits(in: .horizontal) {
                         modePicker
                         modeMenu

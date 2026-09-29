@@ -5,6 +5,7 @@ struct WorkspaceBrowserRow: View {
     let store: WorkspaceStore
     let document: WorkspaceDocument
     var showsPath = false
+    var isSelected = false
     @Binding var revealedPath: String?
     let onOpen: () -> Void
     @State private var offset: CGFloat = 0
@@ -45,6 +46,7 @@ struct WorkspaceBrowserRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("files.open.\(document.path)")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
                 .contextMenu {
                     Button("Open", systemImage: document.kind == .folder ? "folder" : "doc.text") {
                         close()
@@ -65,7 +67,13 @@ struct WorkspaceBrowserRow: View {
                     WorkspaceDocumentContextPreview(document: document, store: store)
                 }
             }
-            .background(Color(uiColor: .systemBackground))
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(OrgendaTheme.accentText.opacity(0.14))
+                }
+            }
+            .contentShape(Rectangle())
             .offset(x: offset)
             .gesture(OrgendaHorizontalPan(onChange: { translation, began in
                 if began { start = offset; revealedPath = document.path }

@@ -1480,6 +1480,9 @@
         }
       }
     },
+    "Columns" : {
+
+    },
     "Comment" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2479,6 +2482,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已複製草稿"
+          }
+        }
+      }
+    },
+    "Drag up or down to switch between month and year" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下拖动以切换月、年视图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下拖動以切換月、年檢視"
           }
         }
       }
@@ -6821,6 +6841,9 @@
         }
       }
     },
+    "Stacked" : {
+
+    },
     "Start" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6957,23 +6980,6 @@
         }
       }
     },
-    "Swipe up or down to change years" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "上下轻扫以切换年份"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "上下滑動以切換年份"
-          }
-        }
-      }
-    },
     "Swipe up or down to change months" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6987,6 +6993,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "上下滑動切換月份"
+          }
+        }
+      }
+    },
+    "Swipe up or down to change years" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下轻扫以切换年份"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下滑動以切換年份"
           }
         }
       }

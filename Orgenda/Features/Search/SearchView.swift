@@ -28,6 +28,8 @@ struct SearchView: View {
     var body: some View {
         NavigationStack {
             searchContent
+                .frame(maxWidth: 900)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(uiColor: .systemBackground))
                 .navigationTitle("Search")
                 .safeAreaInset(edge: .top, spacing: 0) { scopeBar }
@@ -90,6 +92,8 @@ struct SearchView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
+        .frame(maxWidth: 900)
+        .frame(maxWidth: .infinity)
         .background(Color(uiColor: .systemBackground))
         .overlay(alignment: .bottom) { Divider() }
     }

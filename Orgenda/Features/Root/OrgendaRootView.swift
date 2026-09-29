@@ -2,6 +2,7 @@ import SwiftUI
 
 enum OrgendaTab: Hashable {
     case dashboard
+    case dashboardView(OrgAgendaPerspective)
     case calendar
     case files
     case search
@@ -9,12 +10,13 @@ enum OrgendaTab: Hashable {
 
 struct OrgendaRootView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var sceneDelegate: OrgendaSceneDelegate
     @AppStorage("appearance") private var appearance = "System"
     @State private var store = WorkspaceStore.startup()
     @State private var selectedTab: OrgendaTab = .dashboard
     @State private var searchQuery = ""
-    @State private var dashboardNavigationRequest: OrgAgendaPerspective?
+    @State private var dashboardPerspective: OrgAgendaPerspective = .todos
     @State private var capture: CaptureDestination?
     @State private var fileNavigationRequest: WorkspaceFileNavigationRequest?
     @State private var showsWorkspaceSettings = false
@@ -32,6 +34,13 @@ struct OrgendaRootView: View {
             }
         }
         .tint(OrgendaTheme.accent)
+        .onChange(of: store.usesEmacsConfiguration, initial: true) { _, configured in
+            dashboardPerspective = configured ? .dashboard : .todos
+            if isDashboardSelected { selectDashboard() }
+        }
+        .onChange(of: horizontalSizeClass) { _, _ in
+            if isDashboardSelected { selectDashboard() }
+        }
         .allowsHitTesting(!store.isStartingWorkspace && !store.isPerformingFileAction)
         .sheet(item: $capture) { destination in
             Group {
@@ -122,7 +131,7 @@ private extension OrgendaRootView {
     func performQuickAction(_ action: OrgendaQuickAction) {
         switch action {
         case .newTask:
-            selectedTab = .dashboard
+            selectDashboard()
             capture = .agenda(nil)
         case .today:
             store.selectedDate = .now.startOfDay
@@ -152,41 +161,116 @@ private extension OrgendaRootView {
         }
     }
 
+    @ViewBuilder
     var workspaceTabs: some View {
-        TabView(selection: $selectedTab) {
-            Tab("Dashboard", systemImage: "square.grid.2x2", value: .dashboard) {
-                AgendaView(store: store, onCapture: { date in
-                    capture = .agenda(date)
-                }, onShowInFile: showInFile, onShowOverdue: showOverdue,
-                   navigationRequest: $dashboardNavigationRequest,
-                   expectsConnectedWorkspace: !isUITestWorkspace)
-                .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            workspaceTabContent.tabViewStyle(.sidebarAdaptable)
+        } else {
+            workspaceTabContent
+        }
+    }
+
+    var workspaceTabContent: some View {
+        TabView(selection: tabSelection) {
+            if usesDashboardSection {
+                // Sections keep their declared order in the tab bar, while
+                // the native sidebar places them below standalone tabs.
+                TabSection {
+                    ForEach(OrgAgendaPerspective.dashboardViews(usesEmacsConfiguration: store.usesEmacsConfiguration)) { option in
+                        Tab(value: dashboardTab(for: option)) {
+                            dashboardContent(perspective: Binding(
+                                get: { option }, set: { selectDashboard($0) }
+                            ))
+                        } label: {
+                            Label(option.menuTitle, systemImage: option.symbol)
+                                .accessibilityIdentifier("sidebar.perspective.\(option.controlID)")
+                        }
+                        .customizationID("sidebar.perspective.\(option.controlID)")
+                        .tabPlacement(.sidebarOnly)
+                    }
+                } header: {
+                    Text("Dashboard")
+                        .accessibilityIdentifier("sidebar.dashboard")
+                }
+                .customizationID("orgenda.dashboard.section")
+                .defaultSectionExpansion(.expanded)
+            } else {
+                Tab("Dashboard", systemImage: "square.grid.2x2", value: OrgendaTab.dashboard) {
+                    dashboardContent(perspective: Binding(
+                        get: { dashboardPerspective }, set: { selectDashboard($0) }
+                    ))
+                }
+                .customizationID("orgenda.dashboard")
             }
-            Tab("Calendar", systemImage: "calendar", value: .calendar) {
-                AgendaView(store: store, mode: .calendar, onCapture: { date in
+
+            Tab("Calendar", systemImage: "calendar", value: OrgendaTab.calendar) {
+                AgendaView(store: store, mode: .calendar, perspective: .constant(.agenda), onCapture: { date in
                     capture = .agenda(date)
                 }, onShowInFile: showInFile, onShowOverdue: showOverdue,
                    expectsConnectedWorkspace: !isUITestWorkspace)
                 .id(calendarNavigationID)
                 .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
-            Tab("Files", systemImage: "folder.fill", value: .files) {
+            Tab("Files", systemImage: "folder.fill", value: OrgendaTab.files) {
                 FilesView(store: store, navigationRequest: $fileNavigationRequest)
                     .id(filesNavigationID)
                     .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
-            Tab(value: .search, role: .search) {
+            Tab(value: OrgendaTab.search, role: .search) {
                 SearchView(store: store, query: $searchQuery, focusRequest: searchNavigationID)
                     .id(searchNavigationID)
                     .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
         }
         .tabViewSearchActivation(.searchTabSelection)
+        .environment(\.orgendaCalendarMinimumDensity,
+                     OrgendaCalendar.minimumDensity(for: horizontalSizeClass))
+    }
+
+    var tabSelection: Binding<OrgendaTab> {
+        Binding(get: { selectedTab }, set: { tab in
+            if case .dashboardView(let perspective) = tab {
+                dashboardPerspective = perspective
+            } else if tab == .dashboard && usesDashboardSection {
+                dashboardPerspective = primaryDashboardPerspective
+            }
+            selectedTab = tab
+        })
+    }
+
+    func dashboardContent(perspective: Binding<OrgAgendaPerspective>) -> some View {
+        AgendaView(store: store, perspective: perspective, onCapture: { date in
+            capture = .agenda(date)
+        }, onShowInFile: showInFile, onShowOverdue: showOverdue,
+           expectsConnectedWorkspace: !isUITestWorkspace)
+        .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
+    }
+
+    var usesDashboardSection: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass != .compact
+    }
+
+    var primaryDashboardPerspective: OrgAgendaPerspective {
+        store.usesEmacsConfiguration ? .dashboard : .todos
+    }
+
+    var isDashboardSelected: Bool {
+        if case .dashboardView = selectedTab { return true }
+        return selectedTab == .dashboard
+    }
+
+    func dashboardTab(for perspective: OrgAgendaPerspective) -> OrgendaTab {
+        usesDashboardSection && perspective != primaryDashboardPerspective
+            ? .dashboardView(perspective) : .dashboard
+    }
+
+    func selectDashboard(_ perspective: OrgAgendaPerspective? = nil) {
+        if let perspective { dashboardPerspective = perspective }
+        selectedTab = dashboardTab(for: dashboardPerspective)
     }
 
     func showOverdue() {
-        dashboardNavigationRequest = .overdue
-        selectedTab = .dashboard
+        selectDashboard(.overdue)
     }
 
     func showInFile(_ item: OrgItem) {
@@ -214,6 +298,7 @@ struct OrgendaCaptureToolbar: ToolbarContent {
     var body: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Button("New task", systemImage: "plus", action: onCapture)
+                .keyboardShortcut("n", modifiers: .command)
                 .labelStyle(.iconOnly)
                 .foregroundStyle(OrgendaTheme.accentText)
                 .accessibilityLabel("New task")

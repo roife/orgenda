@@ -10,16 +10,17 @@ struct AgendaView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.orgendaCalendarMinimumDensity) private var calendarMinimumDensity
+    @Environment(\.tabBarPlacement) private var tabBarPlacement
     @Bindable var store: WorkspaceStore
     let mode: Mode
     let onCapture: (Date?) -> Void
     let onShowInFile: (OrgItem) -> Void
     let onShowOverdue: () -> Void
+    @Binding var perspective: Perspective
     @Binding var navigationRequest: Perspective?
     var expectsConnectedWorkspace = false
-    @State private var perspective: Perspective
     @State private var visitedPerspectives: Set<Perspective>
-    @State private var lastWorkspaceConfiguration: Bool?
     @State private var editorItem: OrgItem?
     @State private var showsCompletionError = false
     @State private var reschedulingItem: OrgItem?
@@ -29,6 +30,7 @@ struct AgendaView: View {
     init(
         store: WorkspaceStore,
         mode: Mode = .agenda,
+        perspective: Binding<Perspective>,
         onCapture: @escaping (Date?) -> Void,
         onShowInFile: @escaping (OrgItem) -> Void,
         onShowOverdue: @escaping () -> Void,
@@ -42,10 +44,11 @@ struct AgendaView: View {
         self.onShowOverdue = onShowOverdue
         _navigationRequest = navigationRequest
         self.expectsConnectedWorkspace = expectsConnectedWorkspace
-        let initial: Perspective = mode == .calendar ? .agenda : (store.usesEmacsConfiguration ? .dashboard : .todos)
-        _perspective = State(initialValue: initial)
-        _visitedPerspectives = State(initialValue: [initial])
+        _perspective = perspective
+        _visitedPerspectives = State(initialValue: [perspective.wrappedValue])
     }
+
+    private var showsPerspectiveMenu: Bool { tabBarPlacement != .sidebar }
 
     var body: some View {
         NavigationStack {
@@ -69,13 +72,25 @@ struct AgendaView: View {
                 }
             }
             .background(Color(uiColor: .systemBackground))
-            .navigationTitle("")
+            .navigationTitle(mode == .calendar && !showsPerspectiveMenu ? String(localized: "Calendar") : "")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar(mode == .calendar ? .hidden : .visible, for: .navigationBar)
+            // Regular iPad tabs share the top navigation area. Keep its inset
+            // even when Calendar supplies its own date heading below the tabs.
+            .toolbar(mode == .calendar && showsPerspectiveMenu && calendarMinimumDensity == .week
+                     ? .hidden : .visible, for: .navigationBar)
             .toolbar {
                 if mode == .agenda {
-                    ToolbarItem(placement: .topBarLeading) {
-                        perspectiveMenu
+                    if showsPerspectiveMenu {
+                        ToolbarItem(placement: .topBarLeading) {
+                            perspectiveMenu
+                        }
+                    } else {
+                        ToolbarItem(placement: .principal) {
+                            Text(displayedPerspective.title)
+                                .font(.headline)
+                                .accessibilityAddTraits(.isHeader)
+                                .accessibilityIdentifier("agenda.currentPerspective")
+                        }
                     }
                     OrgendaCaptureToolbar {
                         onCapture(nil)
@@ -121,6 +136,7 @@ struct AgendaView: View {
                     .glassEffect(.regular, in: .rect(cornerRadius: 24))
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
+                    .frame(maxWidth: 760)
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
@@ -131,12 +147,9 @@ struct AgendaView: View {
                 Text(store.operationError ?? String(localized: "The source changed. Please reopen this item."))
             }
         }
-        .onChange(of: store.usesEmacsConfiguration, initial: true) { _, configured in
-            // The initial callback also runs when returning to this tab.
-            // Only apply the default when the workspace configuration changes.
-            guard lastWorkspaceConfiguration != configured else { return }
-            lastWorkspaceConfiguration = configured
-            selectPerspective(mode == .calendar ? .agenda : (configured ? .dashboard : .todos))
+        .onChange(of: perspective, initial: true) { _, option in
+            revealedItemID = nil
+            visitedPerspectives.insert(option)
         }
         .task(id: navigationRequest) {
             guard let requested = navigationRequest,
@@ -148,9 +161,7 @@ struct AgendaView: View {
 
     private var availablePerspectives: [Perspective] {
         if mode == .calendar { return [.agenda] }
-        return store.usesEmacsConfiguration
-            ? Perspective.allCases.filter { $0 != .agenda }
-            : [.overdue, .todos]
+        return Perspective.dashboardViews(usesEmacsConfiguration: store.usesEmacsConfiguration)
     }
 
     private var displayedPerspective: Perspective {

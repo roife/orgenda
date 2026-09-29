@@ -3,6 +3,7 @@ import SwiftUI
 struct AgendaStartupSkeleton: View {
     let date: Date
     let showsCalendar: Bool
+    @Environment(\.orgendaCalendarMinimumDensity) private var minimumDensity
     @ScaledMetric(relativeTo: .body) private var titleHeight = 16.0
     @ScaledMetric(relativeTo: .footnote) private var detailHeight = 11.0
 
@@ -11,11 +12,13 @@ struct AgendaStartupSkeleton: View {
             if showsCalendar {
                 OrgendaCalendar(
                     selectedDate: .constant(date),
-                    density: .constant(.week),
+                    density: .constant(minimumDensity),
                     markedDates: [],
                     controlsInHeader: true,
                     onCapture: {}
                 )
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: showsCalendar ? 12 : 20) {
@@ -48,6 +51,8 @@ struct AgendaStartupSkeleton: View {
                 .padding(.horizontal, 16)
                 .padding(.top, showsCalendar ? 0 : 12)
                 .padding(.bottom, 24)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             .scrollDisabled(true)
             .scrollIndicators(.hidden)

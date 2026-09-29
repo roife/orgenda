@@ -22,6 +22,8 @@ struct FilesView: View {
     @State private var isTrashPresented = false
     @State private var revealedPath: String?
     @State private var navigationPath: [String] = []
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
 
     var body: some View {
         Group {
@@ -35,28 +37,34 @@ struct FilesView: View {
                         }
                 }
             } else {
-                NavigationSplitView {
+                NavigationSplitView(
+                    columnVisibility: $columnVisibility,
+                    preferredCompactColumn: $preferredCompactColumn
+                ) {
                     workspaceList(selection: Binding(get: { selectedPath }, set: { path in
                         navigationPath = []
                         activeLocationRequest = nil
                         selectedPath = path
+                        // Custom browser buttons need to reveal the detail
+                        // explicitly when an iPad window collapses the split.
+                        preferredCompactColumn = path == nil ? .sidebar : .detail
                     }).animation(OrgendaMotion.geometryAnimation(.selection, reduceMotion: reduceMotion)))
+                        .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
+                } detail: {
+                    NavigationStack(path: $navigationPath) {
+                        Group {
+                            if let selectedPath {
+                                documentDestination(path: selectedPath, onBack: clearSelection)
+                            } else {
+                                ContentUnavailableView("Select an Org file", systemImage: "doc.text.magnifyingglass")
+                            }
+                        }
                         .navigationDestination(for: String.self) { path in
                             documentDestination(path: path)
                         }
-                } detail: {
-                    if let selectedPath {
-                        NavigationStack(path: $navigationPath) {
-                            documentDestination(path: selectedPath, onBack: clearSelection)
-                                .navigationDestination(for: String.self) { path in
-                                    documentDestination(path: path)
-                                }
-                        }
-                        .id(selectedPath)
-                    } else {
-                        ContentUnavailableView("Select an Org file", systemImage: "doc.text.magnifyingglass")
                     }
                 }
+                .navigationSplitViewStyle(.balanced)
             }
         }
         .modifier(WorkspaceFileFeedback(store: store))
@@ -75,14 +83,29 @@ struct FilesView: View {
             } else {
                 selectedPath = request.paths.first
                 navigationPath = Array(request.paths.dropFirst())
+                preferredCompactColumn = .detail
             }
             navigationRequest = nil
         }
         .onChange(of: navigationPath.last ?? selectedPath) { _, path in
             if activeLocationRequest?.source.file != path { activeLocationRequest = nil }
         }
+        .onChange(of: store.workspaceFileSessionID) { _, _ in
+            navigationRequest = nil
+            revealedPath = nil
+            isTrashPresented = false
+            clearSelection()
+        }
         .onChange(of: store.documents.map(\.path)) { _, paths in
-            if let selectedPath, !paths.contains(selectedPath) { self.selectedPath = nil }
+            // Implicit folders are valid routes while any descendant remains.
+            func containsPath(_ path: String) -> Bool {
+                paths.contains(path) || paths.contains { $0.hasPrefix(path + "/") }
+            }
+            if let selectedPath, !containsPath(selectedPath) {
+                clearSelection()
+            } else if let invalidIndex = navigationPath.firstIndex(where: { !containsPath($0) }) {
+                navigationPath.removeSubrange(invalidIndex...)
+            }
         }
         .sheet(isPresented: $isSettingsPresented) {
             SettingsView(store: store)
@@ -97,13 +120,20 @@ struct FilesView: View {
     private func workspaceList(selection: Binding<String?>?) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                LazyVStack(spacing: 0) {
+                LazyVStack(spacing: selection == nil ? 0 : 4) {
                     ForEach(visibleFolderDocuments(store.documents, folderPath: "")) { document in
-                        WorkspaceBrowserRow(store: store, document: document, revealedPath: $revealedPath) {
+                        WorkspaceBrowserRow(
+                            store: store,
+                            document: document,
+                            isSelected: selection?.wrappedValue == document.path,
+                            revealedPath: $revealedPath
+                        ) {
                             if let selection { selection.wrappedValue = document.path }
                             else { navigationPath.append(document.path) }
                         }
-                        Divider().padding(.leading, 38)
+                        if selection == nil {
+                            Divider().padding(.leading, 38)
+                        }
                     }
                 }
             }
@@ -178,6 +208,8 @@ struct FilesView: View {
             navigationPath = []
             activeLocationRequest = nil
             selectedPath = nil
+            preferredCompactColumn = .sidebar
+            columnVisibility = .all
         }
     }
 
@@ -186,6 +218,7 @@ struct FilesView: View {
         if let document = store.documents.first(where: { $0.path == path }),
            document.kind == .folder {
             WorkspaceFolderView(store: store, folder: document) { navigationPath.append($0) }
+                .id(path)
         } else if store.documents.contains(where: { $0.path.hasPrefix(path + "/") }) {
             // Imported/demo files can have implicit parents. Include those
             // folders in the same navigation hierarchy as disk-backed folders.
@@ -193,6 +226,7 @@ struct FilesView: View {
                 path: path, title: (path as NSString).lastPathComponent,
                 contents: "", kind: .folder
             )) { navigationPath.append($0) }
+                .id(path)
         } else {
             OrgDocumentView(
                 store: store,

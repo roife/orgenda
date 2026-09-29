@@ -33,6 +33,8 @@ struct AgendaTodoList<Row: View>: View {
                 }
             }
             .padding(.bottom, 24)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
         }
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("agenda.view.todos")
@@ -78,6 +80,8 @@ struct AgendaOverdueList<Row: View>: View {
                 }
             }
             .padding(.bottom, 24)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
         }
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("agenda.view.overdue")
