@@ -21,6 +21,42 @@ final class WorkspaceSessionTests: XCTestCase {
                              recoveryDirectory: cache.appendingPathComponent("Recovery"))
     }
 
+    func testConfigurationUsesDurableOfflineSyncPipeline() async throws {
+        let backend = SessionFakeBackend(["config.json": #"{"version":1}"#, "other.json": "{}"])
+        let first = try session(backend)
+        try await first.initialize()
+        let loaded = try await first.load()
+        XCTAssertEqual(loaded.first { $0.path == "config.json" }?.kind, .configuration)
+        XCTAssertFalse(loaded.contains { $0.path == "other.json" })
+        let updated = #"{"version":1,"files":{"inbox":"tasks.org"}}"#
+        await backend.setOffline(true)
+        try await first.write(path: "config.json", contents: updated, expectedContents: #"{"version":1}"#)
+        let reopened = try session(backend)
+        let snapshot = try await reopened.snapshot()
+        XCTAssertEqual(snapshot.documents.first { $0.path == "config.json" }?.contents, updated)
+        XCTAssertTrue(snapshot.pendingPaths.contains("config.json"))
+        await backend.setOffline(false)
+        try await reopened.synchronize()
+        let remote = await backend.contents("config.json")
+        XCTAssertEqual(remote, updated)
+    }
+
+    func testConfigurationKeepBothDoesNotActivateRecoveryCopy() async throws {
+        let backend = SessionFakeBackend(["config.json": #"{"version":1}"#])
+        let workspace = try session(backend)
+        try await workspace.initialize()
+        try await workspace.write(path: "config.json", contents: #"{"version":1,"tags":[]}"#, expectedContents: #"{"version":1}"#)
+        await backend.replace("config.json", contents: #"{"version":1,"files":{"inbox":"remote.org"}}"#)
+        do { try await workspace.synchronize(); XCTFail("Expected a conflict") } catch {}
+        let snapshot = try await workspace.snapshot()
+        XCTAssertEqual(snapshot.conflicts.first?.path, "config.json")
+        XCTAssertEqual(snapshot.documents.filter { $0.kind == .configuration }.count, 1)
+        try await workspace.resolveConflict(path: "config.json", resolution: .keepBoth)
+        let resolved = try await workspace.snapshot()
+        XCTAssertEqual(resolved.documents.filter { $0.kind == .configuration }.count, 1)
+        XCTAssertTrue(resolved.documents.contains { $0.path.hasPrefix("orgenda/Unsaved Edits/config-") && $0.kind == .markdown })
+    }
+
     func testUninitializedCacheDoesNotAppearReady() async throws {
         let backend = SessionFakeBackend()
         let workspace = try session(backend)

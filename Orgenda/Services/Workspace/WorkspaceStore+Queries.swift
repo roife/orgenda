@@ -17,7 +17,7 @@ extension WorkspaceStore {
             let primary = item.scheduled ?? item.deadline ?? item.eventDate
             let dates = [item.scheduled, item.deadline, item.eventDate].compactMap { $0 }
             if dates.contains(where: { Calendar.autoupdatingCurrent.isDate($0, inSameDayAs: date) }) { return item }
-            if usesEmacsConfiguration, let base = primary, let repeater = item.recurrence.flatMap(OrgRepeater.init),
+            if usesEmacsConfiguration || hasWorkspaceConfiguration, let base = primary, let repeater = item.recurrence.flatMap(OrgRepeater.init),
                let occurrence = repeater.occurrences(on: date, from: base).first {
                 var projected = item
                 if item.scheduled != nil { projected.scheduled = occurrence }
@@ -70,6 +70,7 @@ extension WorkspaceStore {
         }
         if scope == .all || scope == .files {
             results += documents
+                .filter { $0.kind != .configuration }
                 .filter { $0.title.range(of: needle, options: options) != nil || $0.contents.range(of: needle, options: options) != nil }
                 .map(SearchResult.document)
         }

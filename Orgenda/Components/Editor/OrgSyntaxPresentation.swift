@@ -210,14 +210,15 @@ enum OrgSyntaxPresentation {
         }
     }
 
-    static func applyWorkflowHeadingColors(_ highlights: [OrgHighlightSpan], to storage: NSTextStorage) {
+    static func applyWorkflowHeadingColors(_ highlights: [OrgHighlightSpan], to storage: NSTextStorage,
+                                          workflow: WorkspaceConfiguration.Workflow = WorkspaceConfiguration.classic.workflow) {
         let source = storage.string as NSString
         for span in highlights where span.kind == .heading {
             guard let range = clamped(span.range, to: storage.length) else { continue }
             let line = source.substring(with: source.lineRange(for: range))
             let tokens = line.split(whereSeparator: \.isWhitespace)
             guard tokens.count > 1, tokens[0].allSatisfy({ $0 == "*" }),
-                  let state = OrgWorkflowState(rawValue: String(tokens[1])) else { continue }
+                  let state = workflow.state(String(tokens[1])) else { continue }
             storage.addAttribute(.foregroundColor, value: UIColor(OrgendaTheme.workflowColor(state)), range: range)
         }
     }

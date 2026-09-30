@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct OrgPreviewHeading: View {
+    @Environment(\.orgWorkflow) private var workflow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let node: ParsedOrgNode
@@ -140,7 +141,7 @@ struct OrgPreviewHeading: View {
     private func todoControl(_ todoNode: ParsedOrgNode) -> some View {
         let keyword = (todoOverride ?? todoNode.text)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let state = OrgWorkflowState(rawValue: keyword)
+        let state = workflow.state(keyword)
 
         return Button { onCycleTODO(todoNode) } label: {
             Image(systemName: state?.symbol ?? "questionmark.circle")
@@ -157,11 +158,11 @@ struct OrgPreviewHeading: View {
                     get: { keyword },
                     set: { selection in
                         guard selection != keyword,
-                              let selectedState = OrgWorkflowState(rawValue: selection) else { return }
+                              let selectedState = workflow.state(selection) else { return }
                         onSetTODO(todoNode, selectedState)
                     }
                 )) {
-                    ForEach(OrgWorkspaceConfiguration.taskStates) { option in
+                    ForEach(workflow.states) { option in
                         Label(option.title, systemImage: option.symbol)
                             .tag(option.rawValue)
                     }
@@ -173,9 +174,9 @@ struct OrgPreviewHeading: View {
         .disabled(isTODOUpdating)
         .accessibilityLabel("Change task state for \(title)")
         .accessibilityValue(isTODOUpdating ? String(localized: "\(state?.title ?? keyword), Updating") : (state?.title ?? keyword))
-        .accessibilityHint(state?.isTerminal == true
-            ? "Tap to mark TODO. Touch and hold to choose a status."
-            : "Tap to mark done. Touch and hold to choose a status.")
+        .accessibilityHint(state.map {
+            String(localized: "Tap to mark \(workflow.toggled($0).title). Touch and hold to choose a status.")
+        } ?? String(localized: "Touch and hold to choose a status."))
         .accessibilityIdentifier("org.preview.todo.\(todoNode.startByte)")
     }
 
@@ -190,7 +191,7 @@ struct OrgPreviewHeading: View {
             OrgPreviewMarkup.fragments($0, trimSpaces: true)
         } ?? [.text(AttributedString(String(localized: "Untitled")))]
         if let keyword = todoOverride ?? node.todoNode?.text,
-           let state = OrgWorkflowState(rawValue: keyword.trimmingCharacters(in: .whitespacesAndNewlines)) {
+           let state = workflow.state(keyword.trimmingCharacters(in: .whitespacesAndNewlines)) {
             fragments = fragments.map { fragment in
                 guard case .text(var value) = fragment else { return fragment }
                 value.foregroundColor = OrgendaTheme.workflowColor(state)

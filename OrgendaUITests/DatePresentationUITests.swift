@@ -382,10 +382,10 @@ final class ChineseLocalizationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["settings.appearance"].label.contains(appearance))
         attach(app, name: "\(language)-settings")
         app.buttons["settings.appearance"].tap()
-        let dark = app.buttons["settings.appearance.dark"]
+        let dark = app.buttons["深色"]
         XCTAssertTrue(dark.waitForExistence(timeout: 5))
         XCTAssertTrue(dark.label.contains("深色"))
-        app.navigationBars.buttons.firstMatch.tap()
+        dark.tap()
         app.buttons["settings.done"].tap()
 
         app.tabBars.buttons[search].tap()

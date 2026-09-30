@@ -274,6 +274,7 @@ actor WorkspaceFileStore {
     }
 
     private static func documentKind(for path: String) -> WorkspaceDocument.Kind? {
+        if path == "config.json" { return .configuration }
         switch (path as NSString).pathExtension.lowercased() {
         case "org", "org_archive": return .org
         case "md", "markdown": return .markdown

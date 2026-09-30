@@ -29,16 +29,21 @@ struct OrgItemEditor: View {
     @FocusState private var focusedField: OrgItemEditorField?
     @ScaledMetric(relativeTo: .body) private var notesMinimumHeight = 120.0
 
-    init(store: WorkspaceStore, draft: OrgItem) {
+    init(store: WorkspaceStore, draft: OrgItem, proposedState: OrgWorkflowState? = nil) {
         self.store = store
         let newItem = store.item(withID: draft.id) == nil
         isNew = newItem
         captureDate = draft.agendaDate ?? .now
-        let initial = newItem && store.usesEmacsConfiguration
+        var initial = newItem && store.usesEmacsConfiguration
             ? OrgCaptureTemplate.inboxTask.applyingDefaults(to: draft, date: draft.agendaDate ?? .now, preservingPlanning: true)
             : draft
+        if newItem && store.hasWorkspaceConfiguration {
+            initial.state = store.workflow(for: initial.source.file).initial
+        }
         _originalDraft = State(initialValue: initial)
-        _draft = State(initialValue: initial)
+        var editing = initial
+        if let proposedState { editing.state = proposedState }
+        _draft = State(initialValue: editing)
         _tagsText = State(initialValue: initial.tags.joined(separator: ", "))
         _hasConfiguredTime = State(initialValue: initial.hasTime)
     }
@@ -47,6 +52,8 @@ struct OrgItemEditor: View {
         NavigationStack {
             presentedEditor
         }
+        .environment(\.workspaceConfiguration, store.effectiveConfiguration)
+        .environment(\.orgWorkflow, store.workflow(for: draft.source.file))
         .disabled(isMoving)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if isMoving {
@@ -187,7 +194,8 @@ struct OrgItemEditor: View {
             OrgItemDetailsSection(
                 draft: $draft, tagsText: $tagsText, contextTag: contextTag,
                 focusedField: $focusedField, usesCaptureTemplates: usesCaptureTemplates,
-                usesEmacsConfiguration: store.usesEmacsConfiguration
+                usesEmacsConfiguration: store.usesEmacsConfiguration,
+                workflow: store.workflow(for: draft.source.file)
             )
             stateNoteSection
             repeatSection
@@ -359,7 +367,7 @@ struct OrgItemEditor: View {
 
     @ViewBuilder
     private var moveSection: some View {
-        if !isNew && store.usesEmacsConfiguration {
+        if !isNew && (store.usesEmacsConfiguration || store.hasWorkspaceConfiguration) {
             Section {
                 NavigationLink {
                     refileDestinations
@@ -386,7 +394,12 @@ struct OrgItemEditor: View {
     }
 
     private var requiresStateNote: Bool {
-        !isNew && store.usesEmacsConfiguration && OrgWorkflowOperations.requiresNote(from: originalDraft.state, to: draft.state)
+        guard !isNew, store.usesEmacsConfiguration || store.hasWorkspaceConfiguration else { return false }
+        let logging = store.effectiveConfiguration.logging
+        return OrgWorkflowOperations.requiresNote(from: originalDraft.state, to: draft.state)
+            || (originalDraft.state != draft.state && draft.state.isTerminal && logging.done == .note)
+            || (originalDraft.scheduled != draft.scheduled && logging.reschedule == .note)
+            || (originalDraft.deadline != draft.deadline && logging.redeadline == .note)
     }
 
     private var canSave: Bool {

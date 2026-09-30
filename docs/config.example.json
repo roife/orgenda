@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "workflow": {
+    "sequences": [
+      {
+        "id": "tasks",
+        "process": ["TODO", "NEXT", "WAIT"],
+        "terminal": ["DONE", "CANCELED"],
+        "initial": "TODO",
+        "complete": "DONE",
+        "reopen": "TODO"
+      }
+    ],
+    "keywords": {
+      "NEXT": {"key": "n", "icon": "arrow", "color": "blue"},
+      "WAIT": {
+        "label": "等待",
+        "key": "w",
+        "icon": "hourglass",
+        "color": "amber",
+        "log": {"enter": "note", "leave": "time"}
+      },
+      "DONE": {"key": "d", "icon": "check", "color": "green"},
+      "CANCELED": {"key": "c", "icon": "cross", "color": "gray"}
+    }
+  },
+  "files": {
+    "inbox": "inbox.org",
+    "attachments": ".attach",
+    "journal": "journal",
+    "archive": "%s_archive::* Archived",
+    "refile": ["projects.org"],
+    "refileMaxLevel": 3
+  },
+  "logging": {"done": "time", "drawer": "LOGBOOK", "reschedule": "time", "redeadline": "time"},
+  "capture": {
+    "defaultTemplate": "inbox",
+    "templates": [
+      {
+        "id": "inbox",
+        "name": "Inbox task",
+        "key": "t",
+        "type": "entry",
+        "target": {"type": "file", "path": "inbox.org", "outline": []},
+        "template": "* TODO %^{Title} :inbox:\n:PROPERTIES:\n:CREATED: %U\n:END:\n%?"
+      }
+    ]
+  },
+  "agenda": {
+    "sources": [],
+    "excluded": ["reference"]
+  },
+  "reminders": {"advanceMinutes": 15, "repeatMinutes": 5, "deadlineWarningDays": 14}
+}

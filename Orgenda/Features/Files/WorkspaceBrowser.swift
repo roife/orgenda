@@ -94,7 +94,7 @@ func visibleFolderDocuments(
     folderPath: String
 ) -> [WorkspaceDocument] {
     let prefix = folderPath.isEmpty ? "" : folderPath + "/"
-    let descendants = documents.filter { $0.path.hasPrefix(prefix) }
+    let descendants = documents.filter { $0.kind != .configuration && $0.path.hasPrefix(prefix) }
     let explicitFolders = Set(descendants.filter { $0.kind == .folder }.map(\.path))
     return descendants.filter { document in
         let components = document.path.dropFirst(prefix.count).split(separator: "/")

@@ -264,7 +264,8 @@ actor WorkspaceSession: WorkspaceFileAccess {
     }
 
     static func documentKind(_ path: String) -> WorkspaceDocument.Kind? {
-        switch (path as NSString).pathExtension.lowercased() {
+        if path == "config.json" { return .configuration }
+        return switch (path as NSString).pathExtension.lowercased() {
         case "org", "org_archive": .org
         case "md", "markdown": .markdown
         default: nil

@@ -48,29 +48,29 @@ enum OrgendaTheme {
     }
 
     static func workflowColor(_ state: OrgWorkflowState) -> Color {
-        switch state {
-        case .todo: previewMetadata
-        case .next: adaptiveForeground(
+        state.color.resolved(or: defaultWorkflowColor(state))
+    }
+
+    static func defaultWorkflowColor(_ state: OrgWorkflowState) -> Color {
+        switch state.rawValue {
+        case "TODO": return previewMetadata
+        case "NEXT": return adaptiveForeground(
             UIColor(red: 0.10, green: 0.36, blue: 0.78, alpha: 1),
-            UIColor(red: 0.38, green: 0.67, blue: 1.00, alpha: 1)
-        )
-        case .urgent: adaptiveForeground(
+            UIColor(red: 0.38, green: 0.67, blue: 1.00, alpha: 1))
+        case "URGENT": return adaptiveForeground(
             UIColor(red: 0.78, green: 0.16, blue: 0.15, alpha: 1),
-            UIColor(red: 1.00, green: 0.42, blue: 0.38, alpha: 1)
-        )
-        case .done: adaptiveForeground(
+            UIColor(red: 1.00, green: 0.42, blue: 0.38, alpha: 1))
+        case "DONE": return adaptiveForeground(
             UIColor(red: 0.52, green: 0.53, blue: 0.56, alpha: 1),
-            UIColor(red: 0.62, green: 0.63, blue: 0.67, alpha: 1)
-        )
-        case .wait: adaptiveForeground(
+            UIColor(red: 0.62, green: 0.63, blue: 0.67, alpha: 1))
+        case "WAIT": return adaptiveForeground(
             UIColor(red: 0.68, green: 0.35, blue: 0.04, alpha: 1),
-            UIColor(red: 1.00, green: 0.68, blue: 0.30, alpha: 1)
-        )
-        case .someday: weekend
-        case .canceled: adaptiveForeground(
+            UIColor(red: 1.00, green: 0.68, blue: 0.30, alpha: 1))
+        case "SOMEDAY": return weekend
+        case "CANCELED": return adaptiveForeground(
             UIColor(red: 0.69, green: 0.20, blue: 0.43, alpha: 1),
-            UIColor(red: 0.95, green: 0.53, blue: 0.72, alpha: 1)
-        )
+            UIColor(red: 0.95, green: 0.53, blue: 0.72, alpha: 1))
+        default: return state.isTerminal ? defaultWorkflowColor(.done) : previewMetadata
         }
     }
 

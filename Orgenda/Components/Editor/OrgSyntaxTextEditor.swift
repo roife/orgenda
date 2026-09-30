@@ -16,6 +16,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.workspaceConfiguration) private var configuration
 
     init(
         text: Binding<String>,
@@ -126,6 +127,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
         private var lastColorScheme: ColorScheme?
         private var lastDynamicTypeSize: DynamicTypeSize?
         private var lastColorSchemeContrast: ColorSchemeContrast?
+        private var lastWorkflow: WorkspaceConfiguration.Workflow?
 
         init(parent: OrgSyntaxTextEditor) {
             self.parent = parent
@@ -280,6 +282,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             guard textView.markedTextRange == nil else { return }
 
             let needsRefresh = lastText != text
+                || lastWorkflow != parent.configuration.workflow
                 || lastHighlights != highlights
                 || lastColorScheme != colorScheme
                 || lastDynamicTypeSize != dynamicTypeSize
@@ -342,7 +345,8 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
                         colorSchemeContrast: colorSchemeContrast
                     )
                 }
-                OrgSyntaxPresentation.applyWorkflowHeadingColors(highlights, to: textStorage)
+                OrgSyntaxPresentation.applyWorkflowHeadingColors(highlights, to: textStorage,
+                    workflow: OrgConfiguredHeading.workflow(in: text, base: parent.configuration.workflow))
             }
 
             textStorage.endEditing()
@@ -357,6 +361,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             lastColorScheme = colorScheme
             lastDynamicTypeSize = dynamicTypeSize
             lastColorSchemeContrast = colorSchemeContrast
+            lastWorkflow = parent.configuration.workflow
         }
 
     }

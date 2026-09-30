@@ -26,6 +26,7 @@ struct OrgPreviewKeyword: View {
 }
 
 struct OrgPreviewFallback: View {
+    @Environment(\.orgWorkflow) private var workflow
     let source: String
 
     var body: some View {
@@ -34,7 +35,7 @@ struct OrgPreviewFallback: View {
                 let parts = line.element.split(maxSplits: 2, whereSeparator: \.isWhitespace)
                 Group {
                     if parts.count == 3, parts[0].allSatisfy({ $0 == "*" }),
-                       let state = OrgWorkflowState(rawValue: String(parts[1])) {
+                       let state = workflow.state(String(parts[1])) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(parts[0]).foregroundStyle(.secondary)
                             OrgWorkflowIcon(state)

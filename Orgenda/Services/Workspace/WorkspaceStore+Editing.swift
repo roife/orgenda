@@ -24,8 +24,14 @@ extension WorkspaceStore {
         }
         let original = items[itemIndex]
         if let baseline, !original.hasSameEditableValues(as: baseline) { return false }
-        if usesEmacsConfiguration {
+        if usesEmacsConfiguration || hasWorkspaceConfiguration {
+            if hasWorkspaceConfiguration && original.hasWorkflowState {
+                guard let state = workflow(for: original.source.file).state(item.state.rawValue) else { return false }
+                item.state = state
+            }
             item = OrgWorkflowOperations.normalized(item, replacing: original, now: .now)
+            if hasWorkspaceConfiguration && configuration.logging.done == .none
+                && !original.state.isTerminal && item.state.isTerminal { item.closed = original.closed }
             if OrgWorkflowOperations.requiresNote(from: original.state, to: item.state),
                stateNote?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
                 operationError = String(localized: "Add a note for this state change.")
@@ -48,13 +54,14 @@ extension WorkspaceStore {
             contents = updated
         }
         var logInsertionDelta = 0
-        if usesEmacsConfiguration {
+        if usesEmacsConfiguration || hasWorkspaceConfiguration {
             do {
                 let priorCount = contents.utf8.count
                 contents = try OrgWorkflowOperations.applyingLogs(to: contents,
                     headingStartByte: resolved.heading.source.startByte,
                     replacing: original, with: item, note: stateNote, now: .now,
-                    originalSource: documents[documentIndex].contents)
+                    originalSource: documents[documentIndex].contents,
+                    logging: effectiveConfiguration.logging)
                 logInsertionDelta = contents.utf8.count - priorCount
             } catch {
                 operationError = error.localizedDescription
@@ -102,7 +109,7 @@ extension WorkspaceStore {
         let beforeItems = items
         let beforeDirtyPaths = dirtyFilePaths
         let beforeIndexPaths = pendingDirtyPaths
-        let repeatedDate = (usesEmacsConfiguration || updated.isRepeatingEvent) && !updated.state.isTerminal
+        let repeatedDate = (usesEmacsConfiguration || hasWorkspaceConfiguration || updated.isRepeatingEvent) && !updated.state.isTerminal
             ? updated.recurrence.flatMap(OrgRepeater.init).flatMap { repeater in
                 updated.agendaDate.flatMap { repeater.nextDate(afterCompletion: .now, from: $0) }
             } : nil
@@ -130,8 +137,8 @@ extension WorkspaceStore {
             completeRepeatingEvent(updated, nextDate: repeatedDate)
             return
         }
-        updated.state = updated.state.isTerminal ? .todo : .done
-        if updated.kind == .habit, updated.state == .done {
+        updated.state = hasWorkspaceConfiguration ? workflow(for: updated.source.file).toggled(updated.state) : updated.state.isTerminal ? .todo : .done
+        if updated.kind == .habit, updated.state.isTerminal {
             updated.habitHistory.append(.now)
         }
         guard save(updated) else {
@@ -139,7 +146,7 @@ extension WorkspaceStore {
             return
         }
         if let repeatedDate, var repeated = items.first(where: { $0.id == updated.id }) {
-            repeated.state = .todo
+            repeated.state = hasWorkspaceConfiguration ? workflow(for: updated.source.file).toggled(updated.state) : .todo
             if repeated.scheduled != nil { repeated.scheduled = repeatedDate }
             else if repeated.deadline != nil { repeated.deadline = repeatedDate }
             else { repeated.eventDate = repeatedDate }
@@ -204,7 +211,7 @@ extension WorkspaceStore {
     }
 
     func addJournalEntry(title: String, body: String, date: Date) {
-        let path = "journal/\(Calendar.autoupdatingCurrent.component(.year, from: date)).org"
+        let path = "\(effectiveConfiguration.files.journal)/\(Calendar.autoupdatingCurrent.component(.year, from: date)).org"
         let index: Int
         if let existing = documents.firstIndex(where: { $0.path == path }) {
             index = existing
@@ -283,13 +290,13 @@ extension WorkspaceStore {
               let replacement = try? OrgSourceMutation(startByte: node.startByte, endByte: node.endByte,
                                                        replacement: draft.source).applied(to: source) else { return false }
         var updated = replacement
-        if usesEmacsConfiguration {
+        if usesEmacsConfiguration || hasWorkspaceConfiguration {
             // Reuse the published index when it still matches the source; only
             // the post-edit document must always be parsed here.
             let beforeDocument = parsedDocuments[path].flatMap { $0.root.text == source ? $0 : nil }
-                ?? OrgIndexService.parseSynchronously([documents[index]]).first
+                ?? OrgIndexService.parseSynchronously([documents[index]], configuration: effectiveConfiguration).first
             var candidate = documents[index]; candidate.contents = replacement
-            let afterDocument = OrgIndexService.parseSynchronously([candidate]).first
+            let afterDocument = OrgIndexService.parseSynchronously([candidate], configuration: effectiveConfiguration).first
             if let before = beforeDocument?.headings.last(where: { $0.source.startByte <= node.startByte }),
                let after = afterDocument?.headings.first(where: { $0.source.startByte == before.source.startByte }) {
                 func item(_ heading: IndexedOrgHeading) -> OrgItem {
@@ -303,7 +310,7 @@ extension WorkspaceStore {
                 do {
                     updated = try OrgWorkflowOperations.applyingLogs(to: replacement,
                         headingStartByte: before.source.startByte, replacing: item(before), with: item(after),
-                        originalSource: source)
+                        originalSource: source, logging: effectiveConfiguration.logging)
                 } catch { operationError = error.localizedDescription; return false }
             }
         }
@@ -379,7 +386,7 @@ extension WorkspaceStore {
         if let cached = parsedDocuments[source.path], cached.root.text == source.contents {
             parsed = cached
         } else {
-            parsed = OrgIndexService.parseSynchronously([source]).first
+            parsed = OrgIndexService.parseSynchronously([source], configuration: effectiveConfiguration).first
         }
         guard let parsed else { return nil }
         let matches = parsed.headings.filter { $0.title == item.title }

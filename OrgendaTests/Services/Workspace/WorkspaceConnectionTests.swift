@@ -4,6 +4,27 @@ import XCTest
 
 @MainActor
 final class WorkspaceConnectionTests: XCTestCase {
+    func testGUIConfigurationSaveCreatesRootFileAndRejectsStaleRevision() async throws {
+        let root = try folder()
+        let defaults = try startupDefaults()
+        let store = WorkspaceStore()
+        await store.connectFolder(root, remember: false, defaults: defaults)
+        XCTAssertNil(store.configurationSource)
+        let originalRevision = store.configurationRevision
+        var configuration = store.configuration
+        configuration.files.inbox = "tasks.org"
+        let saved = await store.saveConfiguration(configuration, expectedRevision: originalRevision)
+        XCTAssertTrue(saved, store.configurationError ?? "")
+        await store.synchronizeFiles()
+        let source = try String(contentsOf: root.appendingPathComponent("config.json"), encoding: .utf8)
+        XCTAssertEqual(try ConfigurationDocument(source).configuration.files.inbox, "tasks.org")
+        XCTAssertEqual(store.configuration.files.inbox, "tasks.org")
+        configuration.files.inbox = "stale.org"
+        let stale = await store.saveConfiguration(configuration, expectedRevision: originalRevision)
+        XCTAssertFalse(stale)
+        XCTAssertEqual(store.configuration.files.inbox, "tasks.org")
+        XCTAssertTrue(store.search("config", scope: .files).isEmpty)
+    }
     func testWorkspaceStartsInLoadingStateBeforeStartupTaskRuns() {
         XCTAssertTrue(WorkspaceStore().isStartingWorkspace)
         XCTAssertTrue(WorkspaceStore.preview().isStartingWorkspace)
@@ -41,7 +62,9 @@ final class WorkspaceConnectionTests: XCTestCase {
         )
         XCTAssertFalse(store.isStartingWorkspace)
         XCTAssertTrue(store.isFolderConnected)
-        XCTAssertTrue(store.usesEmacsConfiguration)
+        XCTAssertFalse(store.usesEmacsConfiguration)
+        XCTAssertTrue(store.hasWorkspaceConfiguration)
+        XCTAssertEqual(store.configuration.workflow.tokens, ["TODO", "DONE"])
         XCTAssertTrue(store.items.isEmpty)
         XCTAssertTrue(store.documents.isEmpty)
         XCTAssertTrue(store.journalEntries.isEmpty)

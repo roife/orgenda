@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct SettingsRow: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var iconSize = 18.0
     let icon: String
     let color: Color
@@ -10,45 +9,34 @@ struct SettingsRow: View {
     var isSelected: Bool? = nil
 
     var body: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        iconTile
-                        Spacer(minLength: 0)
-                        selectionIndicator
-                    }
-                    text
-                }
-            } else {
-                HStack(spacing: 14) {
-                    iconTile
-                    text
-                    selectionIndicator
-                }
-            }
+        HStack(alignment: .center, spacing: 12) {
+            iconTile
+            text
+            selectionIndicator
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
     }
 
     private var iconTile: some View {
         Image(systemName: icon)
-            .font(.system(size: iconSize, weight: .medium))
-            .foregroundStyle(.white)
-            .frame(width: iconSize + 18, height: iconSize + 18)
-            .background(color, in: RoundedRectangle(cornerRadius: 10))
+            .font(.system(size: min(iconSize, 24), weight: .medium))
+            .foregroundStyle(color)
+            .frame(width: min(iconSize, 24) + 16, height: min(iconSize, 24) + 16)
+            .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
             .accessibilityHidden(true)
     }
 
     private var text: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(title)
-                .font(.body.weight(.medium))
+                .font(.body)
                 .foregroundStyle(.primary)
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            if !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -35,9 +35,17 @@ struct OrgendaRootView: View {
             }
         }
         .tint(OrgendaTheme.accent)
+        .environment(\.workspaceConfiguration, store.effectiveConfiguration)
+        .environment(\.orgWorkflow, store.effectiveConfiguration.workflow)
         .onChange(of: store.usesEmacsConfiguration, initial: true) { _, configured in
             dashboardPerspective = configured ? .dashboard : .todos
             if isDashboardSelected { selectDashboard() }
+        }
+        .onChange(of: store.configurationRevision) { _, _ in
+            if !store.dashboardPerspectives.contains(dashboardPerspective) {
+                dashboardPerspective = store.primaryConfiguredPerspective
+                if isDashboardSelected { selectDashboard() }
+            }
         }
         .onChange(of: horizontalSizeClass) { _, _ in
             if isDashboardSelected { selectDashboard() }
@@ -47,12 +55,15 @@ struct OrgendaRootView: View {
             Group {
                 switch destination {
                 case .agenda(let date):
+                    if store.hasWorkspaceConfiguration, date == nil {
+                        ConfiguredCaptureView(store: store)
+                    } else {
                     OrgItemEditor(
                         store: store,
                         draft: OrgItem(
                             id: UUID(),
                             title: "",
-                            state: .todo,
+                            state: store.hasWorkspaceConfiguration ? store.configuration.workflow.initial : .todo,
                             kind: .task,
                             priority: .none,
                             tags: [],
@@ -63,7 +74,7 @@ struct OrgendaRootView: View {
                             recurrence: nil,
                             body: "",
                             source: SourceLocation(
-                                file: store.usesEmacsConfiguration ? OrgCaptureTemplate.inboxTask.destinationPath : "inbox.org",
+                                file: store.hasWorkspaceConfiguration ? store.configuration.files.inbox : store.usesEmacsConfiguration ? OrgCaptureTemplate.inboxTask.destinationPath : "inbox.org",
                                 startByte: 0,
                                 endByte: 0,
                                 startLine: 1
@@ -71,6 +82,7 @@ struct OrgendaRootView: View {
                             habitHistory: []
                         )
                     )
+                    }
                 }
             }
             .presentationDetents([.large])
@@ -181,7 +193,7 @@ private extension OrgendaRootView {
                 // Sections keep their declared order in the tab bar, while
                 // the native sidebar places them below standalone tabs.
                 TabSection {
-                    ForEach(OrgAgendaPerspective.dashboardViews(usesEmacsConfiguration: store.usesEmacsConfiguration)) { option in
+                    ForEach(store.dashboardPerspectives) { option in
                         Tab(value: dashboardTab(for: option)) {
                             dashboardContent(perspective: Binding(
                                 get: { option }, set: { selectDashboard($0) }
@@ -256,7 +268,7 @@ private extension OrgendaRootView {
     }
 
     var primaryDashboardPerspective: OrgAgendaPerspective {
-        store.usesEmacsConfiguration ? .dashboard : .todos
+        store.usesEmacsConfiguration || store.hasWorkspaceConfiguration ? .dashboard : .todos
     }
 
     var isDashboardSelected: Bool {

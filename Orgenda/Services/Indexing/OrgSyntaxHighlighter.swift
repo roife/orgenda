@@ -52,7 +52,7 @@ struct OrgHighlightSpan: Hashable, Sendable {
 actor OrgSyntaxHighlighter {
     private let parser = OrgParser()
 
-    func highlights(in source: String) -> [OrgHighlightSpan] {
+    func highlights(in source: String, configuration: WorkspaceConfiguration = .classic) -> [OrgHighlightSpan] {
         guard !source.isEmpty, !Task.isCancelled else { return [] }
         let tree = parser.parse(source)
 
@@ -80,6 +80,18 @@ actor OrgSyntaxHighlighter {
             pending.append(contentsOf: node.namedChildren.reversed())
         }
 
+        // Replace hardcoded grammar metadata with configuration-aware ranges.
+        let document = WorkspaceDocument(path: "highlight.org", title: "", contents: source, kind: .org)
+        if let semantic = OrgIndexService.parseSynchronously([document], configuration: configuration).first {
+            result.removeAll { $0.kind == .todo || $0.kind == .priority }
+            for heading in semantic.root.children where heading.type == "heading" {
+                for child in heading.children where child.type == "todo_keyword" || child.type == "priority" {
+                    if let range = rangeMap.range(startByte: child.startByte, endByte: child.endByte) {
+                        result.append(OrgHighlightSpan(range: range, kind: child.type == "priority" ? .priority : .todo))
+                    }
+                }
+            }
+        }
         // Broad structural spans come first at the same location, allowing a
         // consumer to apply nested token styles afterwards.
         return result.sorted { lhs, rhs in

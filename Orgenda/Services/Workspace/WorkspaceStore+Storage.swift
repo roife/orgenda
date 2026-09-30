@@ -87,7 +87,7 @@ extension WorkspaceStore {
 
     func connectFolder(_ url: URL, remember: Bool = true, defaults: UserDefaults = .standard,
                        preservePending: Bool = false) async {
-        guard !isChangingStorage, await waitForFileOperation() else { return }
+        guard !isChangingStorage, !isSavingConfiguration, await waitForFileOperation() else { return }
         isChangingStorage = true
         defer { isChangingStorage = false }
         let access = url.startAccessingSecurityScopedResource()
@@ -161,7 +161,7 @@ extension WorkspaceStore {
 
     /// Renew access to the same account and root without rebinding its outbox.
     func reconnectStorage(webDAVPassword: String? = nil) async -> Bool {
-        guard !isChangingStorage, let original = storageConnection, original.provider.isRemote,
+        guard !isChangingStorage, !isSavingConfiguration, let original = storageConnection, original.provider.isRemote,
               let workspaceSession else { return false }
         isChangingStorage = true
         defer { isChangingStorage = false }
@@ -194,7 +194,7 @@ extension WorkspaceStore {
 
     private func connectRemote(preservePending: Bool,
                                prepare: () async throws -> PreparedRemoteConnection) async -> Bool {
-        guard !isChangingStorage, await waitForFileOperation() else { return false }
+        guard !isChangingStorage, !isSavingConfiguration, await waitForFileOperation() else { return false }
         isChangingStorage = true
         defer { isChangingStorage = false }
         var prepared: PreparedRemoteConnection?
@@ -293,7 +293,13 @@ extension WorkspaceStore {
         appliedStorageRevision = 0
         storageConnection = connection
         isFolderConnected = true
-        usesEmacsConfiguration = true
+        usesEmacsConfiguration = false
+        hasWorkspaceConfiguration = true
+        configuration = .standard
+        configurationDocument = ConfigurationDocument(configuration: .standard)
+        configurationSource = nil
+        configurationError = nil
+        configurationRevision &+= 1
         workspaceName = connection.displayName
         workspaceLocation = connection.provider.isRemote ? connection.provider.title :
             (connection.provider == .iCloud ? String(localized: "iCloud Drive folder") : String(localized: "Connected folder"))
@@ -330,7 +336,9 @@ extension WorkspaceStore {
         // on the next save retry. Session.write records this race as a conflict.
         for path in dirtyFilePaths { persistedContents[path] = previousBaseline[path] }
         pendingFileCount = dirtyFilePaths.union(pendingUploadPaths).count
+        let configChanged = acceptConfiguration(snapshot.documents.first { $0.path == "config.json" }?.contents)
         acceptDiskDocuments(snapshot.documents)
+        if configChanged { scheduleWorkspaceParse() }
         if !syncConflicts.isEmpty { syncState = .conflict(syncConflicts.count) }
         else if !dirtyFilePaths.isEmpty { syncState = .saving }
         else if !pendingUploadPaths.isEmpty { syncState = .pending(pendingUploadPaths.count) }

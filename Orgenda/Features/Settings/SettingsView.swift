@@ -3,7 +3,6 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("appearance") private var appearance = "System"
-    @AppStorage("orgRemindersEnabled") private var remindersEnabled = false
     let store: WorkspaceStore
     @State private var path: [SettingsDestination]
 
@@ -17,49 +16,74 @@ struct SettingsView: View {
             List {
                 Section {
                     NavigationLink(value: SettingsDestination.workspace) {
-                        SettingsRow(
-                            icon: "folder.fill",
-                            color: OrgendaTheme.accent,
-                            title: SettingsDestination.workspace.title,
-                            subtitle: store.workspaceName
-                        )
+                        VStack(alignment: .leading, spacing: 10) {
+                            SettingsRow(
+                                icon: "folder",
+                                color: OrgendaTheme.accentText,
+                                title: SettingsDestination.workspace.title,
+                                subtitle: store.storageConnection?.provider.title ?? store.workspaceName
+                            )
+                            Label(store.syncState.title, systemImage: store.syncState.storageSymbol)
+                                .font(.footnote)
+                                .foregroundStyle(store.syncState.needsAttention ? Color.red : Color.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.leading, 46)
+                        }
+                        .padding(.bottom, 4)
+                        .accessibilityElement(children: .combine)
                     }
                     .accessibilityIdentifier("settings.workspace")
                 } header: {
-                    Text("Workspace")
-                } footer: {
-                    Label(store.syncState.title, systemImage: store.syncState.storageSymbol)
-                        .foregroundStyle(store.syncState.storageColor)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(store.isWorkspaceReady ? store.workspaceName : String(localized: "Workspace"))
                 }
 
                 Section {
-                    NavigationLink(value: SettingsDestination.appearance) {
-                        SettingsRow(
-                            icon: "circle.lefthalf.filled",
-                            color: OrgendaTheme.accent,
-                            title: SettingsDestination.appearance.title,
-                            subtitle: appearance == "System" ? String(localized: "Follow system") : String(localized: String.LocalizationValue(appearance))
-                        )
+                    settingsLink(.workflow, icon: "checklist")
+                    settingsLink(.capture, icon: "square.and.pencil")
+                    settingsLink(.files, icon: "doc.text")
+                } header: {
+                    Text("Org tasks")
+                }
+                Section {
+                    Menu {
+                        ForEach(["System", "Light", "Dark"], id: \.self) { choice in
+                            Button {
+                                appearance = choice
+                            } label: {
+                                if appearance == choice {
+                                    Label(LocalizedStringKey(choice), systemImage: "checkmark")
+                                } else {
+                                    Text(LocalizedStringKey(choice))
+                                }
+                            }
+                            .accessibilityIdentifier("settings.appearance.\(choice.lowercased())")
+                        }
+                    } label: {
+                        HStack {
+                            Label("Appearance", systemImage: "circle.lefthalf.filled")
+                                .foregroundStyle(.primary)
+                            Spacer(minLength: 8)
+                            Text(LocalizedStringKey(appearance)).foregroundStyle(.secondary)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                     .accessibilityIdentifier("settings.appearance")
-
-                    NavigationLink(value: SettingsDestination.reminders) {
-                        SettingsRow(
-                            icon: "bell.badge.fill",
-                            color: OrgendaTheme.event,
-                            title: SettingsDestination.reminders.title,
-                            subtitle: reminderSummary
-                        )
-                    }
-                    .accessibilityIdentifier("settings.reminders")
+                    settingsLink(.reminders, icon: "bell")
                 } header: {
-                    Text("Preferences")
-                } footer: {
+                    Text("On this device")
+                }
+                Section("Configuration tools") {
+                    settingsLink(.emacs, icon: "doc.on.clipboard")
+                    settingsLink(.configuration, icon: "curlybraces")
+                }
+                Section {
                     Text("orgenda · Version \(appVersion)")
-                        .font(.footnote)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity)
-                        .padding(.top, 24)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                         .accessibilityIdentifier("settings.version")
                 }
             }
@@ -71,13 +95,18 @@ struct SettingsView: View {
                     switch destination {
                     case .workspace: WorkspaceSettingsView(store: store)
                     case .appearance: AppearanceSettingsView()
-                    case .reminders: ReminderSettingsView(store: store)
+                    case .emacs: ConfigurationPromptView(configuration: store.configuration)
+                    case .workflow, .capture, .files, .reminders, .configuration:
+                        ConfigurationSettingsView(store: store, destination: destination)
                     }
                 }
                 .toolbar { doneToolbar }
             }
             .toolbar { doneToolbar }
         }
+        .tint(OrgendaTheme.accentText)
+        .presentationDragIndicator(.visible)
+        .presentationSizing(.page)
         .task { await store.refreshReminders() }
         .preferredColorScheme(
             appearance == "Light" ? .light
@@ -86,12 +115,23 @@ struct SettingsView: View {
     }
 
     private var doneToolbar: some ToolbarContent {
-        ToolbarItem(placement: .confirmationAction) {
-            Button("Done", systemImage: "xmark", role: .close) { dismiss() }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button("Done", systemImage: "checkmark") { dismiss() }
                 .labelStyle(.iconOnly)
+                .buttonStyle(.plain)
                 .accessibilityLabel("Done")
                 .accessibilityIdentifier("settings.done")
         }
+    }
+
+    private func settingsLink(_ destination: SettingsDestination, icon: String) -> some View {
+        NavigationLink(value: destination) {
+            // The destination itself explains the options. Home stays a short
+            // list of tasks rather than another page of descriptions.
+            Label(destination.title, systemImage: icon)
+                .foregroundStyle(.primary)
+        }
+        .accessibilityIdentifier("settings.\(destination.rawValue)")
     }
 
     private var appVersion: String {
@@ -100,9 +140,4 @@ struct SettingsView: View {
         return "\(version) (\(build))"
     }
 
-    private var reminderSummary: String {
-        guard store.usesEmacsConfiguration else { return String(localized: "Connect a folder to enable") }
-        if store.reminderPermissionDenied { return String(localized: "Notifications disabled in Settings") }
-        return remindersEnabled ? String(localized: "On") : String(localized: "Off")
-    }
 }

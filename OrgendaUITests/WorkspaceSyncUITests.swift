@@ -204,8 +204,7 @@ final class WorkspaceSyncUITests: XCTestCase {
     func testConflictPreviewAndReplacementConfirmation() {
         let app = openWorkspaceSettings(extraArguments: ["--storage-sync-fixture"])
         defer { app.terminate() }
-        app.buttons["workspace.syncStatus"].tap()
-        app.buttons["storage.sync.conflicts"].tap()
+        app.buttons["workspace.resolveConflict"].tap()
         let conflict = app.buttons["storage.conflict.notes.org"]
         XCTAssertTrue(conflict.waitForExistence(timeout: 3))
         conflict.tap()
@@ -238,7 +237,10 @@ final class WorkspaceSyncUITests: XCTestCase {
         let workspace = app.buttons["settings.workspace"]
         XCTAssertTrue(workspace.waitForExistence(timeout: 5))
         workspace.tap()
-        XCTAssertTrue(app.buttons["workspace.chooseFolder"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Workspace & Sync"].waitForExistence(timeout: 5))
+        if !extraArguments.contains("--storage-sync-fixture") {
+            XCTAssertTrue(app.buttons["workspace.chooseFolder"].waitForExistence(timeout: 5))
+        }
         return app
     }
 

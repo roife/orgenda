@@ -298,8 +298,8 @@ final class MotionFlowUITests: XCTestCase {
         edgeBack(in: app)
         XCTAssertTrue(app.navigationBars["Files"].waitForExistence(timeout: 3))
         app.buttons["files.settings"].tap()
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Appearance,'")).firstMatch.tap()
-        XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 3))
+        app.buttons["settings.workflow"].tap()
+        XCTAssertTrue(app.navigationBars["Workflow"].waitForExistence(timeout: 3))
         edgeBack(in: app)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
     }

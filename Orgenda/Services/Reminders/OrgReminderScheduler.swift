@@ -14,20 +14,21 @@ enum OrgReminderPlan {
     /// pipeline calls this with its index results so reminder scheduling never
     /// re-parses the workspace.
     static func reminders(
-        for items: [OrgItem], parsed: [String: ParsedOrgDocument], now: Date = .now
+        for items: [OrgItem], parsed: [String: ParsedOrgDocument], now: Date = .now,
+        configuration: WorkspaceConfiguration.Reminders = .init()
     ) -> [OrgReminder] {
         var reminders: [OrgReminder] = []
         for item in items where item.isOpen {
             for timestamp in timestamps(for: item, parsed: parsed[item.source.file]) where timestamp.includesTime {
                 let base = timestamp.date
-                let minutes = item.appointmentWarningMinutes ?? OrgWorkspaceConfiguration.appointmentWarningMinutes
+                let minutes = item.appointmentWarningMinutes ?? configuration.advanceMinutes
                 var occurrence = base
                 if occurrence < now, let token = timestamp.recurrence, let firstDigit = token.firstIndex(where: \.isNumber) {
                     // ++ produces the next occurrence on the existing cadence.
                     let upcoming = OrgRepeater("++" + token[firstDigit...])
                     occurrence = upcoming?.nextDate(afterCompletion: now, from: base) ?? base
                 }
-                let offsets = Set(Array(stride(from: min(minutes, 1_440), through: 0, by: -OrgWorkspaceConfiguration.appointmentRepeatMinutes)) + [0])
+                let offsets = Set(Array(stride(from: min(minutes, 1_440), through: 0, by: -max(1, configuration.repeatMinutes))) + [0])
                 for offset in offsets {
                     let fire = occurrence.addingTimeInterval(-Double(offset) * 60)
                     guard fire > now else { continue }
@@ -105,7 +106,8 @@ actor OrgReminderScheduler {
     }
 
     func refresh(
-        items: [OrgItem], parsed: [String: ParsedOrgDocument] = [:], enabled: Bool
+        items: [OrgItem], parsed: [String: ParsedOrgDocument] = [:], enabled: Bool,
+        configuration: WorkspaceConfiguration.Reminders = .init()
     ) async -> String {
         revision += 1
         let requestRevision = revision
@@ -117,7 +119,7 @@ actor OrgReminderScheduler {
         defer { isApplying = false }
         let settings = await center.notificationSettings()
         let authorized = [.authorized, .provisional, .ephemeral].contains(settings.authorizationStatus)
-        let plan = enabled && authorized ? OrgReminderPlan.reminders(for: items, parsed: parsed) : []
+        let plan = enabled && authorized ? OrgReminderPlan.reminders(for: items, parsed: parsed, configuration: configuration) : []
         if signature != plan {
             let old = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("orgenda.org.") }.map(\.identifier)
             center.removePendingNotificationRequests(withIdentifiers: old)

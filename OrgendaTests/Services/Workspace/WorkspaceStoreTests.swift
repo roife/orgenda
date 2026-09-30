@@ -187,7 +187,12 @@ final class WorkspaceStoreTests: XCTestCase {
                 return false
             })
         }
-        for unsupportedSetting in ["workflow", "capture", "language", "fonts"] {
+        XCTAssertTrue(store.search("workflow", scope: .settings).contains(.setting(.workflow)))
+        XCTAssertTrue(store.search("capture", scope: .settings).contains(.setting(.capture)))
+        XCTAssertTrue(store.search("history", scope: .settings).contains(.setting(.workflow)))
+        XCTAssertTrue(store.search("agenda", scope: .settings).contains(.setting(.files)))
+        XCTAssertTrue(store.search("config.json", scope: .settings).contains(.setting(.configuration)))
+        for unsupportedSetting in ["language", "fonts"] {
             XCTAssertTrue(store.search(unsupportedSetting, scope: .settings).isEmpty)
         }
         XCTAssertEqual(store.search(SettingsDestination.reminders.subtitle, scope: .settings), [.setting(.reminders)])

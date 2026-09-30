@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AgendaPerspectiveContent<Row: View>: View {
+    @Environment(\.workspaceConfiguration) private var configuration
     let option: OrgAgendaPerspective
     let groups: [OrgAgendaGroup]
     let deadlines: [OrgItem]
@@ -38,7 +39,7 @@ struct AgendaPerspectiveContent<Row: View>: View {
                         ForEach(dates) { configuredGroup($0) }
                     }
                     if !deadlines.isEmpty {
-                        configuredGroup(OrgAgendaGroup(title: String(localized: "Deadlines · next 3 days"), items: deadlines))
+                        configuredGroup(OrgAgendaGroup(title: String(localized: "Deadlines · next \(configuration.reminders.deadlineWarningDays) days"), items: deadlines))
                     }
                     VStack(alignment: .leading, spacing: 10) {
                         ForEach(groups.filter { !$0.isDateGroup && !$0.items.isEmpty }) { group in

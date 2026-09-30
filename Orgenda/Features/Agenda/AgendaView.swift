@@ -22,6 +22,7 @@ struct AgendaView: View {
     var expectsConnectedWorkspace = false
     @State private var visitedPerspectives: Set<Perspective>
     @State private var editorItem: OrgItem?
+    @State private var proposedState: OrgWorkflowState?
     @State private var showsCompletionError = false
     @State private var reschedulingItem: OrgItem?
     @State private var revealedItemID: UUID?
@@ -98,7 +99,8 @@ struct AgendaView: View {
                 }
             }
             .sheet(item: $editorItem) { item in
-                OrgItemEditor(store: store, draft: item)
+                OrgItemEditor(store: store, draft: item, proposedState: proposedState)
+                    .onDisappear { proposedState = nil }
             }
             .sheet(item: $reschedulingItem) { item in
                 AgendaRescheduleSheet(item: item) { date in reschedule(item, to: date) }
@@ -161,7 +163,7 @@ struct AgendaView: View {
 
     private var availablePerspectives: [Perspective] {
         if mode == .calendar { return [.agenda] }
-        return Perspective.dashboardViews(usesEmacsConfiguration: store.usesEmacsConfiguration)
+        return store.dashboardPerspectives
     }
 
     private var displayedPerspective: Perspective {
@@ -169,7 +171,7 @@ struct AgendaView: View {
         if store.isStartingWorkspace {
             return expectsConnectedWorkspace || store.usesEmacsConfiguration ? .dashboard : .todos
         }
-        return perspective
+        return availablePerspectives.first(where: { $0 == perspective }) ?? store.primaryConfiguredPerspective
     }
 
     private func selectPerspective(_ option: Perspective) {
@@ -248,6 +250,15 @@ struct AgendaView: View {
     }
 
     private func toggle(_ item: OrgItem) {
+        if store.hasWorkspaceConfiguration && item.hasWorkflowState {
+            let target = store.workflow(for: item.source.file).toggled(item.state)
+            if OrgWorkflowOperations.requiresNote(from: item.state, to: target)
+                || (target.isTerminal && store.configuration.logging.done == .note) {
+                proposedState = target
+                editorItem = item
+                return
+            }
+        }
         withAnimation(OrgendaMotion.geometryAnimation(.selection, reduceMotion: reduceMotion)) {
             let label = item.state.isTerminal ? String(localized: "Task reopened")
                 : (item.isRepeatingEvent ? String(localized: "Occurrence completed")

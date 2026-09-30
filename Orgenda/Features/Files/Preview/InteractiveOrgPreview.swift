@@ -16,6 +16,7 @@ struct InteractiveOrgPreview: View {
     @State private var planningEditor: OrgPlanningEditorPresentation?
     @State private var interactionFeedback = 0
     @State private var editorItem: OrgItem?
+    @State private var proposedState: OrgWorkflowState?
     @State private var scrollPosition = ScrollPosition(y: 0)
     /// Flattened outline rows, rebuilt only when the parsed document changes
     /// instead of on every body evaluation (scrolling included).
@@ -64,6 +65,7 @@ struct InteractiveOrgPreview: View {
                         onEndDrag: endHeadingDrag,
                         onMoveHeading: moveHeading
                     )
+                    .environment(\.orgWorkflow, store.workflow(for: path))
                 } else if let source = store.documents.first(where: { $0.path == path })?.contents {
                     OrgPreviewFallback(source: source)
                 } else {
@@ -126,7 +128,8 @@ struct InteractiveOrgPreview: View {
             }
         }
         .sheet(item: $editorItem) { item in
-            OrgItemEditor(store: store, draft: item)
+            OrgItemEditor(store: store, draft: item, proposedState: proposedState)
+                .onDisappear { proposedState = nil }
         }
         .alert("Could not move heading", isPresented: Binding(
             get: { moveError != nil }, set: { if !$0 { moveError = nil } }
@@ -206,6 +209,11 @@ struct InteractiveOrgPreview: View {
     }
 
     private func cycleTODO(_ node: ParsedOrgNode) {
+        if store.hasWorkspaceConfiguration {
+            guard let state = store.workflow(for: path).state(node.text.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+            setTODO(node, to: store.workflow(for: path).toggled(state))
+            return
+        }
         let currentText = pendingReplacements[node.id]?.replacement ?? node.text
         guard let mutation = try? OrgSourceMutation.workflowToggle(
             in: currentText,
@@ -218,6 +226,7 @@ struct InteractiveOrgPreview: View {
     }
 
     private func presentItemEditor(for heading: ParsedOrgNode) {
+        proposedState = nil
         editorItem = store.items.first {
             $0.source.file == path && $0.source.startByte == heading.startByte
         }
@@ -225,6 +234,20 @@ struct InteractiveOrgPreview: View {
 
     private func setTODO(_ node: ParsedOrgNode, to state: OrgWorkflowState) {
         guard pendingReplacements[node.id] == nil else { return }
+        if store.hasWorkspaceConfiguration {
+            guard var item = store.items.filter({ $0.source.file == path && $0.source.startByte <= node.startByte })
+                .max(by: { $0.source.startByte < $1.source.startByte }) else { return }
+            let original = item
+            item.state = state
+            if OrgWorkflowOperations.requiresNote(from: original.state, to: state)
+                || (state.isTerminal && store.configuration.logging.done == .note) {
+                proposedState = state
+                editorItem = original
+                return
+            }
+            _ = store.save(item, original: original)
+            return
+        }
         // The syntax node includes the spacing between the keyword and title.
         let trailingWhitespace = node.text.reversed().prefix { $0 == " " || $0 == "\t" }.reversed()
         replace(node, with: state.rawValue + String(trailingWhitespace))
@@ -253,7 +276,7 @@ struct InteractiveOrgPreview: View {
         _ node: ParsedOrgNode,
         with draft: OrgPlanningEntryDraft
     ) -> Bool {
-        if store.usesEmacsConfiguration {
+        if store.usesEmacsConfiguration || store.hasWorkspaceConfiguration {
             return store.applyPlanningDraft(path: path, node: node, draft: draft)
         }
         return replace(node, with: draft.source)

@@ -4,6 +4,15 @@ import Observation
 @MainActor
 @Observable
 final class WorkspaceStore {
+    var configuration = WorkspaceConfiguration.standard
+    var configurationDocument = ConfigurationDocument(configuration: .standard)
+    var configurationError: String?
+    var configurationRevision: UInt64 = 0
+    var isSavingConfiguration = false
+    var configurationSource: String?
+    /// Production sessions always use configuration; legacy fixtures opt in
+    /// independently of the old personal-workflow feature flag.
+    var hasWorkspaceConfiguration = false
     var items: [OrgItem] {
         didSet { rebuildDerivedCollections() }
     }
@@ -100,20 +109,20 @@ final class WorkspaceStore {
     /// and `usesEmacsConfiguration` observers, so every mutation path (index
     /// publishing, edits, moves, sync) refreshes them exactly once.
     func rebuildDerivedCollections() {
-        let agendaItems = usesEmacsConfiguration
+        let agendaItems = hasWorkspaceConfiguration ? items.filter { configuration.agenda.includes($0.source.file) } : usesEmacsConfiguration
             ? items.filter { OrgWorkspaceConfiguration.isAgendaSource($0.source.file) }
             : items
         self.agendaItems = agendaItems
         datedItems = agendaItems
             .filter {
                 $0.agendaDate != nil
-                    && (!usesEmacsConfiguration || ($0.isOpen && OrgWorkspaceConfiguration.datedPaths.contains($0.source.file)))
+                    && (hasWorkspaceConfiguration ? $0.isOpen : (!usesEmacsConfiguration || ($0.isOpen && OrgWorkspaceConfiguration.datedPaths.contains($0.source.file))))
             }
             .sorted { $0.agendaDate! < $1.agendaDate! }
         openTodos = agendaItems
             .filter {
                 $0.isOpen && $0.agendaDate == nil && $0.hasWorkflowState
-                    && (!usesEmacsConfiguration || OrgWorkspaceConfiguration.actionPaths.contains($0.source.file))
+                    && (hasWorkspaceConfiguration || !usesEmacsConfiguration || OrgWorkspaceConfiguration.actionPaths.contains($0.source.file))
             }
             .sorted { lhs, rhs in
                 if lhs.priority != rhs.priority { return lhs.priority.rawValue < rhs.priority.rawValue }

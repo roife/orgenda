@@ -68,7 +68,8 @@ extension WorkspaceStore {
     }
 
     func refileTargets(for item: OrgItem) -> [OrgRefileTarget] {
-        OrgWorkflowOperations.refileTargets(in: documents).filter {
+        OrgWorkflowOperations.refileTargets(in: documents, refilePaths: Set(effectiveConfiguration.files.refile),
+                                           maxLevel: effectiveConfiguration.files.refileMaxLevel).filter {
             $0.path != item.source.file || $0.headingStartByte != item.source.startByte
         }
     }
@@ -94,17 +95,19 @@ extension WorkspaceStore {
         let originalDocuments = documents
         do {
             let destinationPath = try target?.path ?? OrgWorkflowOperations.archiveDestination(
-                sourcePath: source.path, source: source.contents, headingStartByte: current.source.startByte).path
+                sourcePath: source.path, source: source.contents, headingStartByte: current.source.startByte,
+                defaultLocation: hasWorkspaceConfiguration ? configuration.files.archive : nil).path
             let existingDestination = documents.first(where: { $0.path == destinationPath })
             let destination = existingDestination ?? WorkspaceDocument(path: destinationPath,
                 title: URL(fileURLWithPath: destinationPath).lastPathComponent, contents: "", kind: .org)
             let plan: OrgMovePlan
             if let target {
                 plan = try OrgWorkflowOperations.refile(source: source, headingStartByte: current.source.startByte,
-                    destination: destination, target: target)
+                    destination: destination, target: target, refilePaths: Set(effectiveConfiguration.files.refile),
+                    maxLevel: effectiveConfiguration.files.refileMaxLevel)
             } else {
                 plan = try OrgWorkflowOperations.archive(source: source, headingStartByte: current.source.startByte,
-                    destination: destination)
+                    destination: destination, defaultLocation: hasWorkspaceConfiguration ? configuration.files.archive : nil)
             }
             if let fileStore {
                 isSynchronizing = true

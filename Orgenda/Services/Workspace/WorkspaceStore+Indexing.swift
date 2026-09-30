@@ -9,14 +9,14 @@ extension WorkspaceStore {
         pendingDirtyPaths.removeAll()
 
         let started = CFAbsoluteTimeGetCurrent()
-        let parsed = OrgIndexService.parseSynchronously(documents)
+        let parsed = OrgIndexService.parseSynchronously(documents, configuration: hasWorkspaceConfiguration ? configuration : .classic)
 
         publish(
             parsed,
             replacingAll: true,
             refreshedPaths: Set(documents.filter { $0.kind == .org }.map(\.path)),
             durationMilliseconds: (CFAbsoluteTimeGetCurrent() - started) * 1_000,
-            indexedJournal: isFolderConnected ? JournalFileIndex.entries(in: documents) : nil
+            indexedJournal: isFolderConnected ? JournalFileIndex.entries(in: documents, directory: effectiveConfiguration.files.journal) : nil
         )
     }
 
@@ -41,6 +41,7 @@ extension WorkspaceStore {
         parseTask?.cancel()
         parseGeneration &+= 1
         let generation = parseGeneration
+        let configuration = hasWorkspaceConfiguration ? self.configuration : .classic
 
         let replacingAll = parsedDocuments.isEmpty
         let requestedPaths = replacingAll
@@ -51,8 +52,8 @@ extension WorkspaceStore {
         }
         guard !targets.isEmpty else { return }
         let requestedSources = Dictionary(uniqueKeysWithValues: targets.map { ($0.path, $0.contents) })
-        let journalSources = documents.filter { $0.kind == .org && $0.path.split(separator: "/").dropLast().contains("journal") }
-        let shouldIndexJournal = isFolderConnected && (replacingAll || requestedPaths.contains { $0.split(separator: "/").dropLast().contains("journal") })
+        let journalSources = documents.filter { $0.kind == .org }
+        let shouldIndexJournal = isFolderConnected
 
         parseTask = Task(priority: .utility) { [weak self, indexService] in
             // Let the state change and its transition commit a frame before doing
@@ -64,8 +65,8 @@ extension WorkspaceStore {
             guard !Task.isCancelled else { return }
 
             let started = CFAbsoluteTimeGetCurrent()
-            let parsed = await indexService.parse(targets)
-            let indexedJournal = shouldIndexJournal ? await indexService.journalEntries(in: journalSources) : nil
+            let parsed = await indexService.parse(targets, configuration: configuration)
+            let indexedJournal = shouldIndexJournal ? await indexService.journalEntries(in: journalSources, directory: configuration.files.journal) : nil
             let duration = (CFAbsoluteTimeGetCurrent() - started) * 1_000
             guard !Task.isCancelled else { return }
 
@@ -174,7 +175,7 @@ extension WorkspaceStore {
             parseDurationMilliseconds = durationMilliseconds
             parserStatus = status
         }
-        if usesEmacsConfiguration { Task { await refreshReminders() } }
+        if usesEmacsConfiguration || hasWorkspaceConfiguration { Task { await refreshReminders() } }
 
     }
     private func merging(

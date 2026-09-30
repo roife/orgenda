@@ -93,7 +93,8 @@ struct OrgPreviewImageView: View {
         do {
             let paths = try reference.candidates(
                 documentPath: context?.documentPath ?? "",
-                document: context.flatMap { $0.store.parsedDocuments[$0.documentPath] }
+                document: context.flatMap { $0.store.parsedDocuments[$0.documentPath] },
+                attachmentDirectory: context?.store.effectiveConfiguration.files.attachments ?? ".attach"
             )
             return Request(workspaceID: context?.store.workspaceFileSessionID, paths: paths, failure: nil, retry: retry)
         } catch {

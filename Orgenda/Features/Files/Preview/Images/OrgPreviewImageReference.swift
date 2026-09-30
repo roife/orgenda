@@ -43,7 +43,8 @@ struct OrgPreviewImageReference: Hashable, Sendable {
 
     /// Local candidates are workspace-relative, except explicit absolute links
     /// and absolute DIR properties. No basename search or file reads occur here.
-    func candidates(documentPath: String, document: ParsedOrgDocument?) throws -> [String] {
+    func candidates(documentPath: String, document: ParsedOrgDocument?,
+                    attachmentDirectory: String = OrgWorkspaceConfiguration.attachmentDirectory) throws -> [String] {
         switch Self.scheme(in: target) {
         case "http", "https":
             return [try Self.networkURL(target).absoluteString]
@@ -65,7 +66,7 @@ struct OrgPreviewImageReference: Hashable, Sendable {
                 throw Failure.missingAttachmentDirectory
             }
             let folder = try Self.attachmentFolder(for: id)
-            let roots = [OrgWorkspaceConfiguration.attachmentDirectory + "/" + folder,
+            let roots = [attachmentDirectory + "/" + folder,
                          try Self.resolve("data/" + folder, relativeTo: Self.parent(of: documentPath))]
             return try roots.map { try Self.resolve(name, relativeTo: $0) }
         case nil, "file":

@@ -10,12 +10,11 @@ struct AppearanceSettingsView: View {
                 appearanceOption("Light", subtitle: String(localized: "Always use a light appearance"), icon: "sun.max.fill")
                 appearanceOption("Dark", subtitle: String(localized: "Always use a dark appearance"), icon: "moon.fill")
             } header: {
-                Text("Theme")
-            } footer: {
-                Text("System switches automatically with your device’s appearance.")
+                Text("Color scheme")
             }
         }
         .listStyle(.insetGrouped)
+        .tint(OrgendaTheme.accentText)
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("Appearance")
     }
@@ -24,7 +23,7 @@ struct AppearanceSettingsView: View {
         Button {
             appearance = title
         } label: {
-            SettingsRow(icon: icon, color: OrgendaTheme.accent, title: String(localized: String.LocalizationValue(title)), subtitle: subtitle, isSelected: appearance == title)
+            SettingsRow(icon: icon, color: OrgendaTheme.accentText, title: String(localized: String.LocalizationValue(title)), subtitle: subtitle, isSelected: appearance == title)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

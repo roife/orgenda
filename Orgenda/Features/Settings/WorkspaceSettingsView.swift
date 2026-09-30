@@ -15,27 +15,38 @@ struct WorkspaceSettingsView: View {
 
     var body: some View {
         List {
+            if !store.syncConflicts.isEmpty {
+                Section {
+                    NavigationLink {
+                        StorageConflictsView(store: store)
+                    } label: {
+                        Label("Resolve Conflicts", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                    }
+                    .accessibilityIdentifier("workspace.resolveConflict")
+                } footer: {
+                    Text("Both versions are kept until you choose how to resolve each conflict.")
+                }
+            }
             Section("Storage Location") {
                 if let connection = store.storageConnection {
-                    NavigationLink {
-                        StorageSyncView(store: store)
-                    } label: {
-                        SettingsRow(icon: connection.provider.symbol, color: OrgendaTheme.accent,
-                                    title: connection.provider.title, subtitle: connection.storageSummary)
+                    SettingsRow(icon: connection.provider.symbol, color: OrgendaTheme.accentText,
+                                title: connection.provider.title, subtitle: connection.storageSummary)
+                        .accessibilityIdentifier("workspace.connection")
+                    if let account = connection.accountName {
+                        SettingsValueRow(title: String(localized: "Account"), value: account)
                     }
-                    .accessibilityIdentifier("workspace.connection")
+                    if connection.provider == .webDAV, let endpoint = connection.endpoint {
+                        SettingsValueRow(title: String(localized: "Server Address"), value: endpoint.absoluteString)
+                    }
                 } else {
-                    SettingsRow(icon: "folder.fill", color: OrgendaTheme.accent,
+                    SettingsRow(icon: "folder", color: OrgendaTheme.accentText,
                                 title: store.workspaceName, subtitle: store.workspaceLocation)
                 }
             }
             Section {
-                NavigationLink {
-                    StorageSyncView(store: store)
-                } label: {
-                    StorageSyncStatusRow(state: store.syncState)
-                }
-                .accessibilityIdentifier("workspace.syncStatus")
+                StorageSyncStatusRow(state: store.syncState)
+                    .accessibilityIdentifier("workspace.syncStatus")
                 if let lastSync = store.lastFileSync {
                     SettingsValueRow(title: String(localized: "Last checked"),
                                      value: lastSync.formatted(date: .abbreviated, time: .shortened))
@@ -50,7 +61,22 @@ struct WorkspaceSettingsView: View {
             } footer: {
                 Text(storageFooter).fixedSize(horizontal: false, vertical: true)
             }
-            Section {
+            if let error = store.fileSyncError {
+                Section("File changes need attention") {
+                    Label(error, systemImage: "exclamationmark.circle")
+                        .font(.subheadline).foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                        .accessibilityIdentifier("workspace.error")
+                    if store.syncConflicts.isEmpty && store.pendingFileCount > 0 && store.storageConnection?.provider.isRemote != true {
+                        Button("Use Folder Versions…", systemImage: "arrow.down.document") {
+                            isConfirmingReload = true
+                        }
+                        .disabled(store.isSynchronizing)
+                        .accessibilityIdentifier("workspace.resolveConflict")
+                    }
+                }
+            }
+            Section("Connection") {
                 if store.syncState == .authenticationRequired, store.storageConnection?.provider.isRemote == true {
                     StorageReconnectAction(store: store)
                 }
@@ -68,26 +94,6 @@ struct WorkspaceSettingsView: View {
                 }
                 .disabled(store.isSynchronizing || isDisconnecting)
                 .accessibilityIdentifier("workspace.chooseFolder")
-            }
-            if let error = store.fileSyncError {
-                Section("File changes need attention") {
-                    Text(error).font(.subheadline).textSelection(.enabled)
-                        .accessibilityIdentifier("workspace.error")
-                    if !store.syncConflicts.isEmpty {
-                        NavigationLink {
-                            StorageConflictsView(store: store)
-                        } label: {
-                            Label("Resolve Conflicts", systemImage: "doc.on.doc")
-                        }
-                        .accessibilityIdentifier("workspace.resolveConflict")
-                    } else if store.pendingFileCount > 0 && store.storageConnection?.provider.isRemote != true {
-                        Button("Use Folder Versions…", systemImage: "arrow.down.document") {
-                            isConfirmingReload = true
-                        }
-                        .disabled(store.isSynchronizing)
-                        .accessibilityIdentifier("workspace.resolveConflict")
-                    }
-                }
             }
             if store.storageConnection != nil {
                 Section {

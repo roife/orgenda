@@ -50,7 +50,7 @@ struct DocumentOutlineNode: Identifiable {
                         title: title.isEmpty ? String(localized: "Untitled") : title,
                         level: level,
                         children: children,
-                        state: heading.todoNode.flatMap {
+                        state: item?.hasWorkflowState == true ? item?.state : heading.todoNode.flatMap {
                             OrgWorkflowState(rawValue: $0.text.trimmingCharacters(in: .whitespacesAndNewlines))
                         },
                         scheduled: item?.scheduled,
@@ -175,6 +175,7 @@ struct DocumentOutlineSheet: View {
             }
             .sheet(isPresented: $isFilterPresented) {
                 DocumentOutlineFilterSheet(filter: $filter)
+                    .environment(\.orgWorkflow, store.workflow(for: path))
                     .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
                     .presentationDragIndicator(.visible)
             }
@@ -325,6 +326,7 @@ struct DocumentOutlineSheet: View {
 }
 
 struct DocumentOutlineFilterSheet: View {
+    @Environment(\.orgWorkflow) private var workflow
     @Environment(\.dismiss) private var dismiss
     @Binding var filter: DocumentOutlineFilter
 
@@ -333,7 +335,7 @@ struct DocumentOutlineFilterSheet: View {
             Form {
                 Section("Status") {
                     OrgendaFlowLayout(horizontalSpacing: 2, verticalSpacing: 8) {
-                        ForEach(OrgWorkspaceConfiguration.taskStates) { state in
+                        ForEach(workflow.states) { state in
                             OrgWorkflowOption(state: state, isSelected: filter.states.contains(state)) {
                                 if filter.states.contains(state) {
                                     filter.states.remove(state)

@@ -11,5 +11,6 @@ struct WorkspaceDocument: Identifiable, Hashable, Codable, Sendable {
         case org
         case markdown
         case folder
+        case configuration
     }
 }

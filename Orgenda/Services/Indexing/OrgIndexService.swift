@@ -4,17 +4,17 @@ import OrgTreeSitter
 actor OrgIndexService {
     private let parser = OrgParser()
 
-    func journalEntries(in documents: [WorkspaceDocument]) -> [JournalEntry] {
-        JournalFileIndex.entries(in: documents)
+    func journalEntries(in documents: [WorkspaceDocument], directory: String = "journal") -> [JournalEntry] {
+        JournalFileIndex.entries(in: documents, directory: directory)
     }
 
-    func parse(_ documents: [WorkspaceDocument]) -> [ParsedOrgDocument] {
+    func parse(_ documents: [WorkspaceDocument], configuration: WorkspaceConfiguration = .classic) -> [ParsedOrgDocument] {
         var parsed: [ParsedOrgDocument] = []
         parsed.reserveCapacity(documents.count)
 
         for document in documents {
             guard !Task.isCancelled else { break }
-            if let result = Self.parse(document, using: parser) {
+            if let result = Self.parse(document, using: parser, configuration: configuration) {
                 parsed.append(result)
             }
         }
@@ -23,23 +23,24 @@ actor OrgIndexService {
     }
 
     nonisolated static func parseSynchronously(
-        _ documents: [WorkspaceDocument]
+        _ documents: [WorkspaceDocument], configuration: WorkspaceConfiguration = .classic
     ) -> [ParsedOrgDocument] {
         let parser = OrgParser()
-        return documents.compactMap { parse($0, using: parser) }
+        return documents.compactMap { parse($0, using: parser, configuration: configuration) }
     }
 
     private static func parse(
         _ document: WorkspaceDocument,
-        using parser: OrgParser
+        using parser: OrgParser, configuration: WorkspaceConfiguration
     ) -> ParsedOrgDocument? {
         guard document.kind == .org else { return nil }
         let tree = parser.parse(document.contents)
-        let root = snapshot(tree.rootNode, path: document.path)
+        let workflow = OrgConfiguredHeading.workflow(in: document.contents, base: configuration.workflow)
+        let root = OrgConfiguredHeading.normalize(snapshot(tree.rootNode, path: document.path), workflow: workflow)
         return ParsedOrgDocument(
             path: document.path,
             root: root,
-            headings: indexHeadings(tree.rootNode.namedChildren, path: document.path),
+            headings: indexHeadings(tree.rootNode.namedChildren, path: document.path, root: root, workflow: workflow),
             hasError: tree.hasError
         )
     }
@@ -55,8 +56,10 @@ actor OrgIndexService {
         )
     }
 
-    private static func indexHeadings(_ blocks: [OrgSyntaxNode], path: String) -> [IndexedOrgHeading] {
+    private static func indexHeadings(_ blocks: [OrgSyntaxNode], path: String, root: ParsedOrgNode,
+                                      workflow: WorkspaceConfiguration.Workflow) -> [IndexedOrgHeading] {
         var headings: [IndexedOrgHeading] = []
+        let semanticHeadings = Dictionary(uniqueKeysWithValues: root.children.filter { $0.type == "heading" }.map { ($0.startByte, $0) })
 
         for (index, node) in blocks.enumerated() where node.type == "heading" {
             let following = blocks.dropFirst(index + 1).prefix { $0.type != "heading" }
@@ -67,10 +70,11 @@ actor OrgIndexService {
                 .joined(separator: "\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
-            let rawState = node.child(named: "todo")?.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            let state = rawState.flatMap(OrgWorkflowState.init(rawValue:))
-            let priority = parsePriority(node.child(named: "priority")?.text)
-            let title = (node.child(named: "title")?.text ?? String(localized: "Untitled"))
+            let semantic = semanticHeadings[Int(node.startByte)]
+            let rawState = semantic?.todoNode?.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let state = rawState.flatMap(workflow.state)
+            let priority = parsePriority(semantic?.child(ofType: "priority")?.text)
+            let title = (semantic?.child(ofType: "heading_title")?.text ?? String(localized: "Untitled"))
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             let tags = parseTags(node.child(named: "tags")?.text)
             let scheduledMatch = planningLine(named: "SCHEDULED", in: planning)
@@ -123,10 +127,9 @@ actor OrgIndexService {
 
     private static func parsePriority(_ text: String?) -> OrgPriority {
         guard let text else { return .none }
-        if text.contains("#A") { return .high }
-        if text.contains("#B") { return .medium }
-        if text.contains("#C") { return .low }
-        return .none
+        let token = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard token.hasPrefix("[#"), token.hasSuffix("]") else { return .none }
+        return OrgPriority(rawValue: String(token.dropFirst(2).dropLast())) ?? .none
     }
 
     private static func parseTags(_ text: String?) -> [String] {

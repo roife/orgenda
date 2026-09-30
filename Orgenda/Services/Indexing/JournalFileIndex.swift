@@ -5,16 +5,16 @@ import OrgTreeSitter
 /// Reconstructs journal cards from their saved source without depending on a
 /// particular year or on the lifetime of the workspace store.
 enum JournalFileIndex {
-    static func entries(in documents: [WorkspaceDocument]) -> [JournalEntry] {
+    static func entries(in documents: [WorkspaceDocument], directory: String = "journal") -> [JournalEntry] {
         let parser = OrgParser()
         var entries: [JournalEntry] = []
         var occurrences: [String: Int] = [:]
 
         for document in documents.sorted(by: { $0.path < $1.path }) {
             guard document.kind == .org,
-                  document.path.split(separator: "/").dropLast().contains(where: {
+                  (document.path.hasPrefix(directory + "/") || (directory == "journal" && document.path.split(separator: "/").dropLast().contains(where: {
                       $0.lowercased() == "journal"
-                  })
+                  })))
             else { continue }
 
             let bytes = Array(document.contents.utf8)

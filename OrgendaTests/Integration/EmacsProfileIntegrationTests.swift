@@ -223,6 +223,10 @@ final class EmacsProfileIntegrationTests: XCTestCase {
         let url = root.appendingPathComponent("agenda/actions.org")
         let source = "* TODO Archive me\n:PROPERTIES:\n:CUSTOM: keep\n:END:\n** NEXT Child\n* TODO Keep me\n"
         try source.write(to: url, atomically: true, encoding: .utf8)
+        var configuration = WorkspaceConfiguration.classic
+        configuration.files.archive = "archives/actions-\(Calendar(identifier: .gregorian).component(.year, from: .now)).org::* Archived"
+        try ConfigurationDocument(configuration: configuration).encoded(configuration)
+            .write(to: root.appendingPathComponent("config.json"), atomically: true, encoding: .utf8)
         let store = WorkspaceStore()
         await store.connectFolder(root, remember: false)
         let item = try XCTUnwrap(store.items.first { $0.title == "Archive me" })

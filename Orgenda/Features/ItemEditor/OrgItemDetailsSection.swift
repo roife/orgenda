@@ -7,11 +7,12 @@ struct OrgItemDetailsSection: View {
     let focusedField: FocusState<OrgItemEditorField?>.Binding
     let usesCaptureTemplates: Bool
     let usesEmacsConfiguration: Bool
+    var workflow: WorkspaceConfiguration.Workflow = WorkspaceConfiguration.classic.workflow
 
     var body: some View {
         Section {
             if draft.kind != .note && draft.kind != .event {
-                OrgWorkflowPicker(selection: $draft.state)
+                OrgWorkflowPicker(selection: $draft.state, states: workflow.states)
                     .accessibilityIdentifier("item.editor.state")
             }
 

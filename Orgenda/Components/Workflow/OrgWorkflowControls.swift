@@ -4,12 +4,14 @@ import SwiftUI
 /// A symbol embedded in Text supplies a baseline beside multiline headings.
 struct OrgWorkflowIcon: View {
     let keyword: String
+    private var suppliedState: OrgWorkflowState?
+    @Environment(\.orgWorkflow) private var workflow
 
-    init(_ state: OrgWorkflowState) { keyword = state.rawValue }
-    init(keyword: String) { self.keyword = keyword }
+    init(_ state: OrgWorkflowState) { keyword = state.rawValue; suppliedState = state }
+    init(keyword: String) { self.keyword = keyword; suppliedState = nil }
 
     var body: some View {
-        let state = OrgWorkflowState(rawValue: keyword)
+        let state = suppliedState ?? workflow.state(keyword)
         Text(Image(systemName: state?.symbol ?? "questionmark.circle"))
             .foregroundStyle(state.map(OrgendaTheme.workflowColor) ?? .secondary)
             .fixedSize()
@@ -18,14 +20,17 @@ struct OrgWorkflowIcon: View {
 }
 
 struct OrgWorkflowPicker: View {
+    @Environment(\.orgWorkflow) private var workflow
     @Binding var selection: OrgWorkflowState
+    var states: [OrgWorkflowState] = OrgWorkspaceConfiguration.taskStates
 
     var body: some View {
         OrgendaFlowLayout(horizontalSpacing: 2, verticalSpacing: 8) {
-            ForEach(OrgWorkspaceConfiguration.taskStates) { state in
+            ForEach(states) { state in
                 OrgWorkflowOption(state: state, isSelected: selection == state) {
                     selection = state
                 }
+                .keyboardShortcut(workflow.keywords[state.rawValue]?.key.first.map { KeyboardShortcut(KeyEquivalent($0), modifiers: []) })
                 .accessibilityIdentifier("workflow.option.\(state.rawValue)")
             }
         }

@@ -31,6 +31,20 @@ extension WorkspaceStore {
         }
         if isUITestWorkspace {
             #if DEBUG
+            if arguments.contains("--workflow-settings-fixture") {
+                // Real local persistence for reorder/add UI tests, never the
+                // user's selected workspace or standard connection preferences.
+                do {
+                    let id = UUID().uuidString
+                    let root = FileManager.default.temporaryDirectory.appendingPathComponent("Workflow Settings-" + id)
+                    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                    let source = try ConfigurationDocument(configuration: .standard).encoded(.standard)
+                    try source.write(to: root.appendingPathComponent("config.json"), atomically: true, encoding: .utf8)
+                    let defaults = UserDefaults(suiteName: "orgenda.workflow-ui." + id)!
+                    await connectFolder(root, remember: false, defaults: defaults)
+                } catch { fileSyncError = error.localizedDescription }
+                return
+            }
             if arguments.contains("--calendar-layout-fixture") {
                 usesEmacsConfiguration = true
                 items = []

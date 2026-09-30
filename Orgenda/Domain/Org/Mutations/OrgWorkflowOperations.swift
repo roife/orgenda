@@ -44,7 +44,7 @@ enum OrgWorkflowOperations {
     }
 
     static func requiresNote(from: OrgWorkflowState, to: OrgWorkflowState) -> Bool {
-        from != to && [.wait, .canceled].contains(to)
+        from != to && (to.enterLog == .note || from.leaveLog == .note)
     }
 
     static func normalized(_ item: OrgItem, replacing original: OrgItem, now: Date = Date()) -> OrgItem {
@@ -61,18 +61,20 @@ enum OrgWorkflowOperations {
     static func applyingLogs(
         to source: String, headingStartByte: Int,
         replacing original: OrgItem, with item: OrgItem,
-        note: String? = nil, now: Date = Date(), originalSource: String? = nil
+        note: String? = nil, now: Date = Date(), originalSource: String? = nil,
+        logging: WorkspaceConfiguration.Logging = .init(done: .time, reschedule: .time, redeadline: .time)
     ) throws -> String {
         let cleanNote = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if requiresNote(from: original.state, to: item.state), cleanNote.isEmpty {
+        let doneLog = original.state != item.state && item.state.isTerminal ? logging.done : .none
+        let dateNote = (original.scheduled != item.scheduled && logging.reschedule == .note)
+            || (original.deadline != item.deadline && logging.redeadline == .note)
+        if (requiresNote(from: original.state, to: item.state) || doneLog == .note || dateNote), cleanNote.isEmpty {
             throw Failure.noteRequired
         }
         var entries: [String] = []
         let stamp = timestamp(now, includesTime: true)
         if original.state != item.state,
-           requiresNote(from: original.state, to: item.state)
-            || [.urgent, .done].contains(item.state)
-            || original.state == .wait {
+           item.state.enterLog != .none || original.state.leaveLog != .none || doneLog != .none {
             var entry = "- State \"\(item.state.rawValue)\" from \"\(original.state.rawValue)\" \(stamp)"
             if !cleanNote.isEmpty {
                 entry += " \\\\\n" + cleanNote.components(separatedBy: .newlines).map {
@@ -85,6 +87,7 @@ enum OrgWorkflowOperations {
             entries.append(entry)
         }
         for keyword in [OrgPlanningKeyword.scheduled, .deadline] {
+            guard (keyword == .scheduled ? logging.reschedule : logging.redeadline) != .none else { continue }
             let oldDate = keyword == .scheduled ? original.scheduled : original.deadline
             let newDate = keyword == .scheduled ? item.scheduled : item.deadline
             let oldPrimary: OrgPlanningKeyword = original.scheduled != nil ? .scheduled : .deadline
@@ -103,13 +106,17 @@ enum OrgWorkflowOperations {
             case (.deadline, false): action = "New deadline from"
             default: action = "Removed deadline, was"
             }
-            entries.append("- \(action) \"\(oldStamp)\" on \(stamp)")
+            let escaped = cleanNote.components(separatedBy: .newlines).map {
+                let line = $0.trimmingCharacters(in: .whitespaces)
+                return "  " + (line.uppercased() == ":END:" ? "," + $0 : $0)
+            }.joined(separator: "\n")
+            entries.append("- \(action) \"\(oldStamp)\" on \(stamp)" + (dateNote && !cleanNote.isEmpty ? " \\\\\n" + escaped : ""))
         }
         guard !entries.isEmpty else { return source }
         let structure = try Structure(source)
         let heading = try structure.heading(at: headingStartByte)
         let sectionEnd = structure.sectionEnd(of: heading)
-        let drawers = structure.drawers.filter { $0.start > heading.start && $0.start < sectionEnd && $0.name == "LOGBOOK" }
+        let drawers = structure.drawers.filter { $0.start > heading.start && $0.start < sectionEnd && $0.name == logging.drawer }
         guard drawers.count <= 1 else { throw Failure.ambiguousStructure }
         let newline = structure.newline
         let body = entries.joined(separator: "\n").replacingOccurrences(of: "\n", with: newline) + newline
@@ -128,12 +135,14 @@ enum OrgWorkflowOperations {
             } else { break }
         }
         let prefix = insertion > 0 && !String(decoding: source.utf8.prefix(insertion), as: UTF8.self).hasSuffix("\n") ? newline : ""
+        let log = logging.drawer.isEmpty ? body : ":\(logging.drawer):" + newline + body + ":END:" + newline
         return try OrgSourceMutation(startByte: insertion, endByte: insertion,
-                                     replacement: prefix + ":LOGBOOK:" + newline + body + ":END:" + newline).applied(to: source)
+                                     replacement: prefix + log).applied(to: source)
     }
 
     static func archiveDestination(
-        sourcePath: String, source: String, headingStartByte: Int, now: Date = Date()
+        sourcePath: String, source: String, headingStartByte: Int, now: Date = Date(),
+        defaultLocation: String? = nil
     ) throws -> OrgArchiveDestination {
         let structure = try Structure(source)
         let heading = try structure.heading(at: headingStartByte)
@@ -161,7 +170,7 @@ enum OrgWorkflowOperations {
         calendar.timeZone = .autoupdatingCurrent
         let year = calendar.component(.year, from: now)
         let standard = "archives/\(base)-\(year).org::* Archived"
-        let location = (custom ?? standard).replacingOccurrences(of: "%s", with: filename)
+        let location = (custom ?? defaultLocation ?? standard).replacingOccurrences(of: "%s", with: filename)
         let pieces = location.components(separatedBy: "::")
         guard pieces.count == 2 else { throw Failure.unsafeArchivePath }
         let relative = pieces[0].trimmingCharacters(in: .whitespaces)
@@ -191,10 +200,11 @@ enum OrgWorkflowOperations {
         "agenda/routines.org", "agenda/someday.org"
     ]
 
-    static func refileTargets(in documents: [WorkspaceDocument]) -> [OrgRefileTarget] {
+    static func refileTargets(in documents: [WorkspaceDocument], refilePaths: Set<String> = Self.refilePaths,
+                              maxLevel: Int = 3) -> [OrgRefileTarget] {
         documents.filter { $0.kind == .org && refilePaths.contains($0.path) }.flatMap { document -> [OrgRefileTarget] in
             guard let structure = try? Structure(document.contents) else { return [] }
-            return structure.headings.filter { $0.level <= 3 }.map { heading in
+            return structure.headings.filter { $0.level <= maxLevel }.map { heading in
                 OrgRefileTarget(path: document.path, headingStartByte: heading.start, title: heading.title,
                                 outline: (structure.ancestors(of: heading) + [heading]).map(\.title).joined(separator: "/"),
                                 level: heading.level)
@@ -204,9 +214,10 @@ enum OrgWorkflowOperations {
 
     static func refile(
         source: WorkspaceDocument, headingStartByte: Int,
-        destination: WorkspaceDocument, target: OrgRefileTarget
+        destination: WorkspaceDocument, target: OrgRefileTarget,
+        refilePaths: Set<String> = Self.refilePaths, maxLevel: Int = 3
     ) throws -> OrgMovePlan {
-        guard refilePaths.contains(destination.path), target.path == destination.path, target.level <= 3 else {
+        guard refilePaths.contains(destination.path), target.path == destination.path, target.level <= maxLevel else {
             throw Failure.invalidTarget
         }
         let structure = try Structure(destination.contents)
@@ -221,10 +232,10 @@ enum OrgWorkflowOperations {
 
     static func archive(
         source: WorkspaceDocument, headingStartByte: Int,
-        destination: WorkspaceDocument, now: Date = Date()
+        destination: WorkspaceDocument, now: Date = Date(), defaultLocation: String? = nil
     ) throws -> OrgMovePlan {
         let location = try archiveDestination(sourcePath: source.path, source: source.contents,
-                                              headingStartByte: headingStartByte, now: now)
+                                              headingStartByte: headingStartByte, now: now, defaultLocation: defaultLocation)
         guard destination.path == location.path else { throw Failure.invalidTarget }
         guard let outline = location.outline else {
             return try move(source: source, headingStartByte: headingStartByte, destination: destination,

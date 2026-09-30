@@ -268,6 +268,11 @@ extension WorkspaceSession {
                 while next.entries[duplicate] != nil || next.pending[duplicate] != nil {
                     duplicate = stem + " (conflict " + UUID().uuidString + ")" + (ext.isEmpty ? "" : "." + ext)
                 }
+                // Recovery JSON must remain readable/uploadable through the
+                // existing text pipeline without becoming another config.
+                if path == "config.json" {
+                    duplicate = "orgenda/Unsaved Edits/config-" + UUID().uuidString + ".md"
+                }
                 next.pending[duplicate] = SyncPendingWrite(blob: pending.blob, base: nil, baseBlob: nil)
                 next.pending.removeValue(forKey: path)
             }

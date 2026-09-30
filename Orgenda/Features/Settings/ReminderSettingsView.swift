@@ -1,31 +1,36 @@
 import SwiftUI
 import UIKit
 
-struct ReminderSettingsView: View {
+/// Device permission controls embedded alongside the workspace timing controls.
+struct ReminderSettingsSections: View {
     @Environment(\.scenePhase) private var scenePhase
     let store: WorkspaceStore
     @AppStorage("orgRemindersEnabled") private var remindersEnabled = false
 
     var body: some View {
-        List {
+        Group {
             Section {
                 Toggle(isOn: $remindersEnabled) {
-                    Label("Agenda reminders", systemImage: "bell.badge")
+                    SettingsRow(icon: "bell", color: OrgendaTheme.accentText,
+                                title: String(localized: "Agenda reminders"),
+                                subtitle: String(localized: "For timed entries in your agenda"))
                 }
-                .disabled(!store.usesEmacsConfiguration)
+                .disabled(!store.usesEmacsConfiguration && !store.hasWorkspaceConfiguration)
                 .accessibilityIdentifier("settings.reminders.enabled")
                 .onChange(of: remindersEnabled) { _, enabled in
                     Task { await store.refreshReminders(requestPermission: enabled) }
                 }
-            } footer: {
-                Text(store.usesEmacsConfiguration
-                     ? "Get notified before timed entries in your agenda."
-                     : "Connect a workspace folder in Workspace & Sync to use reminders.")
+            }
+            if !store.usesEmacsConfiguration && !store.hasWorkspaceConfiguration {
+                Text("Connect a workspace to enable").foregroundStyle(.secondary)
             }
 
-            if store.usesEmacsConfiguration {
-                Section {
-                    SettingsValueRow(title: String(localized: "Status"), value: store.reminderStatus)
+            if store.usesEmacsConfiguration || store.hasWorkspaceConfiguration {
+                Section("Notification status") {
+                    Label(store.reminderStatus, systemImage: store.reminderPermissionDenied ? "bell.slash" : "info.circle")
+                        .font(.subheadline)
+                        .foregroundStyle(store.reminderPermissionDenied ? Color.orange : Color.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("settings.reminders.status")
                     if store.reminderPermissionDenied {
                         Link(destination: URL(string: UIApplication.openNotificationSettingsURLString)!) {
@@ -33,8 +38,6 @@ struct ReminderSettingsView: View {
                         }
                         .accessibilityIdentifier("settings.reminders.openSystemSettings")
                     }
-                } footer: {
-                    Text("Reminders start \(OrgWorkspaceConfiguration.appointmentWarningMinutes) minutes before an entry and repeat every \(OrgWorkspaceConfiguration.appointmentRepeatMinutes) minutes until it starts. An entry’s custom warning time takes precedence.")
                 }
             }
         }
@@ -42,8 +45,5 @@ struct ReminderSettingsView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await store.refreshReminders() } }
         }
-        .listStyle(.insetGrouped)
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationTitle("Reminders")
     }
 }
