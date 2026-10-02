@@ -16,22 +16,17 @@ struct SettingsView: View {
             List {
                 Section {
                     NavigationLink(value: SettingsDestination.workspace) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            SettingsRow(
-                                icon: "folder",
-                                color: OrgendaTheme.accentText,
-                                title: SettingsDestination.workspace.title,
-                                subtitle: store.storageConnection?.provider.title ?? store.workspaceName
-                            )
-                            Label(store.syncState.title, systemImage: store.syncState.storageSymbol)
-                                .font(.footnote)
-                                .foregroundStyle(store.syncState.needsAttention ? Color.red : Color.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .padding(.leading, 46)
-                        }
-                        .padding(.bottom, 4)
-                        .accessibilityElement(children: .combine)
+                        SettingsRow(
+                            icon: store.storageConnection?.provider.symbol ?? "folder",
+                            color: OrgendaTheme.accentText,
+                            title: SettingsDestination.workspace.title,
+                            subtitle: store.storageConnection?.providerSummary ?? store.workspaceName,
+                            subtitleIcon: store.syncState.storageSymbol,
+                            iconAsset: store.storageConnection?.provider.iconAsset
+                        )
                     }
+                    .accessibilityValue([store.storageConnection?.provider.title, store.syncState.title]
+                        .compactMap { $0 }.joined(separator: ", "))
                     .accessibilityIdentifier("settings.workspace")
                 } header: {
                     Text(store.isWorkspaceReady ? store.workspaceName : String(localized: "Workspace"))

@@ -13,25 +13,26 @@ struct WorkspaceFolderView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(children) { document in
-                    WorkspaceBrowserRow(store: store, document: document, showsPath: true, revealedPath: $revealedPath) {
-                        if let onOpenDocument { onOpenDocument(document.path) }
-                        else { openedDocument = document }
-                    }
-                    Divider().padding(.leading, 38)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
-        }
-        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-        .overlay {
             if children.isEmpty {
                 ContentUnavailableView("This folder is empty", systemImage: "folder",
-                    description: Text("Files in this folder will appear here.")).allowsHitTesting(false)
+                    description: Text("Files in this folder will appear here."))
+                    .frame(maxWidth: .infinity)
+            } else {
+                LazyVStack(spacing: 0) {
+                    ForEach(children) { document in
+                        WorkspaceBrowserRow(store: store, document: document, showsPath: true, revealedPath: $revealedPath) {
+                            if let onOpenDocument { onOpenDocument(document.path) }
+                            else { openedDocument = document }
+                        }
+                        Divider().padding(.leading, 38)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
             }
         }
+        .defaultScrollAnchor(children.isEmpty ? .center : .top, for: .alignment)
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .refreshable { await store.synchronizeFiles() }
         .accessibilityIdentifier("files.folder.browser")
         .navigationTitle(folder.title)

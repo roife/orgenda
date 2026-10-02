@@ -74,9 +74,13 @@ struct InteractiveOrgPreview: View {
                         systemImage: "doc.questionmark",
                         description: Text("The source file could not be found.")
                     )
-                    .padding(.top, 64)
                 }
             }
+            .defaultScrollAnchor(
+                store.parsedDocuments[path] == nil && !store.documents.contains(where: { $0.path == path })
+                    ? .center : .top,
+                for: .alignment
+            )
             .scrollIndicators(.hidden)
             .environment(\.orgPreviewImageContext, OrgPreviewImageContext(store: store, documentPath: path))
             .background(Color.clear)

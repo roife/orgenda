@@ -57,6 +57,7 @@ struct FilesView: View {
                                 documentDestination(path: selectedPath, onBack: clearSelection)
                             } else {
                                 ContentUnavailableView("Select an Org file", systemImage: "doc.text.magnifyingglass")
+                                    .orgendaEmptyState()
                             }
                         }
                         .navigationDestination(for: String.self) { path in
@@ -118,35 +119,43 @@ struct FilesView: View {
     }
 
     private func workspaceList(selection: Binding<String?>?) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                LazyVStack(spacing: selection == nil ? 0 : 4) {
-                    ForEach(visibleFolderDocuments(store.documents, folderPath: "")) { document in
-                        WorkspaceBrowserRow(
-                            store: store,
-                            document: document,
-                            isSelected: selection?.wrappedValue == document.path,
-                            revealedPath: $revealedPath
-                        ) {
-                            if let selection { selection.wrappedValue = document.path }
-                            else { navigationPath.append(document.path) }
-                        }
-                        if selection == nil {
-                            Divider().padding(.leading, 38)
+        let documents = visibleFolderDocuments(store.documents, folderPath: "")
+        return ScrollView {
+            if documents.isEmpty {
+                ContentUnavailableView("This folder is empty", systemImage: "folder",
+                    description: Text("Files in this folder will appear here."))
+                    .frame(maxWidth: .infinity)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    LazyVStack(spacing: selection == nil ? 0 : 4) {
+                        ForEach(documents) { document in
+                            WorkspaceBrowserRow(
+                                store: store,
+                                document: document,
+                                isSelected: selection?.wrappedValue == document.path,
+                                revealedPath: $revealedPath
+                            ) {
+                                if let selection { selection.wrappedValue = document.path }
+                                else { navigationPath.append(document.path) }
+                            }
+                            if selection == nil {
+                                Divider().padding(.leading, 38)
+                            }
                         }
                     }
                 }
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
-            .contentShape(Rectangle())
-            .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
-                guard files.count == 1, let file = files.first,
-                      store.canMoveFile(file, to: "") else { return false }
-                Task { OrgendaHaptics.result(await store.moveFile(file, to: "")) }
-                return true
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
+                .contentShape(Rectangle())
+                .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
+                    guard files.count == 1, let file = files.first,
+                          store.canMoveFile(file, to: "") else { return false }
+                    Task { OrgendaHaptics.result(await store.moveFile(file, to: "")) }
+                    return true
+                }
             }
         }
+        .defaultScrollAnchor(documents.isEmpty ? .center : .top, for: .alignment)
         .background(Color.clear)
         .accessibilityIdentifier("files.browser")
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])

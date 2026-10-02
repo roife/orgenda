@@ -5,11 +5,7 @@ struct StorageConflictsView: View {
 
     var body: some View {
         List {
-            if store.syncConflicts.isEmpty {
-                ContentUnavailableView("No Conflicts", systemImage: "checkmark.circle",
-                                       description: Text("Your file versions are in sync."))
-                    .listRowBackground(Color.clear)
-            } else {
+            if !store.syncConflicts.isEmpty {
                 Section {
                     ForEach(store.syncConflicts) { conflict in
                         NavigationLink {
@@ -30,6 +26,13 @@ struct StorageConflictsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .overlay {
+            if store.syncConflicts.isEmpty {
+                ContentUnavailableView("No Conflicts", systemImage: "checkmark.circle",
+                                       description: Text("Your file versions are in sync."))
+                    .orgendaEmptyState()
+            }
+        }
         .tint(OrgendaTheme.accentText)
         .navigationTitle("Resolve Conflicts")
         .navigationBarTitleDisplayMode(.inline)
@@ -106,13 +109,16 @@ struct StorageConflictView: View {
                         Text(error).font(.subheadline).textSelection(.enabled)
                     }
                 }
-            } else {
-                ContentUnavailableView("Conflict Resolved", systemImage: "checkmark.circle",
-                                       description: Text("This file no longer needs your attention."))
-                    .listRowBackground(Color.clear)
             }
         }
         .listStyle(.insetGrouped)
+        .overlay {
+            if conflict == nil {
+                ContentUnavailableView("Conflict Resolved", systemImage: "checkmark.circle",
+                                       description: Text("This file no longer needs your attention."))
+                    .orgendaEmptyState()
+            }
+        }
         .tint(OrgendaTheme.accentText)
         .disabled(isResolving || store.isSynchronizing)
         .navigationTitle("Resolve Conflict")

@@ -72,7 +72,7 @@ struct CloudOAuthConfiguration: Sendable {
             prefix = "ORGENDAOneDrive"
             authorization = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
             token = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-            scopes = "Files.ReadWrite.AppFolder offline_access"
+            scopes = "Files.ReadWrite.AppFolder User.Read offline_access"
         case .googleDrive:
             prefix = "ORGENDAGoogleDrive"
             authorization = "https://accounts.google.com/o/oauth2/v2/auth"

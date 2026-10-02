@@ -3,6 +3,7 @@ import SwiftUI
 /// Local draft survives validation and storage failures. Every atomic control
 /// edit submits a complete validated snapshot, never a partially edited file.
 struct ConfigurationSettingsView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let store: WorkspaceStore
     let destination: SettingsDestination
@@ -82,34 +83,33 @@ struct ConfigurationSettingsView: View {
         } message: { Text("This changes configuration only. Existing Org files will not be rewritten.") }
     }
 
-    @ViewBuilder
     private var status: some View {
-        Section {
-            Group {
-                if dynamicTypeSize.isAccessibilitySize {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    configurationFileLabel
+                    configurationSaveLabel
+                }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        configurationFileLabel
+                        Spacer(minLength: 12)
+                        configurationSaveLabel.fixedSize()
+                    }
                     VStack(alignment: .leading, spacing: 6) {
                         configurationFileLabel
                         configurationSaveLabel
                     }
-                } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        configurationFileLabel
-                        Spacer(minLength: 12)
-                        configurationSaveLabel
-                            .multilineTextAlignment(.trailing)
-                    }
                 }
             }
-            .fixedSize(horizontal: false, vertical: true)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("configuration.status")
         }
-        diagnostics
+        .fixedSize(horizontal: false, vertical: true)
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .textCase(nil)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("configuration.status")
     }
 
     @ViewBuilder
@@ -138,23 +138,33 @@ struct ConfigurationSettingsView: View {
 
     private var configurationFilePage: some View {
         List {
-            status
-            Section {
-                DisclosureGroup("View config.json") {
-                    Text((try? store.configurationDocument.encoded(draft)) ?? "")
-                        .font(.system(.footnote, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .accessibilityIdentifier("configuration.json")
-            }
             Section {
                 Button("Apply classic workflow preset") { pendingPreset = "classic" }
                 Button("Restore generic defaults", role: .destructive) { pendingPreset = "standard" }
             } header: {
-                Text("Presets & reset")
+                status
             }
-        }.navigationTitle("Configuration file")
+            diagnostics
+            Section {
+                ScrollView(.horizontal) {
+                    Text(OrgCodeHighlighting.attributed(
+                        (try? store.configurationDocument.encoded(draft)) ?? "",
+                        language: "json",
+                        colorScheme: colorScheme,
+                        dynamicTypeSize: dynamicTypeSize
+                    ))
+                    .font(.system(.footnote, design: .monospaced))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: true, vertical: true)
+                    .accessibilityIdentifier("configuration.json")
+                    .padding(16)
+                }
+                .listRowInsets(EdgeInsets())
+            }
+        }
+        .contentMargins(.top, 16, for: .scrollContent)
+        .listSectionSpacing(20)
+        .navigationTitle("Configuration file")
     }
 
     private var configurationFileLabel: some View {
@@ -176,9 +186,11 @@ struct ConfigurationSettingsView: View {
             Text("Using defaults")
                 .accessibilityHint("config.json is created when you change a setting.")
         } else {
-            Label(store.syncState.title, systemImage: store.syncState.storageSymbol)
-                .labelStyle(.titleAndIcon)
-                .foregroundStyle(store.syncState.needsAttention ? Color.red : Color.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: store.syncState.storageSymbol).accessibilityHidden(true)
+                Text(store.syncState.title)
+            }
+            .foregroundStyle(store.syncState.needsAttention ? Color.red : Color.secondary)
         }
     }
 

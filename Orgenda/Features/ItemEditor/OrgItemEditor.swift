@@ -453,6 +453,7 @@ struct OrgItemEditor: View {
             if targets.isEmpty {
                 ContentUnavailableView("No destinations yet", systemImage: "folder", description:
                     Text("Create a heading in Actions, Projects, Routines, or Someday to use it as a destination."))
+                    .orgendaEmptyState()
             }
         }
         .navigationTitle("Move to")

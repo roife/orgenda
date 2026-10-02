@@ -186,6 +186,7 @@ struct SearchView: View {
             }
             .frame(maxWidth: .infinity)
         }
+        .defaultScrollAnchor(.center, for: .alignment)
         .scrollDismissesKeyboard(.interactively)
         .accessibilityIdentifier("search.guidance")
     }
@@ -222,6 +223,7 @@ struct SearchView: View {
             }
             .frame(maxWidth: .infinity)
         }
+        .defaultScrollAnchor(.center, for: .alignment)
         .scrollDismissesKeyboard(.interactively)
     }
 

@@ -31,9 +31,11 @@ struct WorkspaceSettingsView: View {
             Section("Storage Location") {
                 if let connection = store.storageConnection {
                     SettingsRow(icon: connection.provider.symbol, color: OrgendaTheme.accentText,
-                                title: connection.provider.title, subtitle: connection.storageSummary)
+                                title: connection.providerSummary, subtitle: connection.storageSummary,
+                                iconAsset: connection.provider.iconAsset)
+                        .accessibilityValue(connection.provider.title)
                         .accessibilityIdentifier("workspace.connection")
-                    if let account = connection.accountName {
+                    if connection.provider == .webDAV, let account = connection.accountName {
                         SettingsValueRow(title: String(localized: "Account"), value: account)
                     }
                     if connection.provider == .webDAV, let endpoint = connection.endpoint {
@@ -45,17 +47,12 @@ struct WorkspaceSettingsView: View {
                 }
             }
             Section {
-                StorageSyncStatusRow(state: store.syncState)
-                    .accessibilityIdentifier("workspace.syncStatus")
-                if let lastSync = store.lastFileSync {
-                    SettingsValueRow(title: String(localized: "Last checked"),
-                                     value: lastSync.formatted(date: .abbreviated, time: .shortened))
-                }
-                SettingsValueRow(title: String(localized: "Org files"),
-                                 value: "\(store.documents.filter { $0.kind == .org }.count)")
-                if store.pendingUploadCount > 0 {
-                    SettingsValueRow(title: String(localized: "Pending uploads"), value: "\(store.pendingUploadCount)")
-                }
+                StorageSyncSummary(
+                    state: store.syncState,
+                    lastChecked: store.lastFileSync,
+                    orgFileCount: store.documents.filter { $0.kind == .org }.count,
+                    pendingUploadCount: store.pendingUploadCount
+                )
             } header: {
                 Text("Sync Status")
             } footer: {
@@ -77,7 +74,8 @@ struct WorkspaceSettingsView: View {
                 }
             }
             Section("Connection") {
-                if store.syncState == .authenticationRequired, store.storageConnection?.provider.isRemote == true {
+                if let connection = store.storageConnection, connection.provider.isRemote,
+                   store.syncState == .authenticationRequired || (connection.provider.usesEmailAccount && connection.emailAddress == nil) {
                     StorageReconnectAction(store: store)
                 }
                 if store.isWorkspaceReady {

@@ -8,62 +8,68 @@ struct AgendaPerspectiveContent<Row: View>: View {
     let overdue: [OrgItem]
     @ViewBuilder let row: (OrgItem) -> Row
 
+    private var isEmpty: Bool {
+        groups.allSatisfy { $0.items.isEmpty } && deadlines.isEmpty && overdue.isEmpty
+    }
+
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: option == .dashboard ? 8 : 20) {
-                if groups.allSatisfy({ $0.items.isEmpty }) && deadlines.isEmpty && overdue.isEmpty {
-                    ContentUnavailableView(
-                        option == .dashboard ? "No items in Dashboard" : "No items",
-                        systemImage: option.symbol,
-                        description: Text(option == .dashboard
-                            ? "Scheduled items and open tasks will appear here."
-                            : "Items in this view will appear here.")
-                    )
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 32)
-                } else if option == .dashboard {
-                    if !overdue.isEmpty {
-                        configuredGroup(OrgAgendaGroup(title: String(localized: "Overdue"), items: overdue))
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(String(localized: "Next 7 days"))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .accessibilityAddTraits(.isHeader)
-                            .accessibilityIdentifier("agenda.dashboard.dateScope")
-                        let dates = groups.filter { $0.isDateGroup && !$0.items.isEmpty }
-                        if dates.isEmpty {
-                            Text(String(localized: "Nothing scheduled in the next 7 days."))
+            if isEmpty {
+                ContentUnavailableView(
+                    option == .dashboard ? "No items in Dashboard" : "No items",
+                    systemImage: option.symbol,
+                    description: Text(option == .dashboard
+                        ? "Scheduled items and open tasks will appear here."
+                        : "Items in this view will appear here.")
+                )
+                .frame(maxWidth: .infinity)
+            } else {
+                LazyVStack(alignment: .leading, spacing: option == .dashboard ? 8 : 20) {
+                    if option == .dashboard {
+                        if !overdue.isEmpty {
+                            configuredGroup(OrgAgendaGroup(title: String(localized: "Overdue"), items: overdue))
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(String(localized: "Next 7 days"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .accessibilityAddTraits(.isHeader)
+                                .accessibilityIdentifier("agenda.dashboard.dateScope")
+                            let dates = groups.filter { $0.isDateGroup && !$0.items.isEmpty }
+                            if dates.isEmpty {
+                                Text(String(localized: "Nothing scheduled in the next 7 days."))
+                                    .font(.subheadline).foregroundStyle(.secondary)
+                            }
+                            ForEach(dates) { configuredGroup($0) }
+                        }
+                        if !deadlines.isEmpty {
+                            configuredGroup(OrgAgendaGroup(title: String(localized: "Deadlines · next \(configuration.reminders.deadlineWarningDays) days"), items: deadlines))
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(groups.filter { !$0.isDateGroup && !$0.items.isEmpty }) { group in
+                                configuredGroup(group)
+                            }
+                        }
+                    } else {
+                        ForEach(groups) { group in
+                            Text("\(group.items.count) open")
                                 .font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        ForEach(dates) { configuredGroup($0) }
-                    }
-                    if !deadlines.isEmpty {
-                        configuredGroup(OrgAgendaGroup(title: String(localized: "Deadlines · next \(configuration.reminders.deadlineWarningDays) days"), items: deadlines))
-                    }
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(groups.filter { !$0.isDateGroup && !$0.items.isEmpty }) { group in
-                            configuredGroup(group)
-                        }
-                    }
-                } else {
-                    ForEach(groups) { group in
-                        Text("\(group.items.count) open")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                        LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(group.items) { item in
-                                row(item)
+                            LazyVStack(alignment: .leading, spacing: 10) {
+                                ForEach(group.items) { item in
+                                    row(item)
+                                }
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
-            .frame(maxWidth: 760)
-            .frame(maxWidth: .infinity)
         }
+        .defaultScrollAnchor(isEmpty ? .center : .top, for: .alignment)
         .background(Color(uiColor: .systemBackground))
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("agenda.view.\(option.controlID)")

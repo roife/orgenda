@@ -145,6 +145,7 @@ struct DocumentOutlineSheet: View {
                         systemImage: "list.bullet",
                         description: Text("This document does not contain an Org heading.")
                     )
+                    .orgendaEmptyState()
                 } else if filteredNodes.isEmpty {
                     ContentUnavailableView {
                         Label("No matching headings", systemImage: "line.3.horizontal.decrease.circle")
@@ -156,6 +157,7 @@ struct DocumentOutlineSheet: View {
                             .controlSize(.large)
                             .accessibilityIdentifier("org.outline.filter.clear")
                     }
+                    .orgendaEmptyState()
                     .accessibilityElement(children: .contain)
                 } else {
                     outline

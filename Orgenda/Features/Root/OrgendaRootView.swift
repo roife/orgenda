@@ -176,6 +176,7 @@ private extension OrgendaRootView {
             Button("Choose Folder") { showsWorkspaceSettings = true }
                 .buttonStyle(.bordered)
         }
+        .orgendaEmptyState()
     }
 
     @ViewBuilder

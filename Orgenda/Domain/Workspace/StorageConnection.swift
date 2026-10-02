@@ -5,9 +5,10 @@ enum StorageProvider: String, Codable, CaseIterable, Sendable, Identifiable {
 
     var id: String { rawValue }
     var isRemote: Bool { self != .local && self != .iCloud }
+    var usesEmailAccount: Bool { self == .oneDrive || self == .googleDrive || self == .dropbox }
     var title: String {
         switch self {
-        case .local: String(localized: "On My Device & Other Locations")
+        case .local: String(localized: "Files")
         case .iCloud: "iCloud Drive"
         case .oneDrive: "OneDrive"
         case .googleDrive: "Google Drive"
@@ -34,12 +35,28 @@ struct StorageConnection: Codable, Equatable, Sendable, Identifiable {
     var displayName: String
     var accountID: String? = nil
     var accountName: String? = nil
+    var accountEmail: String? = nil
     var rootID: String
     var endpoint: URL? = nil
     var credentialKey: String? = nil
     var bookmark: Data? = nil
 
     var identity: String { "\(provider.rawValue)|\(accountID ?? "")|\(rootID)|\(id.uuidString)" }
+
+    var emailAddress: String? {
+        guard provider.usesEmailAccount else { return nil }
+        // Older Google Drive and Dropbox connections stored the email in accountName.
+        let legacyEmail = provider == .googleDrive || provider == .dropbox ? accountName : nil
+        return [accountEmail, legacyEmail].compactMap(Self.normalizedEmail).first
+    }
+
+    static func normalizedEmail(_ value: String?) -> String? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return nil }
+        let parts = value.split(separator: "@", omittingEmptySubsequences: false)
+        guard parts.count == 2, parts.allSatisfy({ !$0.isEmpty }) else { return nil }
+        return value
+    }
 }
 
 enum WorkspaceSyncState: Equatable, Sendable {

@@ -142,21 +142,23 @@ struct AgendaCalendarView<Row: View>: View {
     }
 
     private var calendarPages: some View {
-        TabView(selection: $calendarPage) {
+        let journalEntries = store.journal(on: store.selectedDate)
+        return TabView(selection: $calendarPage) {
             agendaTimeline
                 .tag(CalendarPage.agenda)
                 .accessibilityHidden(calendarPage != .agenda)
 
             ScrollView {
-                JournalDayContent(entries: store.journal(on: store.selectedDate)) {
+                JournalDayContent(entries: journalEntries) {
                     journalCapture = JournalCapture(date: store.selectedDate)
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 24)
+                .padding(.top, journalEntries.isEmpty ? 0 : 16)
+                .padding(.bottom, journalEntries.isEmpty ? 0 : 24)
                 .frame(maxWidth: 760)
                 .frame(maxWidth: .infinity)
             }
+            .defaultScrollAnchor(journalEntries.isEmpty ? .center : .top, for: .alignment)
             // Keep page identity stable as agenda scrolling selects dates.
             // Replacing a page here rebuilds the pager during deceleration.
             .scrollPosition($journalScrollPosition)

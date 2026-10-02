@@ -3879,6 +3879,23 @@
         }
       }
     },
+    "Email unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未获取邮箱"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未取得電子郵件地址"
+          }
+        }
+      }
+    },
     "Empty file" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4764,6 +4781,7 @@
       }
     },
     "Generate from Emacs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -6859,23 +6877,6 @@
         }
       }
     },
-    "On My Device & Other Locations" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本机与其他位置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本機與其他位置"
-          }
-        }
-      }
-    },
     "On My iPhone · Workspace" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7502,6 +7503,7 @@
 
     },
     "Presets & reset" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -7704,10 +7706,8 @@
         }
       }
     },
-    "Prompt" : {
-
-    },
     "Prompt preview" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -11609,6 +11609,7 @@
       }
     },
     "Update current configuration" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -11900,9 +11901,6 @@
           }
         }
       }
-    },
-    "View config.json" : {
-
     },
     "View latest version" : {
       "extractionState" : "manual",

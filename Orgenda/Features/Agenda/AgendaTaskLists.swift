@@ -6,18 +6,18 @@ struct AgendaTodoList<Row: View>: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                Text("Unscheduled · \(items.count) open")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 12)
+            if items.isEmpty {
+                ContentUnavailableView("No open tasks", systemImage: "checkmark.circle", description: Text("Tasks without a schedule appear here."))
+                    .frame(maxWidth: .infinity)
+            } else {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    Text("Unscheduled · \(items.count) open")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                        .padding(.bottom, 12)
 
-                if items.isEmpty {
-                    ContentUnavailableView("No open tasks", systemImage: "checkmark.circle", description: Text("Tasks without a schedule appear here."))
-                        .padding(.top, 80)
-                } else {
                     ForEach(groupedTodos, id: \.0) { file, items in
                         VStack(alignment: .leading, spacing: 0) {
                             Label(file.replacingOccurrences(of: ".org", with: "").capitalized, systemImage: "doc.text")
@@ -31,11 +31,12 @@ struct AgendaTodoList<Row: View>: View {
                         .padding(.horizontal, 16)
                     }
                 }
+                .padding(.bottom, 24)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.bottom, 24)
-            .frame(maxWidth: 760)
-            .frame(maxWidth: .infinity)
         }
+        .defaultScrollAnchor(items.isEmpty ? .center : .top, for: .alignment)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("agenda.view.todos")
     }
@@ -53,18 +54,18 @@ struct AgendaOverdueList<Row: View>: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                Text("Overdue · \(items.count) open")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 12)
+            if items.isEmpty {
+                ContentUnavailableView("Nothing overdue", systemImage: "checkmark.circle", description: Text("Open items past their scheduled or deadline date appear here."))
+                    .frame(maxWidth: .infinity)
+            } else {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    Text("Overdue · \(items.count) open")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                        .padding(.bottom, 12)
 
-                if items.isEmpty {
-                    ContentUnavailableView("Nothing overdue", systemImage: "checkmark.circle", description: Text("Open items past their scheduled or deadline date appear here."))
-                        .padding(.top, 80)
-                } else {
                     ForEach(groupedOverdue, id: \.0) { day, items in
                         VStack(alignment: .leading, spacing: 0) {
                             Label(OrgendaDatePresentation.relativeDate(day), systemImage: "calendar.badge.exclamationmark")
@@ -78,11 +79,12 @@ struct AgendaOverdueList<Row: View>: View {
                         .padding(.horizontal, 16)
                     }
                 }
+                .padding(.bottom, 24)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.bottom, 24)
-            .frame(maxWidth: 760)
-            .frame(maxWidth: .infinity)
         }
+        .defaultScrollAnchor(items.isEmpty ? .center : .top, for: .alignment)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("agenda.view.overdue")
     }

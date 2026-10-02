@@ -203,10 +203,15 @@ final class ConfigurationUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         reveal("settings.configuration", in: app).tap()
         XCTAssertTrue(app.navigationBars["Configuration file"].waitForExistence(timeout: 3))
-        let json = app.disclosureTriangles["configuration.json"]
-        if json.exists { json.tap() }
-        else { app.buttons["configuration.json"].tap() }
-        XCTAssertTrue(app.navigationBars["Configuration file"].exists, "JSON expands in place.")
+        let json = app.staticTexts["configuration.json"]
+        XCTAssertTrue(json.waitForExistence(timeout: 3), "JSON is visible without expanding a disclosure.")
+        XCTAssertTrue(json.label.contains("\"workflow\""))
+        let preset = app.buttons["Apply classic workflow preset"]
+        let reset = app.buttons["Restore generic defaults"]
+        XCTAssertTrue(preset.isHittable)
+        XCTAssertTrue(reset.isHittable)
+        XCTAssertLessThan(preset.frame.maxY, reset.frame.maxY)
+        XCTAssertLessThan(reset.frame.maxY, json.frame.minY)
         screenshot("Configuration file inline preview", app: app)
     }
 

@@ -242,6 +242,7 @@ struct WorkspaceRecentlyDeleted: View {
             .overlay {
                 if store.recentlyDeleted.isEmpty {
                     ContentUnavailableView("No deleted items", systemImage: "trash", description: Text("Deleted files and folders appear here until you restore them."))
+                        .orgendaEmptyState()
                 }
             }
             .navigationTitle("Recently Deleted")

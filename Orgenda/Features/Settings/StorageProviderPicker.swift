@@ -101,7 +101,7 @@ struct StorageProviderPicker: View {
 
     private func providerRow(_ provider: StorageProvider) -> some View {
         SettingsRow(icon: provider.symbol, color: provider == .webDAV ? .gray : OrgendaTheme.accent,
-                    title: provider.title, subtitle: provider.connectionSubtitle)
+                    title: provider.title, subtitle: provider.connectionSubtitle, iconAsset: provider.iconAsset)
     }
 
     private func handleFolderSelection(_ result: Result<URL, Error>) {

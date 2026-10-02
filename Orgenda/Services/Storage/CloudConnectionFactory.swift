@@ -44,8 +44,10 @@ enum CloudConnectionFactory {
                       let driveID = parent["driveId"] as? String else { throw StorageError.invalidResponse }
                 let rootID = try StorageHTTP.string(root, "id")
                 let name = ((root["createdBy"] as? [String: Any])?["user"] as? [String: Any])?["displayName"] as? String
+                let email = try? await oneDriveAccountEmail(client: client)
                 connection = StorageConnection(provider: provider, displayName: "OneDrive · Apps/" + ((root["name"] as? String) ?? "Orgenda"),
-                                                accountID: driveID, accountName: name, rootID: rootID, credentialKey: key)
+                                                accountID: driveID, accountName: name, accountEmail: email,
+                                                rootID: rootID, credentialKey: key)
                 backend = OneDriveBackend(driveID: driveID, rootID: rootID, client: client)
             case .googleDrive:
                 let about = try await client.json(StorageHTTP.url("https://www.googleapis.com", path: "/drive/v2/about",
@@ -67,7 +69,8 @@ enum CloudConnectionFactory {
                 let rootID = try StorageHTTP.string(root, "id")
                 connection = StorageConnection(provider: provider, displayName: "Google Drive · Orgenda",
                                                 accountID: user["permissionId"] as? String,
-                                                accountName: user["emailAddress"] as? String ?? user["displayName"] as? String,
+                                                accountName: user["displayName"] as? String,
+                                                accountEmail: user["emailAddress"] as? String,
                                                 rootID: rootID, credentialKey: key)
                 backend = GoogleDriveBackend(rootID: rootID, client: client)
             case .dropbox:
@@ -86,7 +89,7 @@ enum CloudConnectionFactory {
                 let rootID = try StorageHTTP.string(root, "id")
                 connection = StorageConnection(provider: provider, displayName: "Dropbox · Apps/Orgenda/Workspace",
                                                 accountID: account["account_id"] as? String ?? tokenResult["account_id"] as? String,
-                                                accountName: account["email"] as? String, rootID: rootID, credentialKey: key)
+                                                accountEmail: account["email"] as? String, rootID: rootID, credentialKey: key)
                 backend = DropboxBackend(rootID: rootID, client: client)
             default: throw StorageError.configuration("Choose a cloud storage provider.")
             }
@@ -160,16 +163,21 @@ enum CloudConnectionFactory {
             case .oneDrive:
                 let drive = try await client.json(URL(string: "https://graph.microsoft.com/v1.0/me/drive?$select=id")!)
                 accountID = try StorageHTTP.string(drive, "id")
+                if let email = try? await oneDriveAccountEmail(client: client) {
+                    updated.accountEmail = email
+                }
                 backend = OneDriveBackend(driveID: accountID, rootID: connection.rootID, client: client)
             case .googleDrive:
                 let about = try await client.json(StorageHTTP.url("https://www.googleapis.com", path: "/drive/v2/about",
-                                                                   query: [.init(name: "fields", value: "user(permissionId)")]))
+                                                                   query: [.init(name: "fields", value: "user(permissionId,emailAddress)")]))
                 guard let user = about["user"] as? [String: Any] else { throw StorageError.invalidResponse }
                 accountID = try StorageHTTP.string(user, "permissionId")
+                updated.accountEmail = user["emailAddress"] as? String
                 backend = GoogleDriveBackend(rootID: connection.rootID, client: client)
             case .dropbox:
                 let account = try await client.json(URL(string: "https://api.dropboxapi.com/2/users/get_current_account")!, method: "POST")
                 accountID = try StorageHTTP.string(account, "account_id")
+                updated.accountEmail = account["email"] as? String
                 backend = DropboxBackend(rootID: connection.rootID, client: client)
             default: throw StorageError.authenticationRequired
             }
@@ -182,6 +190,12 @@ enum CloudConnectionFactory {
         try StorageKeychain.write(credential, key: key)
         do { return PreparedRemoteConnection(connection: updated, backend: try await restore(updated)) }
         catch { try? StorageKeychain.remove(key); throw error }
+    }
+
+    static func oneDriveAccountEmail(client: CloudHTTPClient) async throws -> String? {
+        let user = try await client.json(StorageHTTP.url("https://graph.microsoft.com", path: "/v1.0/me",
+                                                       query: [.init(name: "$select", value: "mail")]))
+        return StorageConnection.normalizedEmail(user["mail"] as? String)
     }
 
     private static func makeClient(provider: StorageProvider, tokens: any StorageAccessTokenSource,

@@ -108,6 +108,7 @@
 		6C55EB8D7CEF5B49E6278543 /* OrgPreviewImageReferenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B2D47179C9788E690FFAA7C /* OrgPreviewImageReferenceTests.swift */; };
 		6D36A6AD2D446E9CBE9D25A9 /* SearchSuggestionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14A875AB91A05CBF4D2408C2 /* SearchSuggestionsView.swift */; };
 		6E63832A0D35CF37FB000755 /* SourceLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A9C4A5596CFA134A31F92F /* SourceLocation.swift */; };
+		70D1D84CBC403E313C1A691D /* OrgendaEmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 394EDFC34FBA4E2D28AFF8B7 /* OrgendaEmptyState.swift */; };
 		72A254B83A26FBD9CED7A739 /* AgendaRescheduleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30620276FF4AA2D3FF46F7AE /* AgendaRescheduleSheet.swift */; };
 		747ADD653545C711FA12345A /* GoogleDriveBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F793236CAC5FECDCC47864 /* GoogleDriveBackend.swift */; };
 		76527B8519232A1DD3FAC503 /* WorkspaceFileActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5900C0D508C0C7815DC70D84 /* WorkspaceFileActions.swift */; };
@@ -290,6 +291,7 @@
 		380B55B89CEB85244C93998D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3821077B34EC8125CF4BCB7B /* OrgendaFlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaFlowLayout.swift; sourceTree = "<group>"; };
 		3910C6BEB9BDF31E3918653F /* OrgendaMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaMotion.swift; sourceTree = "<group>"; };
+		394EDFC34FBA4E2D28AFF8B7 /* OrgendaEmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaEmptyState.swift; sourceTree = "<group>"; };
 		396031ABC820DACFB29C5B75 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		3A581456481EF0F059980B63 /* OrgHeadingContinuity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgHeadingContinuity.swift; sourceTree = "<group>"; };
 		3C15CCD7841A3B5BD8A44494 /* OrgPreviewMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewMetadata.swift; sourceTree = "<group>"; };
@@ -917,6 +919,7 @@
 		93002E832D424D6E24529F8A /* Layout */ = {
 			isa = PBXGroup;
 			children = (
+				394EDFC34FBA4E2D28AFF8B7 /* OrgendaEmptyState.swift */,
 				3821077B34EC8125CF4BCB7B /* OrgendaFlowLayout.swift */,
 			);
 			path = Layout;
@@ -1440,6 +1443,7 @@
 				F7254D7BCC0FA035C02B55BF /* OrgendaDateButton.swift in Sources */,
 				AA6B776014E7650C28AEF398 /* OrgendaDateHeading.swift in Sources */,
 				A8E23CB1099DF54D1BF4C4EF /* OrgendaDatePresentation.swift in Sources */,
+				70D1D84CBC403E313C1A691D /* OrgendaEmptyState.swift in Sources */,
 				80D5F4B9302428D76EBCB1A5 /* OrgendaFlowLayout.swift in Sources */,
 				DDE011156C820D9CB28972F4 /* OrgendaHaptics.swift in Sources */,
 				5C3461CCF7218F65B2020361 /* OrgendaHorizontalPan.swift in Sources */,

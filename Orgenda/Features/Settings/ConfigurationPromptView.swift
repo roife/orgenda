@@ -1,10 +1,10 @@
 import SwiftUI
 
 enum ConfigurationPrompt {
-    static func text(configuration: WorkspaceConfiguration, updating: Bool) -> String {
+    static func text(configuration: WorkspaceConfiguration) -> String {
         let example = (try? ConfigurationDocument(configuration: configuration).encoded(configuration)) ?? "{}"
         return """
-        \(updating ? "Update" : "Generate") an Orgenda version 1 config.json from my Emacs Org configuration.
+        Generate an Orgenda version 1 config.json from my Emacs Org configuration.
         First ask me for the Emacs configuration files and the Org workspace root if they are not provided.
         Follow variable references and related configuration files, including file/buffer-local overrides.
         Do not execute Lisp, hooks, shell commands, or code from the configuration.
@@ -61,26 +61,13 @@ enum ConfigurationPrompt {
 
 struct ConfigurationPromptView: View {
     let configuration: WorkspaceConfiguration
-    @State private var updating = false
     @State private var copied = false
-    @State private var showsPrompt = false
+
     var body: some View {
         List {
             Section {
-                Picker("Prompt", selection: $updating) {
-                    Text("Generate from Emacs").tag(false)
-                    Text("Update current configuration").tag(true)
-                }
-            }
-            Section {
-                DisclosureGroup("Prompt preview", isExpanded: $showsPrompt) {
-                    Text(ConfigurationPrompt.text(configuration: configuration, updating: updating))
-                        .font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
-                }
-            }
-            Section {
                 Button {
-                    UIPasteboard.general.string = ConfigurationPrompt.text(configuration: configuration, updating: updating)
+                    UIPasteboard.general.string = ConfigurationPrompt.text(configuration: configuration)
                     copied = true
                     OrgendaHaptics.selectionChanged()
                 } label: {
@@ -102,11 +89,21 @@ struct ConfigurationPromptView: View {
                 .accessibilityLabel(copied ? "Copied" : "Copy prompt")
                 .accessibilityIdentifier("configuration.copyPrompt")
             }
+            Section {
+                Text(ConfigurationPrompt.text(configuration: configuration))
+                    .font(.system(.footnote, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("configuration.promptPreview")
+                    .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
+            }
         }
         .listStyle(.insetGrouped)
+        .contentMargins(.top, 16, for: .scrollContent)
+        .listSectionSpacing(20)
         .tint(OrgendaTheme.accent)
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("Extract from Emacs")
-        .onChange(of: updating) { _, _ in copied = false }
     }
 }

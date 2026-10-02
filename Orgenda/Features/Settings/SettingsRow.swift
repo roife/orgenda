@@ -6,7 +6,9 @@ struct SettingsRow: View {
     let color: Color
     let title: String
     let subtitle: String
+    var subtitleIcon: String? = nil
     var isSelected: Bool? = nil
+    var iconAsset: String? = nil
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -19,12 +21,21 @@ struct SettingsRow: View {
     }
 
     private var iconTile: some View {
-        Image(systemName: icon)
-            .font(.system(size: min(iconSize, 24), weight: .medium))
-            .foregroundStyle(color)
-            .frame(width: min(iconSize, 24) + 16, height: min(iconSize, 24) + 16)
-            .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
-            .accessibilityHidden(true)
+        Group {
+            if let iconAsset {
+                Image(iconAsset)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: min(iconSize, 24), height: min(iconSize, 24))
+            } else {
+                Image(systemName: icon)
+            }
+        }
+        .font(.system(size: min(iconSize, 24), weight: .medium))
+        .foregroundStyle(color)
+        .frame(width: min(iconSize, 24) + 16, height: min(iconSize, 24) + 16)
+        .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
+        .accessibilityHidden(true)
     }
 
     private var text: some View {
@@ -33,9 +44,15 @@ struct SettingsRow: View {
                 .font(.body)
                 .foregroundStyle(.primary)
             if !subtitle.isEmpty {
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    if let subtitleIcon {
+                        Image(systemName: subtitleIcon)
+                            .accessibilityHidden(true)
+                    }
+                    Text(subtitle)
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
         }
         .fixedSize(horizontal: false, vertical: true)

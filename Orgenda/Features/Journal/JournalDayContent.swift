@@ -16,7 +16,6 @@ struct JournalDayContent: View {
                         .padding(.top, 16)
                 }
                 .accessibilityIdentifier("journal.empty")
-                .padding(.top, 44)
             } else {
                 ForEach(entries) { entry in
                     JournalTimelineEntry(entry: entry, isLast: entry.id == entries.last?.id)

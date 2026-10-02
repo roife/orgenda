@@ -9,6 +9,64 @@ final class CloudBackendTests: XCTestCase {
         super.tearDown()
     }
 
+    func testLegacyCloudConnectionRecoversEmailWithoutChangingIdentity() throws {
+        for provider in [StorageProvider.googleDrive, .dropbox] {
+            let original = StorageConnection(provider: provider, displayName: "Orgenda",
+                accountID: "account-123", accountName: " alice@example.com \n", rootID: "root-123", credentialKey: "saved-key")
+            let data = try JSONEncoder().encode(original)
+            let restored = try JSONDecoder().decode(StorageConnection.self, from: data)
+            XCTAssertNil(restored.accountEmail)
+            XCTAssertEqual(restored.emailAddress, "alice@example.com")
+            XCTAssertEqual(restored.providerSummary, "alice@example.com")
+            XCTAssertEqual(restored.identity, original.identity)
+            XCTAssertEqual(restored.credentialKey, "saved-key")
+        }
+    }
+
+    func testCloudAccountNeverDisplaysNamesOrInternalIDsAsEmail() {
+        for provider in [StorageProvider.googleDrive, .dropbox, .oneDrive] {
+            var connection = StorageConnection(provider: provider, displayName: "Orgenda",
+                accountID: "internal-account-id", accountName: "Alice Example", rootID: "root")
+            XCTAssertNil(connection.emailAddress)
+            XCTAssertFalse(connection.providerSummary.contains("Alice"))
+            XCTAssertFalse(connection.providerSummary.contains("internal-account-id"))
+            connection.accountName = nil
+            connection.accountID = "id-that-looks-like@email.example"
+            XCTAssertNil(connection.emailAddress)
+        }
+    }
+
+    func testExplicitEmailSurvivesPersistenceAndTakesPriorityOverLegacyName() throws {
+        let connection = StorageConnection(provider: .googleDrive, displayName: "Google Drive · Orgenda",
+            accountID: "account-123", accountName: "old@example.com", accountEmail: " new@example.com ", rootID: "root")
+        let restored = try JSONDecoder().decode(StorageConnection.self, from: JSONEncoder().encode(connection))
+        XCTAssertEqual(restored.emailAddress, "new@example.com")
+        XCTAssertEqual(restored.providerSummary, "new@example.com")
+        XCTAssertEqual(restored.storageSummary, "Orgenda")
+        XCTAssertEqual(restored.identity, connection.identity)
+    }
+
+    func testOneDriveReadsOnlyEmailFromProfile() async throws {
+        StorageMockURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.path, "/v1.0/me")
+            let fields = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems
+            XCTAssertEqual(fields?.first(where: { $0.name == "$select" })?.value, "mail")
+            return .json(["mail": "alice@example.com", "displayName": "Alice", "userPrincipalName": "alice@tenant.example"])
+        }
+        let client = CloudHTTPClient(transport: transport, tokens: TestTokenSource(), allowedHosts: ["graph.microsoft.com"])
+        let email = try await CloudConnectionFactory.oneDriveAccountEmail(client: client)
+        XCTAssertEqual(email, "alice@example.com")
+    }
+
+    func testOneDriveMissingMailDoesNotFallBackToPrincipalName() async throws {
+        StorageMockURLProtocol.handler = { _ in
+            .json(["mail": NSNull(), "displayName": "Alice", "userPrincipalName": "alice@tenant.example"])
+        }
+        let client = CloudHTTPClient(transport: transport, tokens: TestTokenSource(), allowedHosts: ["graph.microsoft.com"])
+        let email = try await CloudConnectionFactory.oneDriveAccountEmail(client: client)
+        XCTAssertNil(email)
+    }
+
     func testResponseBodyLimitIsEnforcedWithoutContentLength() async throws {
         StorageMockURLProtocol.handler = { _ in .init(body: Data(repeating: 42, count: 4096)) }
         do {
