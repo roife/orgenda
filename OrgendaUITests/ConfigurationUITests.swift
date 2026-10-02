@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 final class ConfigurationUITests: XCTestCase {
     func testSettingsPanelNavigationAndAppearance() {
@@ -13,17 +14,32 @@ final class ConfigurationUITests: XCTestCase {
         app.tabBars.buttons["Files"].tap()
         app.buttons["files.settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        chooseAppearance("System", in: app)
+        // Reopen once to establish the system's actual appearance, regardless
+        // of the simulator's style or a previous test's saved preference.
+        app.buttons["settings.done"].tap()
+        app.buttons["files.settings"].tap()
+        let systemBrightness = appearanceRowBrightness(in: app)
         reveal("settings.appearance", in: app).tap()
         XCTAssertTrue(app.buttons["Light"].waitForExistence(timeout: 3))
         app.buttons["Light"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].exists, "Appearance is an inline choice, not another page.")
         XCTAssertTrue(app.buttons["settings.workspace"].label.contains("Workspace & Sync"))
+        XCTAssertGreaterThan(appearanceRowBrightness(in: app), 0.7)
         screenshot("Settings panel light", app: app)
         reveal("settings.appearance", in: app).tap()
         XCTAssertTrue(app.buttons["Dark"].waitForExistence(timeout: 3))
         app.buttons["Dark"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].exists)
+        XCTAssertLessThan(appearanceRowBrightness(in: app), 0.3)
         screenshot("Settings panel dark", app: app)
+        // Switch from the opposite style so System must visibly update the
+        // already-presented sheet on both light and dark simulators.
+        if systemBrightness < 0.5 { chooseAppearance("Light", in: app) }
+        chooseAppearance("System", in: app)
+        XCTAssertEqual(appearanceRowBrightness(in: app), systemBrightness, accuracy: 0.1,
+                       "System must update Settings without dismissing the sheet.")
+        screenshot("Settings panel follows system immediately", app: app)
         reveal("settings.reminders", in: app).tap()
         XCTAssertTrue(app.switches["settings.reminders.enabled"].waitForExistence(timeout: 3))
         screenshot("Reminder settings", app: app)
@@ -221,6 +237,30 @@ final class ConfigurationUITests: XCTestCase {
         for _ in 0..<8 where !element.isHittable { app.swipeUp() }
         XCTAssertTrue(element.isHittable, id)
         return element
+    }
+
+    private func chooseAppearance(_ appearance: String, in app: XCUIApplication) {
+        reveal("settings.appearance", in: app).tap()
+        let option = app.buttons[appearance]
+        XCTAssertTrue(option.waitForExistence(timeout: 3))
+        option.tap()
+        XCTAssertTrue(app.buttons["settings.appearance"].label.contains(appearance))
+    }
+
+    private func appearanceRowBrightness(in app: XCUIApplication) -> CGFloat {
+        // Measure rendered pixels, not the selected value: the value can
+        // change while the sheet is still displaying the previous theme.
+        let image = reveal("settings.appearance", in: app).screenshot().image.cgImage!
+        var pixel = [UInt8](repeating: 0, count: 4)
+        pixel.withUnsafeMutableBytes { bytes in
+            let context = CGContext(data: bytes.baseAddress, width: 1, height: 1,
+                                    bitsPerComponent: 8, bytesPerRow: 4,
+                                    space: CGColorSpaceCreateDeviceRGB(),
+                                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            context.interpolationQuality = .high
+            context.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        }
+        return CGFloat(Int(pixel[0]) + Int(pixel[1]) + Int(pixel[2])) / (3 * 255)
     }
 
     private func addState(_ keyword: String, terminal: Bool, app: XCUIApplication) {

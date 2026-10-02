@@ -103,10 +103,6 @@ struct SettingsView: View {
         .presentationDragIndicator(.visible)
         .presentationSizing(.page)
         .task { await store.refreshReminders() }
-        .preferredColorScheme(
-            appearance == "Light" ? .light
-                : appearance == "Dark" ? .dark : nil
-        )
     }
 
     private var doneToolbar: some ToolbarContent {

@@ -131,10 +131,9 @@ struct OrgendaRootView: View {
             guard scenePhase == .active else { return }
             Task { await store.synchronizeFiles() }
         }
-        .preferredColorScheme(
-            appearance == "Light" ? .light
-                : appearance == "Dark" ? .dark : nil
-        )
+        .onChange(of: appearance, initial: true) { _, appearance in
+            sceneDelegate.updateAppearance(appearance)
+        }
     }
 }
 

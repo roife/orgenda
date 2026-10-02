@@ -39,6 +39,16 @@ final class OrgendaSceneDelegate: NSObject, UIWindowSceneDelegate, ObservableObj
         } ?? false
     }
 
+    func updateAppearance(_ appearance: String) {
+        let style: UIUserInterfaceStyle = appearance == "Light" ? .light
+            : appearance == "Dark" ? .dark : .unspecified
+        // Apply at the window so open sheets inherit changes too. Clearing a
+        // SwiftUI sheet's preferredColorScheme can leave its old style active.
+        for window in windowScene?.windows ?? [] {
+            window.overrideUserInterfaceStyle = style
+        }
+    }
+
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession,
                options connectionOptions: UIScene.ConnectionOptions) {
         windowScene = scene as? UIWindowScene
