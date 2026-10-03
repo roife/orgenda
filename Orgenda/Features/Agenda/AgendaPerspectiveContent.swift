@@ -69,6 +69,7 @@ struct AgendaPerspectiveContent<Row: View>: View {
                 .frame(maxWidth: .infinity)
             }
         }
+        .swipeActionsContainer()
         .defaultScrollAnchor(isEmpty ? .center : .top, for: .alignment)
         .background(Color(uiColor: .systemBackground))
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])

@@ -60,13 +60,12 @@ struct OrgRepeater: Hashable, Sendable {
         }
     }
 
-    private static let tokenExpression = try? NSRegularExpression(
+    private static let tokenExpression = try! NSRegularExpression(
         pattern: #"\A(\+\+|\.\+|\+)([1-9]\d*)([hdwmy])(?:/([1-9]\d*)([hdwmy]))?\z"#
     )
 
     init?(_ token: String) {
-        guard let expression = Self.tokenExpression,
-              let match = expression.firstMatch(in: token, range: NSRange(token.startIndex..., in: token)) else {
+        guard let match = Self.tokenExpression.firstMatch(in: token, range: NSRange(token.startIndex..., in: token)) else {
             return nil
         }
         func text(_ capture: Int) -> String? {
@@ -126,9 +125,7 @@ struct OrgRepeater: Hashable, Sendable {
         guard let interval = calendar.dateInterval(of: .day, for: day),
               var index = firstIndex(onOrAfter: interval.start, from: base, calendar: calendar) else { return [] }
         var dates: [Date] = []
-        // Even a one-hour repeater has at most 25 occurrences on a DST day.
-        // This bound also protects against anomalous calendar results.
-        while dates.count < 48, let date = occurrence(at: index, from: base, calendar: calendar), date < interval.end {
+        while let date = occurrence(at: index, from: base, calendar: calendar), date < interval.end {
             guard date >= interval.start, dates.last.map({ date > $0 }) ?? true else { break }
             dates.append(date)
             let (next, overflow) = index.addingReportingOverflow(1)
@@ -139,7 +136,6 @@ struct OrgRepeater: Hashable, Sendable {
     }
 
     private func occurrence(at index: Int, from base: Date, calendar: Calendar) -> Date? {
-        guard index >= 0 else { return nil }
         let (value, overflow) = interval.multipliedReportingOverflow(by: index)
         guard !overflow, let date = calendar.date(byAdding: unit.component, value: value, to: base),
               date.timeIntervalSinceReferenceDate.isFinite,

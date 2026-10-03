@@ -12,7 +12,6 @@ struct AgendaCalendarView<Row: View>: View {
     let onOpen: (OrgItem) -> Void
     let onShowInFile: (OrgItem) -> Void
     let onShowOverdue: () -> Void
-    let onPageChange: () -> Void
     @ViewBuilder let row: (OrgItem) -> Row
     @State private var density: OrgendaCalendar.Density = .week
     @State private var timelineAnchor = Date.now.startOfDay
@@ -46,13 +45,11 @@ struct AgendaCalendarView<Row: View>: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("calendar.layout")
             .accessibilityValue(usesColumns ? "Columns" : "Stacked")
-            .onChange(of: usesColumns) { previous, current in
-                if previous != current {
-                    // AnyLayout keeps the pages alive while resizing. Re-anchor
-                    // the timeline to the selected day after its width changes.
-                    timelineScrollSelection = nil
-                    timelineScrollRequest &+= 1
-                }
+            .onChange(of: usesColumns) { _, _ in
+                // AnyLayout keeps the pages alive while resizing. Re-anchor
+                // the timeline to the selected day after its width changes.
+                timelineScrollSelection = nil
+                timelineScrollRequest &+= 1
             }
         }
         .sheet(item: $journalCapture) { capture in
@@ -176,7 +173,6 @@ struct AgendaCalendarView<Row: View>: View {
         .accessibilityAction(named: Text("Agenda")) { calendarPage = .agenda }
         .accessibilityAction(named: Text("Journal")) { calendarPage = .journal }
         .onChange(of: calendarPage) { _, _ in
-            onPageChange()
             isScrollingTimeline = false
         }
     }
@@ -211,6 +207,7 @@ struct AgendaCalendarView<Row: View>: View {
                 .frame(maxWidth: 760)
                 .frame(maxWidth: .infinity)
             }
+            .swipeActionsContainer()
             .scrollIndicators(.hidden)
             .accessibilityIdentifier("orgenda.agenda.timeline")
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])

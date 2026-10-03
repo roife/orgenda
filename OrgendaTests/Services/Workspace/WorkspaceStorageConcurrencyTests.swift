@@ -94,7 +94,7 @@ final class WorkspaceStorageConcurrencyTests: XCTestCase {
         let backend = AwaitingFileActionBackend { moveStarted.fulfill() }
         let session = try WorkspaceSession(connection: connection, cacheDirectory: cache, remote: backend,
                                             recoveryDirectory: cache.appendingPathComponent("Recovery"))
-        try await session.initialize()
+        try await session.synchronize()
         let store = WorkspaceStore()
         store.storageCacheDirectory = cache
         store.storageConnection = connection

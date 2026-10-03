@@ -41,7 +41,7 @@ struct OrgSourceView: View {
         }
         if !item.properties.isEmpty {
             lines.append(":PROPERTIES:")
-            lines += item.properties.keys.sorted().map { ":\($0): \(item.properties[$0] ?? "")" }
+            lines += item.properties.sorted { $0.key < $1.key }.map { ":\($0.key): \($0.value)" }
             lines.append(":END:")
         }
         if let eventDate = item.eventDate {

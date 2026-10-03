@@ -18,10 +18,8 @@ struct WorkspaceConfiguration: Codable, Equatable, Sendable {
         func state(_ token: String) -> OrgWorkflowState? {
             guard let sequence = sequences.first(where: { ($0.process + $0.terminal).contains(token) }) else { return nil }
             let style = keywords[token] ?? Keyword()
-            let terminal = sequence.terminal.contains(token)
-            let icon = style.icon == .default ? OrgWorkflowState.defaultIcon(for: token, terminal: terminal) : style.icon
             return OrgWorkflowState(token: token, terminal: sequence.terminal.contains(token),
-                                    label: style.label, icon: icon, color: style.color,
+                                    label: style.label, icon: style.icon, color: style.color,
                                     enter: style.log.enter, leave: style.log.leave)
         }
         var states: [OrgWorkflowState] { tokens.compactMap(state) }
@@ -125,7 +123,6 @@ struct WorkspaceConfiguration: Codable, Equatable, Sendable {
         result.agenda.sources = OrgWorkspaceConfiguration.agendaPaths.sorted()
         result.reminders.deadlineWarningDays = 3
         result.logging = Logging(done: .time, reschedule: .time, redeadline: .time)
-        result.capture.templates[0].target.path = result.files.inbox
         result.capture.templates = OrgCaptureTemplate.allCases.map { legacy in
             let token: String = legacy == .nextAction ? "NEXT" : legacy == .someday ? "SOMEDAY" : "TODO"
             let plain = legacy == .inboxNote || legacy == .calendarEvent
@@ -202,9 +199,7 @@ struct WorkspaceConfiguration: Codable, Equatable, Sendable {
         }
         let archiveParts = files.archive.components(separatedBy: "::")
         try require(archiveParts.count == 2, "files.archive: expected relative-file::heading.")
-        if let archive = archiveParts.first {
-            try path(archive.replacingOccurrences(of: "%s", with: "example.org"), "files.archive")
-        }
+        try path(archiveParts[0].replacingOccurrences(of: "%s", with: "example.org"), "files.archive")
     }
 }
 
@@ -249,7 +244,7 @@ struct ConfigurationDocument: Sendable {
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               object["version"] != nil else { throw ConfigurationFailure(message: "version: a version is required.") }
         let defaults = try JSONSerialization.jsonObject(with: JSONEncoder().encode(WorkspaceConfiguration.standard))
-        let merged = Self.fillCollectionDefaults(Self.merge(defaults, object, preserveArrayMembers: false))
+        let merged = try Self.fillCollectionDefaults(Self.merge(defaults, object, preserveArrayMembers: false))
         do {
             configuration = try JSONDecoder().decode(WorkspaceConfiguration.self, from: JSONSerialization.data(withJSONObject: merged))
         } catch let DecodingError.dataCorrupted(context) {
@@ -263,7 +258,7 @@ struct ConfigurationDocument: Sendable {
         }
         try configuration.validate()
         let known = try JSONSerialization.jsonObject(with: JSONEncoder().encode(configuration))
-        warnings = Self.unknownFields(object, known: known, path: "").map { "Unknown field \($0) is preserved but not applied." }
+        warnings = Self.unknownFields(object, known: known, path: "").map { String(localized: "Unknown field \($0) is preserved but not applied.") }
         original = data
     }
     init(configuration: WorkspaceConfiguration) {
@@ -272,7 +267,7 @@ struct ConfigurationDocument: Sendable {
     }
     func encoded(_ value: WorkspaceConfiguration) throws -> String {
         try value.validate()
-        var old = try JSONSerialization.jsonObject(with: original) as? [String: Any] ?? [:]
+        var old = try JSONSerialization.jsonObject(with: original) as! [String: Any]
         if var workflow = old["workflow"] as? [String: Any],
            let keywords = workflow["keywords"] as? [String: Any] {
             workflow["keywords"] = keywords.filter { value.workflow.keywords[$0.key] != nil }
@@ -306,8 +301,8 @@ struct ConfigurationDocument: Sendable {
             }
         }
         if let source = source as? [Any], let known = known as? [Any] {
-            return source.enumerated().flatMap { index, value in
-                index < known.count ? unknownFields(value, known: known[index], path: path + "[\(index)]") : []
+            return zip(source, known).enumerated().flatMap { index, pair in
+                unknownFields(pair.0, known: pair.1, path: path + "[\(index)]")
             }
         }
         return []
@@ -315,27 +310,27 @@ struct ConfigurationDocument: Sendable {
     private static func decodingFailure(_ context: DecodingError.Context) -> ConfigurationFailure {
         ConfigurationFailure(message: context.codingPath.map(\.stringValue).joined(separator: ".") + ": " + context.debugDescription)
     }
-    private static func fillCollectionDefaults(_ input: Any) -> Any {
+    private static func fillCollectionDefaults(_ input: Any) throws -> Any {
         guard var object = input as? [String: Any] else { return input }
-        func defaults<T: Encodable>(_ value: T) -> Any {
-            (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(value))) ?? [:]
+        func defaults<T: Encodable>(_ value: T) throws -> Any {
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(value))
         }
         func fillArray(_ items: Any?, _ fallback: Any) -> Any? {
             guard let items = items as? [Any] else { return items }
             return items.map { merge(fallback, $0, preserveArrayMembers: false) }
         }
         if var workflow = object["workflow"] as? [String: Any] {
-            workflow["sequences"] = fillArray(workflow["sequences"], defaults(WorkspaceConfiguration.Sequence()))
+            workflow["sequences"] = try fillArray(workflow["sequences"], defaults(WorkspaceConfiguration.Sequence()))
             if let keywords = workflow["keywords"] as? [String: Any] {
-                workflow["keywords"] = keywords.reduce(into: [String: Any]()) { result, entry in
-                    let fallback = WorkspaceConfiguration.Keyword()
-                    result[entry.key] = merge(defaults(fallback), entry.value, preserveArrayMembers: false)
+                let fallback = try defaults(WorkspaceConfiguration.Keyword())
+                workflow["keywords"] = keywords.mapValues {
+                    merge(fallback, $0, preserveArrayMembers: false)
                 }
             }
             object["workflow"] = workflow
         }
         if var capture = object["capture"] as? [String: Any] {
-            capture["templates"] = fillArray(capture["templates"], defaults(WorkspaceConfiguration.Template()))
+            capture["templates"] = try fillArray(capture["templates"], defaults(WorkspaceConfiguration.Template()))
             object["capture"] = capture
         }
         return object

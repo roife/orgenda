@@ -95,9 +95,8 @@ struct OrgPreviewImageReference: Hashable, Sendable {
     }
 
     private static func networkURL(_ value: String) throws -> URL {
-        try validateEscapes(in: value)
-        guard !hasControlCharacters(value), !hasControlCharacters(try decode(value)),
-              let components = Self.urlComponents(preservingEscapesIn: value),
+        _ = try decode(value)
+        guard let components = Self.urlComponents(preservingEscapesIn: value),
               ["https", "http"].contains(components.scheme?.lowercased() ?? ""),
               components.user == nil, components.password == nil,
               let host = components.host, !host.isEmpty,
@@ -115,7 +114,7 @@ struct OrgPreviewImageReference: Hashable, Sendable {
         }
         let path = String(value.dropFirst("file:".count))
         guard path.hasPrefix("//") else { return try decode(path) }
-        try validateEscapes(in: value)
+        _ = try decode(value)
         guard let components = Self.urlComponents(preservingEscapesIn: value),
               components.host == nil || components.host == "" || components.host?.lowercased() == "localhost",
               components.user == nil, components.password == nil, components.port == nil,
@@ -135,28 +134,9 @@ struct OrgPreviewImageReference: Hashable, Sendable {
     }
 
     private static func decode(_ value: String) throws -> String {
-        try validateEscapes(in: value)
         guard let decoded = value.removingPercentEncoding,
               !decoded.isEmpty, !hasControlCharacters(decoded) else { throw Failure.invalidLink }
         return decoded
-    }
-
-    private static func validateEscapes(in value: String) throws {
-        let bytes = Array(value.utf8)
-        var index = 0
-        func hexadecimal(_ byte: UInt8) -> Bool {
-            (48...57).contains(byte) || (65...70).contains(byte) || (97...102).contains(byte)
-        }
-        while index < bytes.count {
-            if bytes[index] == 37 {
-                guard index + 2 < bytes.count, hexadecimal(bytes[index + 1]), hexadecimal(bytes[index + 2]) else {
-                    throw Failure.invalidLink
-                }
-                index += 3
-            } else {
-                index += 1
-            }
-        }
     }
 
     private static func hasControlCharacters(_ value: String) -> Bool {

@@ -91,33 +91,18 @@ enum JournalFileIndex {
         let date: Date
         let key: String
 
-        private static let headingDayExpression = try? NSRegularExpression(
-            pattern: #"^\d{4}-\d{2}-\d{2}(?=\s|$)"#
-        )
-        private static let compactFilenameExpression = try? NSRegularExpression(pattern: #"^\d{8}$"#)
-        private static let filenameDayExpression = try? NSRegularExpression(pattern: #"^\d{4}-\d{2}-\d{2}$"#)
-        private static let timePrefixExpression = try? NSRegularExpression(pattern: #"^\d{2}:\d{2}(?=\s|$)"#)
-
-        private static func firstRange(
-            _ expression: NSRegularExpression?, in source: String
-        ) -> Range<String.Index>? {
-            expression?
-                .firstMatch(in: source, range: NSRange(source.startIndex..., in: source))
-                .flatMap { Range($0.range, in: source) }
-        }
-
         init?(heading: String) {
-            guard let match = Self.firstRange(Self.headingDayExpression, in: heading)
+            guard let match = heading.firstMatch(of: #/^\d{4}-\d{2}-\d{2}(?=\s|$)/#)
             else { return nil }
-            self.init(key: String(heading[match]))
+            self.init(key: String(match.output))
         }
 
         init?(filename: String) {
-            if Self.firstRange(Self.compactFilenameExpression, in: filename) != nil {
+            if filename.wholeMatch(of: #/\d{8}/#) != nil {
                 let digits = Array(filename)
                 self.init(key: String(digits[0..<4]) + "-" + String(digits[4..<6]) + "-" + String(digits[6..<8]))
             } else {
-                guard Self.firstRange(Self.filenameDayExpression, in: filename) != nil
+                guard filename.wholeMatch(of: #/\d{4}-\d{2}-\d{2}/#) != nil
                 else { return nil }
                 self.init(key: filename)
             }
@@ -137,15 +122,15 @@ enum JournalFileIndex {
         }
 
         func entry(title: String) -> (Date, String) {
-            guard let range = Self.firstRange(Self.timePrefixExpression, in: title)
+            guard let match = title.firstMatch(of: #/^\d{2}:\d{2}(?=\s|$)/#)
             else { return (date, title) }
-            let time = title[range].split(separator: ":").compactMap { Int($0) }
+            let time = match.output.split(separator: ":").compactMap { Int($0) }
             guard time.count == 2, (0..<24).contains(time[0]), (0..<60).contains(time[1])
             else { return (date, title) }
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = .autoupdatingCurrent
             let timedDate = calendar.date(bySettingHour: time[0], minute: time[1], second: 0, of: date) ?? date
-            let text = title[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = title[match.range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
             return (timedDate, text.isEmpty ? String(localized: "Journal entry") : text)
         }
     }

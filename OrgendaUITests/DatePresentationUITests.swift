@@ -81,6 +81,9 @@ final class DatePresentationUITests: XCTestCase {
         let selectedDate = try XCTUnwrap(app.buttons.matching(NSPredicate(
             format: "identifier BEGINSWITH 'orgenda.calendar.day.' AND selected == true"
         )).allElementsBoundByIndex.first).identifier
+        let selectedDay = app.buttons.matching(NSPredicate(
+            format: "identifier == %@ AND selected == true", selectedDate
+        )).firstMatch
         let weekY = handle.frame.midY
 
         handle.swipeLeft()
@@ -90,7 +93,7 @@ final class DatePresentationUITests: XCTestCase {
 
         app.dragCalendarHandle(by: 230)
         XCTAssertEqual(handle.value as? String, "Month")
-        XCTAssertTrue(app.buttons[selectedDate].isSelected)
+        XCTAssertTrue(selectedDay.isHittable)
         let monthY = handle.frame.midY
         XCTAssertGreaterThan(monthY, weekY + 150)
 
@@ -124,10 +127,10 @@ final class DatePresentationUITests: XCTestCase {
 
         app.dragCalendarHandle(by: -117)
         XCTAssertEqual(handle.value as? String, "Month")
-        XCTAssertTrue(app.buttons[selectedDate].isSelected)
+        XCTAssertTrue(selectedDay.isHittable)
         app.dragCalendarHandle(by: -230)
         XCTAssertEqual(handle.value as? String, "Week")
-        XCTAssertTrue(app.buttons[selectedDate].isSelected)
+        XCTAssertTrue(selectedDay.isHittable)
         XCTAssertEqual(handle.frame.midY, weekY, accuracy: 1)
     }
 
@@ -371,7 +374,9 @@ final class ChineseLocalizationUITests: XCTestCase {
         app.buttons["orgenda.capture"].tap()
         XCTAssertTrue(app.textFields["item.editor.title"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["取消"].exists)
+        app.buttons["item.editor.state"].tap()
         XCTAssertEqual(app.buttons["workflow.option.TODO"].label, language == "zh-Hans" ? "待办" : "待辦")
+        app.buttons["workflow.option.TODO"].tap()
         attach(app, name: "\(language)-capture")
         app.buttons["取消"].tap()
 

@@ -76,7 +76,9 @@ actor OrgIndexService {
             let priority = parsePriority(semantic?.child(ofType: "priority")?.text)
             let title = (semantic?.child(ofType: "heading_title")?.text ?? String(localized: "Untitled"))
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            let tags = parseTags(node.child(named: "tags")?.text)
+            let tags = node.child(named: "tags")?.text.split(separator: ":")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty } ?? []
             let scheduledMatch = planningLine(named: "SCHEDULED", in: planning)
             let deadlineMatch = planningLine(named: "DEADLINE", in: planning)
             let closedMatch = planningLine(named: "CLOSED", in: planning)
@@ -86,9 +88,9 @@ actor OrgIndexService {
             let eventMatch = OrgHeadingBody.firstActiveTimestamp(in: bodyBlocks)?.text
             let eventDate = eventMatch.flatMap(parseTimestamp)
             let primaryTimestamp = scheduledMatch ?? deadlineMatch ?? eventMatch ?? ""
-            let recurrence = parseRecurrence(primaryTimestamp)
-            let hasTime = clockTimeExpression?
-                .firstMatch(in: primaryTimestamp, range: NSRange(primaryTimestamp.startIndex..., in: primaryTimestamp)) != nil
+            let recurrence = primaryTimestamp.firstMatch(of: #/(?:\+\+|\.\+|\+)\d+[hdwmy](?:/\d+[hdwmy])?/#)
+                .map { String($0.output) }
+            let hasTime = primaryTimestamp.contains(#/\d{2}:\d{2}/#)
             let properties = following.filter { $0.type == "property_drawer" }
                 .flatMap(\.namedChildren).filter { $0.type == "property" }
                 .reduce(into: [String: String]()) { result, property in
@@ -132,34 +134,20 @@ actor OrgIndexService {
         return OrgPriority(rawValue: String(token.dropFirst(2).dropLast())) ?? .none
     }
 
-    private static func parseTags(_ text: String?) -> [String] {
-        guard let text else { return [] }
-        return text
-            .split(separator: ":")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-    }
-
     private static let planningLineExpressions: [String: NSRegularExpression] = {
         ["SCHEDULED", "DEADLINE", "CLOSED"].reduce(into: [:]) { result, name in
             let pattern = "\(name):[ \\t]*(<[^>\\r\\n]+>|\\[[^]\\r\\n]+\\])(?:--(<[^>\\r\\n]+>|\\[[^]\\r\\n]+\\]))?"
-            result[name] = try? NSRegularExpression(pattern: pattern)
+            result[name] = try! NSRegularExpression(pattern: pattern)
         }
     }()
 
-    private static let timestampExpression = try? NSRegularExpression(
+    private static let timestampExpression = try! NSRegularExpression(
         pattern: #"(\d{4})-(\d{2})-(\d{2})(?:\s+[[:alpha:]]+)?(?:\s+(\d{2}):(\d{2}))?"#
     )
 
-    private static let timeRangeEndExpression = try? NSRegularExpression(
+    private static let timeRangeEndExpression = try! NSRegularExpression(
         pattern: #"\d{2}:\d{2}-(\d{2}):(\d{2})"#
     )
-
-    private static let recurrenceExpression = try? NSRegularExpression(
-        pattern: #"(?:\+\+|\.\+|\+)\d+[hdwmy](?:/\d+[hdwmy])?"#
-    )
-
-    private static let clockTimeExpression = try? NSRegularExpression(pattern: #"\d{2}:\d{2}"#)
 
     private static func planningLine(named name: String, in planning: String) -> String? {
         guard
@@ -175,13 +163,11 @@ actor OrgIndexService {
 
     private static func parseTimestamp(_ timestamp: String) -> Date? {
         guard
-            let regex = timestampExpression,
-            let match = regex.firstMatch(in: timestamp, range: NSRange(timestamp.startIndex..., in: timestamp))
+            let match = timestampExpression.firstMatch(in: timestamp, range: NSRange(timestamp.startIndex..., in: timestamp))
         else { return nil }
 
         func integer(_ capture: Int) -> Int? {
-            guard match.range(at: capture).location != NSNotFound,
-                  let range = Range(match.range(at: capture), in: timestamp)
+            guard let range = Range(match.range(at: capture), in: timestamp)
             else { return nil }
             return Int(timestamp[range])
         }
@@ -211,8 +197,7 @@ actor OrgIndexService {
             return Int(end.timeIntervalSince(start) / 60)
         }
         guard hasTime else { return 0 }
-        guard let expression = timeRangeEndExpression,
-              let match = expression.firstMatch(in: timestamp, range: NSRange(timestamp.startIndex..., in: timestamp)),
+        guard let match = timeRangeEndExpression.firstMatch(in: timestamp, range: NSRange(timestamp.startIndex..., in: timestamp)),
               let hourRange = Range(match.range(at: 1), in: timestamp),
               let minuteRange = Range(match.range(at: 2), in: timestamp),
               let hour = Int(timestamp[hourRange]), let minute = Int(timestamp[minuteRange]),
@@ -223,12 +208,4 @@ actor OrgIndexService {
         return difference >= 0 ? difference : difference + 24 * 60
     }
 
-    private static func parseRecurrence(_ timestamp: String) -> String? {
-        guard
-            let regex = recurrenceExpression,
-            let match = regex.firstMatch(in: timestamp, range: NSRange(timestamp.startIndex..., in: timestamp)),
-            let range = Range(match.range, in: timestamp)
-        else { return nil }
-        return String(timestamp[range])
-    }
 }

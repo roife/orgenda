@@ -4,7 +4,7 @@ import Foundation
 /// save leaves either the previous complete draft or the next complete draft.
 struct SyncManifest: Codable, Sendable {
     var version = 1
-    var commitSequence: UInt64? = nil
+    var commitSequence: UInt64 = 0
     var identity: String
     var initialized = false
     var entries: [String: SyncManifestEntry] = [:]
@@ -28,9 +28,8 @@ struct SyncPendingWrite: Codable, Sendable {
     var baseBlob: String?
     var operationID: UUID = UUID()
     var generation: UUID = UUID()
-    // Optional for compatibility with already-committed version-1 manifests.
     // A stale UI save must not become a new unconditional upload on retry.
-    var requiresResolution: Bool? = nil
+    var requiresResolution = false
 }
 
 struct SyncCachedAttachment: Codable, Sendable {

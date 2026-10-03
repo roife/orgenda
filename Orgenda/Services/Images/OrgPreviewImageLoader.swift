@@ -58,15 +58,12 @@ actor OrgPreviewImageLoader {
             configuration.timeoutIntervalForResource = 60
             self.session = URLSession(configuration: configuration)
         }
-        self.maxBytes = max(0, maxBytes)
-        self.maxPixelDimension = max(1, maxPixelDimension)
+        self.maxBytes = maxBytes
+        self.maxPixelDimension = maxPixelDimension
     }
 
-    func load(candidates: [String], fileStore: (any WorkspaceFileAccess)?, workspaceID: UUID) async throws -> UIImage {
+    func load(candidates: [String], fileStore: (any WorkspaceFileAccess)?) async throws -> UIImage {
         try Task.checkCancellation()
-        // The workspace ID is part of the call contract for view task identity.
-        // There is no local cache shared across workspaces.
-        _ = workspaceID
         for candidate in candidates {
             try Task.checkCancellation()
             let data: Data
@@ -136,8 +133,9 @@ actor OrgPreviewImageLoader {
 
     private func decode(_ data: Data) throws -> UIImage {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions),
-              CGImageSourceGetCount(source) > 0 else { throw Failure.unsupportedFormat }
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
+            throw Failure.unsupportedFormat
+        }
         let thumbnailOptions: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,

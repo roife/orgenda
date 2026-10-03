@@ -43,10 +43,6 @@ actor WorkspaceSession: WorkspaceFileAccess {
         try FileManager.default.createDirectory(at: directory.appendingPathComponent("blobs"), withIntermediateDirectories: true)
     }
 
-    func initialize() async throws {
-        try await synchronize()
-    }
-
     func replaceRemoteBackend(_ backend: any RemoteWorkspaceBackend) throws {
         guard connection.provider.isRemote, folder == nil else { throw StorageError.configuration("A folder connection cannot use a cloud backend.") }
         guard !isSynchronizing, !isPerformingFileOperation else { throw StorageError.busy }
@@ -66,7 +62,7 @@ actor WorkspaceSession: WorkspaceFileAccess {
         guard manifest.initialized else { throw StorageError.rootUnavailable }
         return WorkspaceSessionSnapshot(documents: try load(), pendingPaths: Set(manifest.pending.keys),
             conflicts: manifest.conflicts.values.sorted { $0.path < $1.path }, lastSync: manifest.lastSync,
-            hasPendingOperation: manifest.fileOperation != nil, revision: manifest.commitSequence ?? 0)
+            hasPendingOperation: manifest.fileOperation != nil, revision: manifest.commitSequence)
     }
 
     func load() throws -> [WorkspaceDocument] {
@@ -74,12 +70,12 @@ actor WorkspaceSession: WorkspaceFileAccess {
         for (path, entry) in manifest.entries where Self.isVisible(path) {
             if entry.file.isDirectory {
                 documents[path] = Self.document(path: path, contents: "", kind: .folder)
-            } else if let kind = Self.documentKind(path), let blob = entry.blob {
+            } else if let kind = WorkspaceDocument.Kind(path: path), let blob = entry.blob {
                 documents[path] = Self.document(path: path, contents: try text(blob), kind: kind)
             }
         }
         for (path, pending) in manifest.pending {
-            guard let kind = Self.documentKind(path) else { continue }
+            guard let kind = WorkspaceDocument.Kind(path: path) else { continue }
             documents[path] = Self.document(path: path, contents: try text(pending.blob), kind: kind)
             var parent = (path as NSString).deletingLastPathComponent
             while !parent.isEmpty {
@@ -196,9 +192,7 @@ actor WorkspaceSession: WorkspaceFileAccess {
 
     func commit(_ updated: SyncManifest) throws {
         var next = updated
-        let sequence = manifest.commitSequence ?? 0
-        guard sequence < UInt64.max else { throw StorageError.configuration("The workspace revision counter is exhausted.") }
-        next.commitSequence = sequence + 1
+        next.commitSequence = manifest.commitSequence + 1
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         try encoder.encode(next).write(to: directory.appendingPathComponent("manifest.json"), options: .atomic)
@@ -263,22 +257,13 @@ actor WorkspaceSession: WorkspaceFileAccess {
             contents: contents, kind: kind)
     }
 
-    static func documentKind(_ path: String) -> WorkspaceDocument.Kind? {
-        if path == "config.json" { return .configuration }
-        return switch (path as NSString).pathExtension.lowercased() {
-        case "org", "org_archive": .org
-        case "md", "markdown": .markdown
-        default: nil
-        }
-    }
-
     static func isVisible(_ path: String) -> Bool {
         !path.split(separator: "/").contains { $0.hasPrefix(".") }
     }
 
     static func validateVisibleDocument(_ path: String) throws {
         try StorageError.validate(path: path)
-        guard isVisible(path), documentKind(path) != nil else { throw StorageError.unsafePath(path) }
+        guard isVisible(path), WorkspaceDocument.Kind(path: path) != nil else { throw StorageError.unsafePath(path) }
     }
 
     static func isUnavailable(_ error: Error) -> Bool {

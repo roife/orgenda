@@ -25,7 +25,6 @@ struct AgendaView: View {
     @State private var proposedState: OrgWorkflowState?
     @State private var showsCompletionError = false
     @State private var reschedulingItem: OrgItem?
-    @State private var revealedItemID: UUID?
     @State private var gestureUndo: WorkspaceGestureUndo?
 
     init(
@@ -57,7 +56,8 @@ struct AgendaView: View {
                 if store.isStartingWorkspace {
                     AgendaStartupSkeleton(
                         date: store.selectedDate,
-                        showsCalendar: displayedPerspective == .agenda
+                        showsCalendar: displayedPerspective == .agenda,
+                        compactRows: mode == .agenda
                     )
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else {
@@ -150,7 +150,6 @@ struct AgendaView: View {
             }
         }
         .onChange(of: perspective, initial: true) { _, option in
-            revealedItemID = nil
             visitedPerspectives.insert(option)
         }
         .task(id: navigationRequest) {
@@ -175,7 +174,6 @@ struct AgendaView: View {
     }
 
     private func selectPerspective(_ option: Perspective) {
-        revealedItemID = nil
         visitedPerspectives.insert(option)
         perspective = option
     }
@@ -214,39 +212,37 @@ struct AgendaView: View {
                 store: store, isActive: perspective == .agenda,
                 onCapture: onCapture, onReschedule: reschedule,
                 onToggle: toggle, onOpen: { editorItem = store.item(withID: $0.id) ?? $0 },
-                onShowInFile: showInFile,
+                onShowInFile: onShowInFile,
                 onShowOverdue: onShowOverdue,
-                onPageChange: { revealedItemID = nil }, row: configuredItem
+                row: { configuredItem($0, in: option) }
             )
             .clipped()
-        case .overdue: AgendaOverdueList(items: store.overdueItems, row: configuredItem)
-        case .todos: AgendaTodoList(items: store.openTodos, row: configuredItem)
+        case .overdue:
+            AgendaOverdueList(items: store.overdueItems) { configuredItem($0, in: option) }
+        case .todos:
+            AgendaTodoList(items: store.openTodos) { configuredItem($0, in: option) }
         default:
             AgendaPerspectiveContent(
                 option: option, groups: store.agendaGroups(for: option),
                 deadlines: option == .dashboard ? store.upcomingDeadlines() : [],
                 overdue: option == .dashboard ? store.overdueItems : [],
-                row: configuredItem
+                row: { configuredItem($0, in: option) }
             )
         }
     }
 
-    private func configuredItem(_ item: OrgItem) -> some View {
+    private func configuredItem(_ item: OrgItem, in option: Perspective) -> some View {
         let canonical = store.item(withID: item.id) ?? item
         return OrgItemRow(item: item, onToggle: { toggle(item) }, onOpen: {
             editorItem = canonical
         }, onReschedule: { reschedulingItem = canonical }, onShowInFile: {
-            showInFile(item)
+            onShowInFile(item)
         }, dragItem: canonical, topPadding: mode == .agenda ? 4.5 : 9,
            bottomPadding: mode == .agenda ? 6 : 9,
            tagSpacing: mode == .agenda ? 2 : 6,
-           allowsSwipeActions: mode != .calendar,
-           revealedItemID: $revealedItemID)
-    }
-
-    private func showInFile(_ item: OrgItem) {
-        revealedItemID = nil
-        onShowInFile(item)
+           // Perspectives keep their scroll views alive. Remove just the
+           // inactive rows' swipe hosts so returning starts with actions closed.
+           allowsSwipeActions: mode != .calendar && perspective == option)
     }
 
     private func toggle(_ item: OrgItem) {

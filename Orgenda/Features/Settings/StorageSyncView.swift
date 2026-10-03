@@ -44,7 +44,6 @@ struct StorageSyncSummary: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
-            .padding(.leading, iconWidth + 12)
         }
         .padding(.vertical, 6)
     }

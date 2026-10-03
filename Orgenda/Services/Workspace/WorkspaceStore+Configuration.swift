@@ -46,13 +46,14 @@ extension WorkspaceStore {
     /// Compare the editor's revision before and after each actor hop. No UI
     /// value is made effective until the local durable snapshot is committed.
     @discardableResult
-    func saveConfiguration(_ value: WorkspaceConfiguration, expectedRevision: UInt64) async -> Bool {
+    func saveConfiguration(_ value: WorkspaceConfiguration, expectedRevision: UInt64,
+                           document importedDocument: ConfigurationDocument? = nil) async -> Bool {
         guard !isSavingConfiguration, !isChangingStorage, expectedRevision == configurationRevision else {
             configurationError = "The configuration changed. Reload before applying this edit."
             return false
         }
         guard let fileStore else { configurationError = "Connect a workspace first."; return false }
-        if let source = configurationSource, (try? ConfigurationDocument(source)) == nil {
+        if importedDocument == nil, let source = configurationSource, (try? ConfigurationDocument(source)) == nil {
             configurationError = "Repair the existing config.json before saving settings."
             return false
         }
@@ -64,7 +65,7 @@ extension WorkspaceStore {
         defer { isSavingConfiguration = false }
         let session = workspaceFileSessionID
         do {
-            let source = try configurationDocument.encoded(value)
+            let source = try (importedDocument ?? configurationDocument).encoded(value)
             try await fileStore.write(path: "config.json", contents: source, expectedContents: configurationSource)
             guard session == workspaceFileSessionID else { return false }
             if let workspaceSession {

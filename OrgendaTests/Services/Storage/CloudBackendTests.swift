@@ -9,13 +9,13 @@ final class CloudBackendTests: XCTestCase {
         super.tearDown()
     }
 
-    func testLegacyCloudConnectionRecoversEmailWithoutChangingIdentity() throws {
-        for provider in [StorageProvider.googleDrive, .dropbox] {
+    func testCloudConnectionPreservesExplicitEmailAndIdentity() throws {
+        for provider in [StorageProvider.googleDrive, .dropbox, .oneDrive] {
             let original = StorageConnection(provider: provider, displayName: "Orgenda",
-                accountID: "account-123", accountName: " alice@example.com \n", rootID: "root-123", credentialKey: "saved-key")
+                accountID: "account-123", accountEmail: " alice@example.com \n", rootID: "root-123", credentialKey: "saved-key")
             let data = try JSONEncoder().encode(original)
             let restored = try JSONDecoder().decode(StorageConnection.self, from: data)
-            XCTAssertNil(restored.accountEmail)
+            XCTAssertEqual(restored.accountEmail, original.accountEmail)
             XCTAssertEqual(restored.emailAddress, "alice@example.com")
             XCTAssertEqual(restored.providerSummary, "alice@example.com")
             XCTAssertEqual(restored.identity, original.identity)
@@ -33,10 +33,12 @@ final class CloudBackendTests: XCTestCase {
             connection.accountName = nil
             connection.accountID = "id-that-looks-like@email.example"
             XCTAssertNil(connection.emailAddress)
+            connection.accountName = "name-that-looks-like@email.example"
+            XCTAssertNil(connection.emailAddress)
         }
     }
 
-    func testExplicitEmailSurvivesPersistenceAndTakesPriorityOverLegacyName() throws {
+    func testExplicitEmailSurvivesPersistenceIndependentlyOfAccountName() throws {
         let connection = StorageConnection(provider: .googleDrive, displayName: "Google Drive · Orgenda",
             accountID: "account-123", accountName: "old@example.com", accountEmail: " new@example.com ", rootID: "root")
         let restored = try JSONDecoder().decode(StorageConnection.self, from: JSONEncoder().encode(connection))

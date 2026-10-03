@@ -4,7 +4,6 @@ struct WorkspaceFolderView: View {
     let store: WorkspaceStore
     let folder: WorkspaceDocument
     var onOpenDocument: ((String) -> Void)? = nil
-    @State private var revealedPath: String?
     @State private var openedDocument: WorkspaceDocument?
 
     private var children: [WorkspaceDocument] {
@@ -20,7 +19,7 @@ struct WorkspaceFolderView: View {
             } else {
                 LazyVStack(spacing: 0) {
                     ForEach(children) { document in
-                        WorkspaceBrowserRow(store: store, document: document, showsPath: true, revealedPath: $revealedPath) {
+                        WorkspaceBrowserRow(store: store, document: document, showsPath: true) {
                             if let onOpenDocument { onOpenDocument(document.path) }
                             else { openedDocument = document }
                         }
@@ -31,6 +30,7 @@ struct WorkspaceFolderView: View {
                 .padding(.bottom, 24)
             }
         }
+        .swipeActionsContainer()
         .defaultScrollAnchor(children.isEmpty ? .center : .top, for: .alignment)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .refreshable { await store.synchronizeFiles() }

@@ -51,24 +51,13 @@ extension WorkspaceStore {
             } catch { reportStorageError(error) }
             return
         }
-        if let bookmark = defaults.data(forKey: "workspaceFolderBookmark") {
-            do {
-                var stale = false
-                let url = try URL(resolvingBookmarkData: bookmark, options: .withoutUI,
-                                  relativeTo: nil, bookmarkDataIsStale: &stale)
-                await connectFolder(url, defaults: defaults)
-            } catch {
-                reportStorageError(StorageError.configuration(String(localized: "The saved folder is unavailable. Choose it again in Workspace & Sync.")))
-            }
-        } else {
-            do {
-                try await Task.detached(priority: .userInitiated) {
-                    try FileManager.default.createDirectory(at: localURL, withIntermediateDirectories: true)
-                }.value
-                try Task.checkCancellation()
-                await connectFolder(localURL, remember: false, defaults: defaults)
-            } catch { if !(error is CancellationError) { reportStorageError(error) } }
-        }
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try FileManager.default.createDirectory(at: localURL, withIntermediateDirectories: true)
+            }.value
+            try Task.checkCancellation()
+            await connectFolder(localURL, remember: false, defaults: defaults)
+        } catch { if !(error is CancellationError) { reportStorageError(error) } }
     }
 
     private func restoreSession(_ session: WorkspaceSession, connection: StorageConnection, folderURL: URL?) async throws {
@@ -78,7 +67,7 @@ extension WorkspaceStore {
             // Offline startup is ready immediately. The scene's foreground
             // sync task validates the provider without blocking initial UI.
         } else {
-            try await session.initialize()
+            try await session.synchronize()
             try Task.checkCancellation()
             let snapshot = try await session.snapshot()
             activateSession(session, connection: connection, snapshot: snapshot, folderURL: folderURL)
@@ -100,7 +89,6 @@ extension WorkspaceStore {
                 if remember {
                     connection.bookmark = try url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
                     defaults.set(try JSONEncoder().encode(connection), forKey: Self.storageConnectionKey)
-                    defaults.set(connection.bookmark, forKey: "workspaceFolderBookmark")
                 }
                 folderAccessURL?.stopAccessingSecurityScopedResource()
                 folderAccessURL = access ? url : nil
@@ -121,7 +109,7 @@ extension WorkspaceStore {
             }
             let session = try WorkspaceSession(connection: connection, cacheDirectory: storageCacheDirectory,
                                                folder: WorkspaceFileStore(rootURL: url))
-            try await session.initialize()
+            try await session.synchronize()
             let snapshot = try await session.snapshot()
             let replacement = try await prepareStorageReplacement(preservePending: preservePending)
             try Task.checkCancellation()
@@ -129,7 +117,6 @@ extension WorkspaceStore {
             let previous = storageConnection
             if remember {
                 defaults.set(try JSONEncoder().encode(connection), forKey: Self.storageConnectionKey)
-                defaults.set(connection.bookmark, forKey: "workspaceFolderBookmark")
             }
             connectionDefaults = defaults
             activateSession(session, connection: connection, snapshot: snapshot, folderURL: access ? url : nil)
@@ -203,14 +190,13 @@ extension WorkspaceStore {
             prepared = candidate
             let session = try WorkspaceSession(connection: candidate.connection, cacheDirectory: storageCacheDirectory,
                                                remote: candidate.backend)
-            try await session.initialize()
+            try await session.synchronize()
             let snapshot = try await session.snapshot()
             let replacement = try await prepareStorageReplacement(preservePending: preservePending)
             try Task.checkCancellation()
             try validateStorageReplacement(replacement)
             let previous = storageConnection
             connectionDefaults.set(try JSONEncoder().encode(candidate.connection), forKey: Self.storageConnectionKey)
-            connectionDefaults.removeObject(forKey: "workspaceFolderBookmark")
             activateSession(session, connection: candidate.connection, snapshot: snapshot, folderURL: nil)
             if let retiredSession = replacement.retiredSession {
                 do { try await retiredSession.retireAfterArchiving() }
@@ -239,7 +225,6 @@ extension WorkspaceStore {
         guard storageConnection?.rootID == local.resolvingSymlinksInPath().standardizedFileURL.path,
               storageConnection?.provider == .local else { return false }
         connectionDefaults.removeObject(forKey: Self.storageConnectionKey)
-        connectionDefaults.removeObject(forKey: "workspaceFolderBookmark")
         if let previous { try? CloudConnectionFactory.removeCredentials(for: previous) }
         return true
     }

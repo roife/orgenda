@@ -3,6 +3,46 @@ import SwiftUI
 @testable import Orgenda
 
 final class WorkspaceConfigurationTests: XCTestCase {
+    func testClassicWorkflowPresetPreservesEveryOtherWorkspaceSetting() throws {
+        var original = WorkspaceConfiguration.standard
+        original.files.inbox = "custom/inbox.org"
+        original.files.archive = "archive.org::* Saved"
+        original.agenda.sources = ["custom"]
+        original.agenda.excluded = ["custom/private.org"]
+        original.reminders = .init(advanceMinutes: 37, repeatMinutes: 11, deadlineWarningDays: 21)
+        original.logging = .init(done: .note, drawer: "HISTORY", reschedule: .note, redeadline: .time)
+        original.capture.templates[0].name = "My template"
+        original.capture.templates[0].target.path = "custom/inbox.org"
+        var expected = original
+        expected.workflow = WorkspaceConfiguration.classic.workflow
+        let result = original.applyingClassicWorkflowPreset()
+        XCTAssertEqual(result, expected)
+        XCTAssertNoThrow(try result.validate())
+    }
+
+    func testSettingsPreviewUsesRealAgendaAndArchiveRules() throws {
+        let documents: [WorkspaceDocument] = [
+            .init(path: "work/inbox.org", title: "", contents: "", kind: .org),
+            .init(path: "work/private.org", title: "", contents: "", kind: .org),
+            .init(path: ".hidden/notes.org", title: "", contents: "", kind: .org),
+            .init(path: "personal.org", title: "", contents: "", kind: .org)
+        ]
+        XCTAssertEqual(ConfigurationSettingsPreview.agendaPaths(in: documents,
+            agenda: .init(sources: ["work"], excluded: ["work/private.org"])), ["work/inbox.org"])
+        let archive = try XCTUnwrap(ConfigurationSettingsPreview.archive(rule: "%s_archive::* Archived", sourcePath: "work/inbox.org"))
+        XCTAssertEqual(archive.path, "work/inbox.org_archive")
+        XCTAssertEqual(archive.outline, "* Archived")
+        XCTAssertNotNil(ConfigurationSettingsFieldValidation.archiveMessage("../archive.org::* Saved"))
+        XCTAssertNotNil(ConfigurationSettingsFieldValidation.archiveMessage("archive.txt::* Saved"))
+        XCTAssertNil(ConfigurationSettingsPreview.archive(rule: "archive.txt::* Saved", sourcePath: "work/inbox.org"))
+    }
+
+    func testReminderPreviewMatchesSchedulerIncludingStartAndUnevenIntervals() {
+        XCTAssertEqual(ConfigurationSettingsPreview.reminderOffsets(advanceMinutes: 15, repeatMinutes: 5), [15, 10, 5, 0])
+        XCTAssertEqual(ConfigurationSettingsPreview.reminderOffsets(advanceMinutes: 7, repeatMinutes: 5), [7, 2, 0])
+        XCTAssertEqual(ConfigurationSettingsPreview.reminderOffsets(advanceMinutes: 0, repeatMinutes: 5), [0])
+        XCTAssertEqual(ConfigurationSettingsPreview.reminderOffsets(advanceMinutes: 10, repeatMinutes: 0), [])
+    }
     func testWorkspaceRequiresExactlyOneDefaultSequence() throws {
         var configuration = WorkspaceConfiguration.standard
         configuration.workflow.sequences.append(.init(
@@ -231,9 +271,9 @@ final class WorkspaceConfigurationTests: XCTestCase {
     }
 
     func testConfigurationResourceIsRootOnly() {
-        XCTAssertEqual(WorkspaceSession.documentKind("config.json"), .configuration)
-        XCTAssertNil(WorkspaceSession.documentKind("notes/config.json"))
-        XCTAssertNil(WorkspaceSession.documentKind("other.json"))
+        XCTAssertEqual(WorkspaceDocument.Kind(path: "config.json"), .configuration)
+        XCTAssertNil(WorkspaceDocument.Kind(path: "notes/config.json"))
+        XCTAssertNil(WorkspaceDocument.Kind(path: "other.json"))
     }
 
     @MainActor

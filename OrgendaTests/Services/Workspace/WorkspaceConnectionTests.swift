@@ -4,6 +4,36 @@ import XCTest
 
 @MainActor
 final class WorkspaceConnectionTests: XCTestCase {
+    func testImportedConfigurationPreservesExtensionsAndCanRestorePreviousDocument() async throws {
+        let root = try folder()
+        let store = WorkspaceStore()
+        await store.connectFolder(root, remember: false, defaults: try startupDefaults())
+        let previous = store.configurationDocument
+        let imported = try ConfigurationDocument(#"{"version":1,"files":{"inbox":"imported.org"},"extension":{"owner":"keep me"}}"#)
+        let saved = await store.saveConfiguration(imported.configuration, expectedRevision: store.configurationRevision, document: imported)
+        XCTAssertTrue(saved, store.configurationError ?? "")
+        await store.synchronizeFiles()
+        let source = try String(contentsOf: root.appendingPathComponent("config.json"), encoding: .utf8)
+        XCTAssertTrue(source.contains("keep me"))
+        XCTAssertEqual(store.configuration.files.inbox, "imported.org")
+        let restored = await store.saveConfiguration(previous.configuration, expectedRevision: store.configurationRevision, document: previous)
+        XCTAssertTrue(restored, store.configurationError ?? "")
+        await store.synchronizeFiles()
+        let restoredSource = try String(contentsOf: root.appendingPathComponent("config.json"), encoding: .utf8)
+        XCTAssertFalse(restoredSource.contains("keep me"))
+        XCTAssertEqual(store.configuration, previous.configuration)
+    }
+
+    func testFailedConfigurationSaveDoesNotChangeEffectiveSettings() async {
+        let store = WorkspaceStore()
+        let previous = store.configuration
+        var next = previous
+        next.files.inbox = "unsaved.org"
+        let saved = await store.saveConfiguration(next, expectedRevision: store.configurationRevision)
+        XCTAssertFalse(saved)
+        XCTAssertEqual(store.configuration, previous)
+        XCTAssertNotNil(store.configurationError)
+    }
     func testGUIConfigurationSaveCreatesRootFileAndRejectsStaleRevision() async throws {
         let root = try folder()
         let defaults = try startupDefaults()
@@ -35,7 +65,7 @@ final class WorkspaceConnectionTests: XCTestCase {
         let arguments = ["--ui-test-workspace"]
         let store = WorkspaceStore.startup(arguments: arguments)
         let defaults = try startupDefaults()
-        defaults.set(Data("invalid bookmark".utf8), forKey: "workspaceFolderBookmark")
+        defaults.set(Data("invalid connection".utf8), forKey: WorkspaceStore.storageConnectionKey)
         let localURL = try folder().appendingPathComponent("Workspace")
         await store.startWorkspace(arguments: arguments, defaults: defaults, localWorkspaceURL: localURL)
         XCTAssertFalse(store.isStartingWorkspace)
@@ -69,7 +99,7 @@ final class WorkspaceConnectionTests: XCTestCase {
         XCTAssertTrue(store.documents.isEmpty)
         XCTAssertTrue(store.journalEntries.isEmpty)
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: localURL.path).isEmpty)
-        XCTAssertNil(defaults.data(forKey: "workspaceFolderBookmark"))
+        XCTAssertNil(defaults.data(forKey: WorkspaceStore.storageConnectionKey))
         XCTAssertNil(store.fileSyncError)
         XCTAssertNil(store.parseTask)
     }
@@ -127,7 +157,9 @@ final class WorkspaceConnectionTests: XCTestCase {
         let defaults = try startupDefaults()
         let bookmark = try savedURL.bookmarkData(options: .minimalBookmark,
                                                 includingResourceValuesForKeys: nil, relativeTo: nil)
-        defaults.set(bookmark, forKey: "workspaceFolderBookmark")
+        let connection = StorageConnection(provider: .local, displayName: "Saved folder",
+                                           rootID: savedURL.path, bookmark: bookmark)
+        defaults.set(try JSONEncoder().encode(connection), forKey: WorkspaceStore.storageConnectionKey)
         try "* TODO Saved folder task\n".write(to: savedURL.appendingPathComponent("inbox.org"),
                                                atomically: true, encoding: .utf8)
         let store = WorkspaceStore.startup(arguments: [])
@@ -204,7 +236,9 @@ final class WorkspaceConnectionTests: XCTestCase {
 
     func testInvalidBookmarkEndsLoadingAndKeepsErrorAvailable() async throws {
         let defaults = try startupDefaults()
-        defaults.set(Data("invalid bookmark".utf8), forKey: "workspaceFolderBookmark")
+        let connection = StorageConnection(provider: .local, displayName: "Unavailable folder",
+                                           rootID: "/unavailable", bookmark: Data("invalid bookmark".utf8))
+        defaults.set(try JSONEncoder().encode(connection), forKey: WorkspaceStore.storageConnectionKey)
         let localURL = try folder().appendingPathComponent("Workspace", isDirectory: true)
         let store = WorkspaceStore.startup(arguments: [])
         await store.startWorkspace(arguments: [], defaults: defaults, localWorkspaceURL: localURL)

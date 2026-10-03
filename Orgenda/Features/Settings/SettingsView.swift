@@ -18,7 +18,7 @@ struct SettingsView: View {
                     NavigationLink(value: SettingsDestination.workspace) {
                         SettingsRow(
                             icon: store.storageConnection?.provider.symbol ?? "folder",
-                            color: OrgendaTheme.accentText,
+                            color: .primary,
                             title: SettingsDestination.workspace.title,
                             subtitle: store.storageConnection?.providerSummary ?? store.workspaceName,
                             subtitleIcon: store.syncState.storageSymbol,
@@ -28,8 +28,6 @@ struct SettingsView: View {
                     .accessibilityValue([store.storageConnection?.provider.title, store.syncState.title]
                         .compactMap { $0 }.joined(separator: ", "))
                     .accessibilityIdentifier("settings.workspace")
-                } header: {
-                    Text(store.isWorkspaceReady ? store.workspaceName : String(localized: "Workspace"))
                 }
 
                 Section {
@@ -37,67 +35,46 @@ struct SettingsView: View {
                     settingsLink(.capture, icon: "square.and.pencil")
                     settingsLink(.files, icon: "doc.text")
                 } header: {
-                    Text("Org tasks")
+                    Text("Tasks & capture")
                 }
                 Section {
-                    Menu {
+                    settingsLink(.reminders, icon: "bell")
+                }
+                Section {
+                    Picker(selection: $appearance) {
                         ForEach(["System", "Light", "Dark"], id: \.self) { choice in
-                            Button {
-                                appearance = choice
-                            } label: {
-                                if appearance == choice {
-                                    Label(LocalizedStringKey(choice), systemImage: "checkmark")
-                                } else {
-                                    Text(LocalizedStringKey(choice))
-                                }
-                            }
-                            .accessibilityIdentifier("settings.appearance.\(choice.lowercased())")
+                            Text(LocalizedStringKey(choice))
+                                .tag(choice)
+                                .accessibilityIdentifier("settings.appearance.\(choice.lowercased())")
                         }
                     } label: {
-                        HStack {
-                            Label("Appearance", systemImage: "circle.lefthalf.filled")
-                                .foregroundStyle(.primary)
-                            Spacer(minLength: 8)
-                            Text(LocalizedStringKey(appearance)).foregroundStyle(.secondary)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
+                        Label("Appearance", systemImage: "circle.lefthalf.filled")
+                            .foregroundStyle(.primary)
                     }
+                    .pickerStyle(.menu)
                     .accessibilityIdentifier("settings.appearance")
-                    settingsLink(.reminders, icon: "bell")
                 } header: {
                     Text("On this device")
                 }
-                Section("Configuration tools") {
-                    settingsLink(.emacs, icon: "doc.on.clipboard")
+                Section("Advanced configuration") {
                     settingsLink(.configuration, icon: "curlybraces")
-                }
-                Section {
-                    Text("orgenda · Version \(appVersion)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .accessibilityIdentifier("settings.version")
                 }
             }
             .listStyle(.insetGrouped)
             .navigationBarTitleDisplayMode(.inline)
             .navigationTitle("Settings")
             .navigationDestination(for: SettingsDestination.self) { destination in
-                Group {
-                    switch destination {
-                    case .workspace: WorkspaceSettingsView(store: store)
-                    case .appearance: AppearanceSettingsView()
-                    case .emacs: ConfigurationPromptView(configuration: store.configuration)
-                    case .workflow, .capture, .files, .reminders, .configuration:
-                        ConfigurationSettingsView(store: store, destination: destination)
-                    }
+                switch destination {
+                case .workspace:
+                    WorkspaceSettingsView(store: store).toolbar { doneToolbar }
+                case .appearance:
+                    AppearanceSettingsView().toolbar { doneToolbar }
+                case .workflow, .capture, .files, .reminders, .configuration:
+                    ConfigurationSettingsView(store: store, destination: destination,
+                                              openWorkspace: { path.append(.workspace) })
                 }
-                .toolbar { doneToolbar }
             }
-            .toolbar { doneToolbar }
+            .toolbar { if path.isEmpty { doneToolbar } }
         }
         .tint(OrgendaTheme.accentText)
         .presentationDragIndicator(.visible)
@@ -107,28 +84,19 @@ struct SettingsView: View {
 
     private var doneToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Button("Done", systemImage: "checkmark") { dismiss() }
+            Button("Close", systemImage: "checkmark") { dismiss() }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
-                .accessibilityLabel("Done")
                 .accessibilityIdentifier("settings.done")
         }
     }
 
     private func settingsLink(_ destination: SettingsDestination, icon: String) -> some View {
         NavigationLink(value: destination) {
-            // The destination itself explains the options. Home stays a short
-            // list of tasks rather than another page of descriptions.
             Label(destination.title, systemImage: icon)
                 .foregroundStyle(.primary)
         }
         .accessibilityIdentifier("settings.\(destination.rawValue)")
-    }
-
-    private var appVersion: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
-        return "\(version) (\(build))"
     }
 
 }

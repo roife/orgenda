@@ -1,40 +1,40 @@
 import SwiftUI
 
 struct SettingsRow: View {
-    @ScaledMetric(relativeTo: .body) private var iconSize = 18.0
+    @ScaledMetric(relativeTo: .body) private var assetIconSize = 18.0
     let icon: String
     let color: Color
     let title: String
-    let subtitle: String
+    var subtitle: String = ""
     var subtitleIcon: String? = nil
     var isSelected: Bool? = nil
     var iconAsset: String? = nil
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            iconTile
-            text
-            selectionIndicator
+        Label {
+            HStack {
+                text
+                selectionIndicator
+            }
+        } icon: {
+            rowIcon
         }
-        .padding(.vertical, 4)
+        .labelStyle(.titleAndIcon)
         .accessibilityElement(children: .combine)
     }
 
-    private var iconTile: some View {
+    private var rowIcon: some View {
         Group {
             if let iconAsset {
                 Image(iconAsset)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: min(iconSize, 24), height: min(iconSize, 24))
+                    .frame(width: assetIconSize, height: assetIconSize)
             } else {
                 Image(systemName: icon)
             }
         }
-        .font(.system(size: min(iconSize, 24), weight: .medium))
         .foregroundStyle(color)
-        .frame(width: min(iconSize, 24) + 16, height: min(iconSize, 24) + 16)
-        .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
         .accessibilityHidden(true)
     }
 

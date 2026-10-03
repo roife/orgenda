@@ -6,9 +6,17 @@ struct AppearanceSettingsView: View {
     var body: some View {
         List {
             Section {
-                appearanceOption("System", subtitle: String(localized: "Match your device"), icon: "circle.lefthalf.filled")
-                appearanceOption("Light", subtitle: String(localized: "Always use a light appearance"), icon: "sun.max.fill")
-                appearanceOption("Dark", subtitle: String(localized: "Always use a dark appearance"), icon: "moon.fill")
+                Picker("Color scheme", selection: $appearance) {
+                    Text("System").tag("System")
+                        .accessibilityIdentifier("settings.appearance.system")
+                    Text("Light").tag("Light")
+                        .accessibilityIdentifier("settings.appearance.light")
+                    Text("Dark").tag("Dark")
+                        .accessibilityIdentifier("settings.appearance.dark")
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+                .accessibilityIdentifier("settings.appearance")
             } header: {
                 Text("Color scheme")
             }
@@ -19,15 +27,4 @@ struct AppearanceSettingsView: View {
         .navigationTitle("Appearance")
     }
 
-    private func appearanceOption(_ title: String, subtitle: String, icon: String) -> some View {
-        Button {
-            appearance = title
-        } label: {
-            SettingsRow(icon: icon, color: OrgendaTheme.accentText, title: String(localized: String.LocalizationValue(title)), subtitle: subtitle, isSelected: appearance == title)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(appearance == title ? .isSelected : [])
-        .accessibilityIdentifier("settings.appearance.\(title.lowercased())")
-    }
 }

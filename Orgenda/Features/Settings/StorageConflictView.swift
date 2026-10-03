@@ -13,23 +13,20 @@ struct StorageConflictsView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(conflict.path).font(.body.weight(.medium))
-                                Text(conflict.remoteContents == nil ? "Deleted at storage location" : "Changed on this device and at storage location")
+                                Text(LocalizedStringKey(conflict.remoteContents == nil ? "Deleted at storage location" : "Changed on this device and at storage location"))
                                     .font(.subheadline).foregroundStyle(.secondary)
                             }
                             .padding(.vertical, 4)
                         }
                         .accessibilityIdentifier("storage.conflict.\(conflict.path)")
                     }
-                } footer: {
-                    Text("Both versions are kept until you choose how to resolve each conflict.")
                 }
             }
         }
         .listStyle(.insetGrouped)
         .overlay {
             if store.syncConflicts.isEmpty {
-                ContentUnavailableView("No Conflicts", systemImage: "checkmark.circle",
-                                       description: Text("Your file versions are in sync."))
+                ContentUnavailableView("No Conflicts", systemImage: "checkmark.circle")
                     .orgendaEmptyState()
             }
         }
@@ -57,12 +54,8 @@ struct StorageConflictView: View {
         List {
             if let conflict {
                 Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(conflict.path).font(.headline)
-                        Text("Choose which changes to keep.")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    .listRowBackground(Color.clear)
+                    Text(conflict.path).font(.headline)
+                        .listRowBackground(Color.clear)
                 }
                 Section {
                     StorageVersionPreview(title: "On This Device", contents: conflict.localContents,
@@ -89,8 +82,6 @@ struct StorageConflictView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                     .accessibilityIdentifier("storage.conflict.keepBoth")
-                } footer: {
-                    Text("Keeps the remote version and saves your local edits as a separate file.")
                 }
                 Section {
                     Button("Use This Device's Version") {
@@ -101,8 +92,6 @@ struct StorageConflictView: View {
                         pendingResolution = ResolutionPrompt(resolution: .useRemote, conflict: conflict)
                     }
                         .accessibilityIdentifier("storage.conflict.useRemote")
-                } footer: {
-                    Text("A recovery copy is kept before replacing either version.")
                 }
                 if let error = store.fileSyncError {
                     Section("File changes need attention") {
@@ -114,8 +103,7 @@ struct StorageConflictView: View {
         .listStyle(.insetGrouped)
         .overlay {
             if conflict == nil {
-                ContentUnavailableView("Conflict Resolved", systemImage: "checkmark.circle",
-                                       description: Text("This file no longer needs your attention."))
+                ContentUnavailableView("Conflict Resolved", systemImage: "checkmark.circle")
                     .orgendaEmptyState()
             }
         }
@@ -127,7 +115,7 @@ struct StorageConflictView: View {
             get: { pendingResolution != nil }, set: { if !$0 { pendingResolution = nil } }
         ), titleVisibility: .visible) {
             if let pendingResolution {
-                Button(pendingResolution.resolution == .useLocal ? "Use This Device's Version" : "Use Storage Version", role: .destructive) {
+                Button(LocalizedStringKey(pendingResolution.resolution == .useLocal ? "Use This Device's Version" : "Use Storage Version"), role: .destructive) {
                     resolve(pendingResolution.resolution, expectedConflict: pendingResolution.conflict)
                     self.pendingResolution = nil
                 }

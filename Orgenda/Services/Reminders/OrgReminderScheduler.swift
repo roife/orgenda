@@ -39,7 +39,8 @@ enum OrgReminderPlan {
                 }
             }
         }
-        return Array(Dictionary(grouping: reminders, by: \.id).compactMap { $0.value.first }.sorted { $0.date < $1.date }.prefix(60))
+        let unique = Dictionary(reminders.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return Array(unique.values.sorted { $0.date < $1.date }.prefix(60))
     }
 
     /// Convenience entry point that parses the given documents first. Tests and

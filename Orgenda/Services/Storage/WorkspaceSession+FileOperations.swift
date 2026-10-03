@@ -245,7 +245,7 @@ extension WorkspaceSession {
         try manifest.entries.compactMap { path, entry in
             guard WorkspaceFileTransfer.contains(path, in: root), Self.isVisible(path) else { return nil }
             if entry.file.isDirectory { return Self.document(path: path, contents: "", kind: .folder) }
-            guard let kind = Self.documentKind(path), let blob = entry.blob else { return nil }
+            guard let kind = WorkspaceDocument.Kind(path: path), let blob = entry.blob else { return nil }
             return Self.document(path: path, contents: try text(blob), kind: kind)
         }
     }
@@ -303,7 +303,7 @@ extension WorkspaceSession {
         var hydrated: [String: SyncManifestEntry] = [:]
         for (path, entry) in manifest.entries where WorkspaceFileTransfer.contains(path, in: operation.sourcePath) {
             let restoredPath = operation.destinationPath + path.dropFirst(operation.sourcePath.count)
-            guard !entry.file.isDirectory, Self.isVisible(restoredPath), Self.documentKind(restoredPath) != nil,
+            guard !entry.file.isDirectory, Self.isVisible(restoredPath), WorkspaceDocument.Kind(path: restoredPath) != nil,
                   entry.blob == nil || entry.file.revision == nil else { continue }
             let result = try await remote.download(entry.file, maxBytes: textLimit)
             guard result.file.id == entry.file.id, result.file.path == path,

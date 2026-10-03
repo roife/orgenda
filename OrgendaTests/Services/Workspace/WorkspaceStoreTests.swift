@@ -199,6 +199,16 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(store.search(SettingsDestination.appearance.subtitle, scope: .settings), [.setting(.appearance)])
     }
 
+    func testEmacsPromptSearchOpensConfigurationPage() {
+        let store = WorkspaceStore()
+        for query in ["Emacs", "eMaCs", "prompt", "Copy prompt", "Full conversion prompt",
+                      "从 Emacs 提取", "從 Emacs 擷取", "复制提示词", "複製提示詞",
+                      "提示词", "提示詞", "转换", "轉換"] {
+            XCTAssertEqual(store.search(query, scope: .settings), [.setting(.configuration)], query)
+            XCTAssertEqual(store.search(query, scope: .all), [.setting(.configuration)], query)
+        }
+    }
+
     func testDisconnectedDocumentDoesNotReportSavedOrSessionOnly() {
         let store = WorkspaceStore(documents: [
             WorkspaceDocument(path: "inbox.org", title: "Inbox", contents: "", kind: .org)

@@ -13,6 +13,10 @@ configs:
   Debug: debug
   Release: release
 
+configFiles:
+  Debug: Configurations/CloudOAuth.xcconfig
+  Release: Configurations/CloudOAuth.xcconfig
+
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -23,13 +27,6 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
-    ORGENDA_ONEDRIVE_CLIENT_ID: ""
-    ORGENDA_ONEDRIVE_REDIRECT_URI: "orgenda-onedrive://oauth"
-    ORGENDA_GOOGLE_CLIENT_ID: ""
-    ORGENDA_GOOGLE_URL_SCHEME: "orgenda-google"
-    ORGENDA_GOOGLE_REDIRECT_URI: "$(ORGENDA_GOOGLE_URL_SCHEME):/oauth2redirect"
-    ORGENDA_DROPBOX_CLIENT_ID: ""
-    ORGENDA_DROPBOX_REDIRECT_URI: "orgenda-dropbox://oauth"
 
 packages:
   Highlighter:
@@ -47,6 +44,12 @@ targets:
     productName: orgenda
     platform: iOS
     deploymentTarget: "27.0"
+    preBuildScripts:
+      - name: Validate Cloud Sign-In
+        script: 'xcrun python3 "$SRCROOT/Scripts/cloud_oauth.py" validate-build'
+        inputFiles:
+          - $(SRCROOT)/Scripts/cloud_oauth.py
+        basedOnDependencyAnalysis: false
     sources:
       - path: Orgenda
         excludes:

@@ -3,11 +3,9 @@ import SwiftUI
 struct WorkspaceSettingsView: View {
     let store: WorkspaceStore
     @State private var picker: StoragePickerPresentation?
-    @State private var pendingAction: ConnectionAction?
+    @State private var isConfirmingDisconnect = false
     @State private var isConfirmingReload = false
     @State private var isDisconnecting = false
-
-    private enum ConnectionAction { case change, disconnect }
 
     private var hasPendingEdits: Bool {
         store.hasPendingStorageChanges
@@ -24,8 +22,6 @@ struct WorkspaceSettingsView: View {
                             .foregroundStyle(.red)
                     }
                     .accessibilityIdentifier("workspace.resolveConflict")
-                } footer: {
-                    Text("Both versions are kept until you choose how to resolve each conflict.")
                 }
             }
             Section("Storage Location") {
@@ -46,17 +42,13 @@ struct WorkspaceSettingsView: View {
                                 title: store.workspaceName, subtitle: store.workspaceLocation)
                 }
             }
-            Section {
+            Section("Sync Status") {
                 StorageSyncSummary(
                     state: store.syncState,
                     lastChecked: store.lastFileSync,
                     orgFileCount: store.documents.filter { $0.kind == .org }.count,
                     pendingUploadCount: store.pendingUploadCount
                 )
-            } header: {
-                Text("Sync Status")
-            } footer: {
-                Text(storageFooter).fixedSize(horizontal: false, vertical: true)
             }
             if let error = store.fileSyncError {
                 Section("File changes need attention") {
@@ -73,35 +65,34 @@ struct WorkspaceSettingsView: View {
                     }
                 }
             }
-            Section("Connection") {
+            Section {
                 if let connection = store.storageConnection, connection.provider.isRemote,
                    store.syncState == .authenticationRequired || (connection.provider.usesEmailAccount && connection.emailAddress == nil) {
                     StorageReconnectAction(store: store)
                 }
                 if store.isWorkspaceReady {
-                    Button(store.isSynchronizing ? "Syncing…" : "Sync Now", systemImage: "arrow.clockwise") {
+                    Button(LocalizedStringKey(store.isSynchronizing ? "Syncing…" : "Sync Now"), systemImage: "arrow.clockwise") {
                         Task { await store.synchronizeFiles() }
                     }
                     .disabled(store.isSynchronizing || isDisconnecting)
                     .accessibilityIdentifier("workspace.refresh")
                 }
-                Button(store.storageConnection == nil ? "Choose Storage Location" : "Change Storage Location",
+                Button(LocalizedStringKey(store.storageConnection == nil ? "Choose Storage Location" : "Change Storage Location"),
                        systemImage: "arrow.left.arrow.right") {
-                    if hasPendingEdits { pendingAction = .change }
-                    else { picker = StoragePickerPresentation(preservePending: false) }
+                    picker = StoragePickerPresentation(preservePending: hasPendingEdits)
                 }
                 .disabled(store.isSynchronizing || isDisconnecting)
                 .accessibilityIdentifier("workspace.chooseFolder")
+            } header: {
+                Text("Connection")
             }
             if store.storageConnection != nil {
                 Section {
                     Button("Disconnect", systemImage: "link.badge.minus", role: .destructive) {
-                        pendingAction = .disconnect
+                        isConfirmingDisconnect = true
                     }
                     .disabled(store.isSynchronizing || isDisconnecting)
                     .accessibilityIdentifier("workspace.disconnect")
-                } footer: {
-                    Text("Disconnects this device. Files at the storage location are kept.")
                 }
             }
         }
@@ -113,30 +104,21 @@ struct WorkspaceSettingsView: View {
         .sheet(item: $picker) { presentation in
             StorageProviderPicker(store: store, preservePending: presentation.preservePending)
         }
-        .confirmationDialog(confirmationTitle, isPresented: Binding(
-            get: { pendingAction != nil }, set: { if !$0 { pendingAction = nil } }
-        ), titleVisibility: .visible) {
-            if pendingAction == .change {
-                Button("Keep Copies and Continue") {
-                    picker = StoragePickerPresentation(preservePending: true)
-                    pendingAction = nil
-                }
-            } else {
-                Button(hasPendingEdits ? "Keep Copies and Disconnect" : "Disconnect", role: .destructive) {
-                    let preserve = hasPendingEdits
-                    pendingAction = nil
-                    isDisconnecting = true
-                    Task {
-                        _ = await store.disconnectStorage(preservePending: preserve)
-                        isDisconnecting = false
-                    }
+        .confirmationDialog("Disconnect this workspace?", isPresented: $isConfirmingDisconnect, titleVisibility: .visible) {
+            Button(LocalizedStringKey(hasPendingEdits ? "Keep Copies and Disconnect" : "Disconnect"), role: .destructive) {
+                let preserve = hasPendingEdits
+                isConfirmingDisconnect = false
+                isDisconnecting = true
+                Task {
+                    _ = await store.disconnectStorage(preservePending: preserve)
+                    isDisconnecting = false
                 }
             }
-            Button("Cancel", role: .cancel) { pendingAction = nil }
+            Button("Cancel", role: .cancel) { isConfirmingDisconnect = false }
         } message: {
-            Text(hasPendingEdits
+            Text(LocalizedStringKey(hasPendingEdits
                  ? "Unsynced edits will be kept in orgenda → Unsaved Edits before leaving this workspace. They will not be uploaded to the new location."
-                 : "Files at this storage location will remain unchanged. You can connect again later.")
+                 : "Files at this storage location will remain unchanged. You can connect again later."))
         }
         .confirmationDialog("Reload folder versions?", isPresented: $isConfirmingReload, titleVisibility: .visible) {
             Button("Keep Copies and Reload", role: .destructive) {
@@ -145,17 +127,6 @@ struct WorkspaceSettingsView: View {
         } message: {
             Text("Pending edits will be saved in orgenda → Unsaved Edits before the folder versions replace them in orgenda. Files in the connected folder will not be changed.")
         }
-    }
-
-    private var confirmationTitle: LocalizedStringKey {
-        pendingAction == .change ? "Change storage location?" : "Disconnect this workspace?"
-    }
-
-    private var storageFooter: String {
-        if store.storageConnection?.provider == .iCloud {
-            return String(localized: "Edits save on this device first, then to the selected folder. iCloud manages cloud uploads.")
-        }
-        return String(localized: "Edits save on this device first. Downloaded text files remain available offline.")
     }
 }
 

@@ -13,3 +13,6 @@ __pycache__/
 *.py[cod]
 /artifacts/
 /References/qa/
+
+# Publisher-specific public OAuth application identifiers
+/Configurations/CloudOAuth.local.xcconfig

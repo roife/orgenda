@@ -220,8 +220,7 @@ private struct UTF16RangeMap {
               endByte > startByte,
               endByte < offsets.count,
               let location = offsets[startByte],
-              let upperBound = offsets[endByte],
-              upperBound >= location
+              let upperBound = offsets[endByte]
         else { return nil }
 
         return NSRange(location: location, length: upperBound - location)

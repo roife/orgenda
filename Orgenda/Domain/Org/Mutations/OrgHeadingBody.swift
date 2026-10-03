@@ -25,14 +25,14 @@ enum OrgHeadingBody {
         }
     }
 
-    private static let timestampOnlyExpression = try? NSRegularExpression(
+    private static let timestampOnlyExpression = try! NSRegularExpression(
         pattern: #"^<\d{4}-\d{2}-\d{2}[^>\r\n]*>(?:--<\d{4}-\d{2}-\d{2}[^>\r\n]*>)?$"#
     )
 
     private static func isTimestampOnly(_ node: ParsedOrgNode) -> Bool {
         guard node.type == "paragraph" else { return false }
         let text = node.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return timestampOnlyExpression?
+        return timestampOnlyExpression
             .firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 }

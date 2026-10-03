@@ -20,7 +20,6 @@ struct FilesView: View {
     @State private var selectedPath: String?
     @State private var isSettingsPresented = false
     @State private var isTrashPresented = false
-    @State private var revealedPath: String?
     @State private var navigationPath: [String] = []
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
@@ -77,7 +76,6 @@ struct FilesView: View {
             guard !Task.isCancelled else { return }
             isSettingsPresented = false
             isTrashPresented = false
-            revealedPath = nil
             activeLocationRequest = request
             if UIDevice.current.userInterfaceIdiom == .phone {
                 navigationPath = request.paths
@@ -93,7 +91,6 @@ struct FilesView: View {
         }
         .onChange(of: store.workspaceFileSessionID) { _, _ in
             navigationRequest = nil
-            revealedPath = nil
             isTrashPresented = false
             clearSelection()
         }
@@ -132,8 +129,7 @@ struct FilesView: View {
                             WorkspaceBrowserRow(
                                 store: store,
                                 document: document,
-                                isSelected: selection?.wrappedValue == document.path,
-                                revealedPath: $revealedPath
+                                isSelected: selection?.wrappedValue == document.path
                             ) {
                                 if let selection { selection.wrappedValue = document.path }
                                 else { navigationPath.append(document.path) }
@@ -155,6 +151,7 @@ struct FilesView: View {
                 }
             }
         }
+        .swipeActionsContainer()
         .defaultScrollAnchor(documents.isEmpty ? .center : .top, for: .alignment)
         .background(Color.clear)
         .accessibilityIdentifier("files.browser")

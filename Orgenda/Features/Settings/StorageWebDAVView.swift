@@ -10,6 +10,7 @@ struct StorageWebDAVView: View {
     @State private var directory = "/Orgenda"
     @State private var isConnecting = false
     @State private var connectionError: String?
+    @State private var pendingConfiguration: WebDAVConfiguration?
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable { case server, username, password, directory }
@@ -49,15 +50,13 @@ struct StorageWebDAVView: View {
                 }
             } header: {
                 Text("Workspace")
-            } footer: {
-                Text("Files save on this device first, then sync to the server.")
             }
             Section {
                 Button(action: connect) {
                     HStack {
                         Spacer(minLength: 0)
                         if isConnecting { ProgressView().tint(.white) }
-                        Text(isConnecting ? "Connecting…" : "Test & Connect").fontWeight(.semibold)
+                        Text(LocalizedStringKey(isConnecting ? "Connecting…" : "Test & Connect")).fontWeight(.semibold)
                         Spacer(minLength: 0)
                     }
                     .padding(.vertical, 8)
@@ -68,8 +67,6 @@ struct StorageWebDAVView: View {
                 .listRowBackground(Color.clear)
                 .disabled(serverURL.isEmpty || username.isEmpty || password.isEmpty || directory.isEmpty || isConnecting)
                 .accessibilityIdentifier("storage.webDAV.connect")
-            } footer: {
-                Text("Connect a WebDAV server or NAS using HTTPS. Your password is stored securely on this device.")
             }
             if let connectionError {
                 Section("Could Not Connect") {
@@ -88,6 +85,24 @@ struct StorageWebDAVView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isConnecting)
         .interactiveDismissDisabled(isConnecting)
+        .confirmationDialog("Change storage location?", isPresented: Binding(
+            get: { pendingConfiguration != nil },
+            set: { if !$0 { pendingConfiguration = nil } }
+        ), titleVisibility: .visible, presenting: pendingConfiguration) { configuration in
+            Button(LocalizedStringKey(shouldPreservePending ? "Keep Copies and Change Location" : "Change Location")) {
+                pendingConfiguration = nil
+                performConnection(configuration)
+            }
+            Button("Cancel", role: .cancel) { pendingConfiguration = nil }
+        } message: { configuration in
+            if let current = store.storageConnection, let server = URL(string: configuration.serverURL) {
+                let destination = configuration.directory.split(separator: "/").reduce(server) {
+                    $0.appendingPathComponent(String($1), isDirectory: true)
+                }
+                Text(StorageLocationChange.message(current: current, destination: destination.absoluteString,
+                                                   preservePending: shouldPreservePending))
+            }
+        }
         .onSubmit {
             switch focusedField {
             case .server: focusedField = .username
@@ -123,11 +138,22 @@ struct StorageWebDAVView: View {
             return
         }
         connectionError = nil
-        isConnecting = true
         let configuration = WebDAVConfiguration(serverURL: address, username: user,
                                                 password: password, directory: remoteDirectory)
+        if store.storageConnection != nil {
+            pendingConfiguration = configuration
+        } else {
+            performConnection(configuration)
+        }
+    }
+
+    private var shouldPreservePending: Bool { preservePending || store.hasPendingStorageChanges }
+
+    private func performConnection(_ configuration: WebDAVConfiguration) {
+        isConnecting = true
+        let preserve = shouldPreservePending
         Task {
-            let connected = await store.connectWebDAV(configuration, preservePending: preservePending)
+            let connected = await store.connectWebDAV(configuration, preservePending: preserve)
             isConnecting = false
             if connected { dismiss() }
             else { connectionError = store.fileSyncError }

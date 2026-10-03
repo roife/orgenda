@@ -3,9 +3,21 @@ import SwiftUI
 struct AgendaStartupSkeleton: View {
     let date: Date
     let showsCalendar: Bool
+    let compactRows: Bool
     @Environment(\.orgendaCalendarMinimumDensity) private var minimumDensity
-    @ScaledMetric(relativeTo: .body) private var titleHeight = 16.0
-    @ScaledMetric(relativeTo: .footnote) private var detailHeight = 11.0
+
+    // Reuse the real row typography and layout so Dynamic Type and future row
+    // changes also apply to the loading state. These items never reach the store.
+    private static let placeholderItems = (0..<3).map { _ in
+        OrgItem(
+            id: UUID(), title: String(localized: "Loading workspace"),
+            state: .todo, kind: .task, priority: .none, tags: [],
+            scheduled: nil, deadline: nil, hasTime: false, durationMinutes: 0,
+            recurrence: nil, body: "",
+            source: SourceLocation(file: "inbox.org", startByte: 0, endByte: 0, startLine: 1),
+            habitHistory: []
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,35 +36,24 @@ struct AgendaStartupSkeleton: View {
                 VStack(alignment: .leading, spacing: showsCalendar ? 12 : 20) {
                     ForEach(0..<3) { section in
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                placeholder(width: section == 0 ? 148 : 112, height: titleHeight)
-                                Spacer(minLength: 16)
-                                placeholder(width: 18, height: detailHeight)
-                            }
-                            .padding(.vertical, 8)
-                            ForEach(0..<(section == 0 ? 3 : 2), id: \.self) { row in
-                                HStack(alignment: .top, spacing: 2) {
-                                    Circle()
-                                        .strokeBorder(Color(uiColor: .tertiaryLabel), lineWidth: 2)
-                                        .frame(width: 21, height: 21)
-                                        .frame(width: 44, height: 44)
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        placeholder(width: row.isMultiple(of: 2) ? 252 : 192, height: titleHeight)
-                                        placeholder(width: row.isMultiple(of: 2) ? 120 : 88, height: detailHeight)
-                                    }
-                                    .padding(.vertical, 9)
-                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                                }
-                                .padding(.leading, -8)
+                            AgendaDayHeader(date: date.adding(days: section), count: section == 0 ? 3 : 2)
+                            ForEach(Self.placeholderItems.prefix(section == 0 ? 3 : 2)) { item in
+                                OrgItemRow(
+                                    item: item, onToggle: {}, onOpen: {},
+                                    topPadding: compactRows ? 4.5 : 9,
+                                    bottomPadding: compactRows ? 6 : 9,
+                                    allowsSwipeActions: false
+                                )
+                                .padding(.horizontal, 16)
                             }
                         }
                     }
                 }
-                .padding(.horizontal, 16)
                 .padding(.top, showsCalendar ? 0 : 12)
                 .padding(.bottom, 24)
                 .frame(maxWidth: 760)
                 .frame(maxWidth: .infinity)
+                .redacted(reason: .placeholder)
             }
             .scrollDisabled(true)
             .scrollIndicators(.hidden)
@@ -63,12 +64,5 @@ struct AgendaStartupSkeleton: View {
         .accessibilityLabel("Loading workspace")
         .accessibilityValue(showsCalendar ? "Calendar" : "Dashboard")
         .accessibilityIdentifier("workspace.loading")
-    }
-
-    private func placeholder(width: CGFloat, height: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(Color(uiColor: .quaternaryLabel))
-            .frame(maxWidth: width)
-            .frame(height: height)
     }
 }

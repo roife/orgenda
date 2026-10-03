@@ -1,92 +1,67 @@
 import SwiftUI
 
 struct WorkspaceBrowserRow: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let store: WorkspaceStore
     let document: WorkspaceDocument
     var showsPath = false
     var isSelected = false
-    @Binding var revealedPath: String?
     let onOpen: () -> Void
-    @State private var offset: CGFloat = 0
-    @State private var start: CGFloat = 0
     @State private var dropTargeted = false
     @State private var deletion: WorkspaceFileTransfer?
     @State private var moveRequest: WorkspaceFileTransfer?
 
     var body: some View {
-        ZStack {
-            HStack(alignment: .top, spacing: 14) {
-                Image(systemName: document.kind == .folder ? "folder.fill" : "doc.text")
-                    .font(.system(size: 20))
-                    .foregroundStyle(document.kind == .folder ? Color.orange : OrgendaTheme.accentText)
-                    .frame(width: 24, height: 56)
-                    .contentShape(Rectangle())
-                    .draggable(store.fileTransfer(document))
-                    .onTapGesture {
-                        if offset != 0 { close() } else { onOpen() }
-                    }
-                    .accessibilityLabel(document.title)
-                    .accessibilityIdentifier("files.drag.\(document.path)")
-                Button {
-                    if offset != 0 { close() } else { onOpen() }
-                } label: {
-                    HStack(spacing: 8) {
-                        WorkspaceFileRow(
-                            document: document,
-                            showsPath: showsPath,
-                            showsIcon: false,
-                            headingCount: store.parsedDocuments[document.path]?.headings.count
-                        )
-                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
-                    }
-                    .padding(.vertical, 6)
-                    .frame(minHeight: 56)
-                    .contentShape(Rectangle())
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: document.kind == .folder ? "folder.fill" : "doc.text")
+                .font(.system(size: 20))
+                .foregroundStyle(document.kind == .folder ? Color.orange : OrgendaTheme.accentText)
+                .frame(width: 24, height: 56)
+                .contentShape(Rectangle())
+                .draggable(store.fileTransfer(document))
+                .onTapGesture(perform: onOpen)
+                .accessibilityLabel(document.title)
+                .accessibilityIdentifier("files.drag.\(document.path)")
+            Button(action: onOpen) {
+                HStack(spacing: 8) {
+                    WorkspaceFileRow(
+                        document: document,
+                        showsPath: showsPath,
+                        showsIcon: false,
+                        headingCount: store.parsedDocuments[document.path]?.headings.count
+                    )
+                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("files.open.\(document.path)")
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-                .contextMenu {
-                    Button("Open", systemImage: document.kind == .folder ? "folder" : "doc.text") {
-                        close()
-                        onOpen()
-                    }
-                    .accessibilityIdentifier("files.context.open")
-                    Button("Move", systemImage: "folder") {
-                        close()
-                        moveRequest = store.fileTransfer(document)
-                    }
-                    .accessibilityIdentifier("files.context.move")
-                    Button("Delete", systemImage: "trash", role: .destructive) {
-                        close()
-                        deletion = store.fileTransfer(document)
-                    }
-                    .accessibilityIdentifier("files.context.delete")
-                } preview: {
-                    WorkspaceDocumentContextPreview(document: document, store: store)
-                }
+                .padding(.vertical, 6)
+                .frame(minHeight: 56)
+                .contentShape(Rectangle())
             }
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(OrgendaTheme.accentText.opacity(0.14))
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("files.open.\(document.path)")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+            .contextMenu {
+                Button("Open", systemImage: document.kind == .folder ? "folder" : "doc.text") {
+                    onOpen()
                 }
+                .accessibilityIdentifier("files.context.open")
+                Button("Move", systemImage: "folder") {
+                    moveRequest = store.fileTransfer(document)
+                }
+                .accessibilityIdentifier("files.context.move")
+                Button("Delete", systemImage: "trash", role: .destructive) {
+                    deletion = store.fileTransfer(document)
+                }
+                .accessibilityIdentifier("files.context.delete")
+            } preview: {
+                WorkspaceDocumentContextPreview(document: document, store: store)
             }
-            .contentShape(Rectangle())
-            .offset(x: offset)
-            .gesture(OrgendaHorizontalPan(onChange: { translation, began in
-                if began { start = offset; revealedPath = document.path }
-                offset = min(0, max(-132, start + translation))
-            }, onEnd: { translation, _, cancelled in
-                withAnimation(OrgendaMotion.geometryAnimation(.selection, reduceMotion: reduceMotion)) {
-                    offset = !cancelled && start + translation < -45 ? -132 : 0
-                }
-                if offset == 0 { revealedPath = nil }
-            }))
-            if offset < 0 { actions }
         }
-        .clipped()
+        .background {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(OrgendaTheme.accentText.opacity(0.14))
+            }
+        }
+        .contentShape(Rectangle())
         .overlay {
             if dropTargeted && document.kind == .folder {
                 RoundedRectangle(cornerRadius: 12)
@@ -98,7 +73,6 @@ struct WorkspaceBrowserRow: View {
         .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
             guard document.kind == .folder, files.count == 1, let file = files.first,
                   store.canMoveFile(file, to: document.path) else { return false }
-            close()
             Task { OrgendaHaptics.result(await store.moveFile(file, to: document.path)) }
             return true
         } isTargeted: { dropTargeted = $0 }
@@ -106,14 +80,22 @@ struct WorkspaceBrowserRow: View {
             Button("Move") { moveRequest = store.fileTransfer(document) }
             Button("Delete") { deletion = store.fileTransfer(document) }
         }
-        .onChange(of: revealedPath) { _, path in
-            if path != document.path { withAnimation(OrgendaMotion.geometryAnimation(.selection, reduceMotion: reduceMotion)) { offset = 0 } }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("Delete", systemImage: "trash") {
+                deletion = store.fileTransfer(document)
+            }
+            .tint(.red)
+            .accessibilityIdentifier("files.swipe.delete")
+            Button("Move", systemImage: "folder") {
+                moveRequest = store.fileTransfer(document)
+            }
+            .tint(OrgendaTheme.accent)
+            .accessibilityIdentifier("files.swipe.move")
         }
         .alert("Delete \(document.title)?", isPresented: Binding(
             get: { deletion != nil }, set: { if !$0 { deletion = nil } }
         ), presenting: deletion) { file in
             Button("Delete", role: .destructive) {
-                close()
                 Task { OrgendaHaptics.result(await store.deleteFile(file)) }
             }
             Button("Cancel", role: .cancel) {}
@@ -126,43 +108,6 @@ struct WorkspaceBrowserRow: View {
             WorkspaceMoveSheet(store: store, transfer: file)
                 .presentationDragIndicator(.visible)
         }
-    }
-
-    private var actions: some View {
-        HStack {
-            Spacer(minLength: 0)
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 12) {
-                    Button { close(); moveRequest = store.fileTransfer(document) } label: {
-                        Image(systemName: "folder")
-                            .font(.system(size: 20, weight: .medium)).foregroundStyle(.white)
-                            .frame(width: 48, height: 48)
-                            .glassEffect(.regular.tint(OrgendaTheme.accent).interactive(), in: .circle)
-                            .contentShape(Circle())
-                    }
-                    .accessibilityLabel("Move")
-                    .accessibilityIdentifier("files.swipe.move")
-                    Button { deletion = store.fileTransfer(document) } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 20, weight: .medium)).foregroundStyle(.white)
-                            .frame(width: 48, height: 48)
-                            .glassEffect(.regular.tint(.red).interactive(), in: .circle)
-                            .contentShape(Circle())
-                    }
-                    .accessibilityLabel("Delete")
-                    .accessibilityIdentifier("files.swipe.delete")
-                }
-            }
-            .opacity(min(-offset / 132, 1))
-            .scaleEffect(reduceMotion ? 1 : 0.86 + 0.14 * min(-offset / 132, 1))
-            .padding(.horizontal, 12)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func close() {
-        revealedPath = nil
-        withAnimation(OrgendaMotion.geometryAnimation(.selection, reduceMotion: reduceMotion)) { offset = 0 }
     }
 }
 

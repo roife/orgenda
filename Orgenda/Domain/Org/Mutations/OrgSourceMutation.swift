@@ -239,7 +239,7 @@ extension OrgSourceMutation {
                     moveTimestamps(in: &draft, to: newDate,
                                    includesTime: keyword == .closed || item.hasTime,
                                    durationMinutes: durationChanged ? item.durationMinutes : nil)
-                    if recurrenceChanged { draft.timestamps[0].setRecurrence(item.recurrence) }
+                    if recurrenceChanged { draft.timestamps[0].recurrence = item.recurrence }
                     replacement = draft.source
                 }
                 edits.append(OrgSourceMutation(
@@ -263,7 +263,7 @@ extension OrgSourceMutation {
                 if let eventNode, var draft = OrgPlanningEntryDraft(timestampSource: eventNode.text) {
                     moveTimestamps(in: &draft, to: date, includesTime: item.hasTime,
                                    durationMinutes: original.durationMinutes != item.durationMinutes ? item.durationMinutes : nil)
-                    if original.recurrence != item.recurrence { draft.timestamps[0].setRecurrence(item.recurrence) }
+                    if original.recurrence != item.recurrence { draft.timestamps[0].recurrence = item.recurrence }
                     eventReplacement = draft.source
                 } else {
                     eventReplacement = activeTimestampSource(date: date, hasTime: item.hasTime,

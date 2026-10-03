@@ -60,9 +60,9 @@ enum ConfiguredCapture {
         var result = template
         for expansion in try expansions(in: template).reversed() {
             let replacement: String
-            if expansion.prompt != nil {
+            if let prompt = expansion.prompt {
                 guard let answer = answers[expansion.id] ?? expansion.choices.first else {
-                    throw ConfigurationFailure(message: "capture: answer required for \(expansion.prompt!).")
+                    throw ConfigurationFailure(message: "capture: answer required for \(prompt).")
                 }
                 replacement = answer
             } else {
@@ -156,7 +156,7 @@ enum ConfiguredCapture {
                 guard ["planning", "property_drawer", "drawer", "blank_line"].contains(node.type) else { break }
                 insertion = node.endByte
             }
-        } else if template.prepend, parent == nil {
+        } else if template.prepend {
             // File keywords must stay in the preamble, before captured entries.
             insertion = headings.first?.startByte ?? source.utf8.count
         }
@@ -178,7 +178,7 @@ enum ConfiguredCapture {
             guard source.hasPrefix("* ") else { throw ConfigurationFailure(message: "capture: entry templates must begin with '* '.") }
             // Use the parser so stars inside blocks remain literal.
             let document = WorkspaceDocument(path: "capture.org", title: "", contents: source, kind: .org)
-            guard let parsed = OrgIndexService.parseSynchronously([document]).first else { return source }
+            let parsed = OrgIndexService.parseSynchronously([document])[0]
             return try parsed.root.children.filter { $0.type == "heading" }.reversed().reduce(source) { result, heading in
                 let count = heading.text.prefix(while: { $0 == "*" }).count
                 return try OrgSourceMutation(startByte: heading.startByte, endByte: heading.startByte + count,

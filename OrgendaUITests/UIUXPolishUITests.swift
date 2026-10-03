@@ -117,7 +117,7 @@ final class UIUXPolishUITests: XCTestCase {
         XCTAssertTrue(workflow.exists)
 
         app.buttons["org.document.outline.filter"].tap()
-        let waiting = app.buttons["org.outline.filter.state.WAIT"]
+        let waiting = app.switches["org.outline.filter.state.WAIT"]
         XCTAssertTrue(waiting.waitForExistence(timeout: 3))
         waiting.tap()
         app.buttons["org.outline.filter.done"].tap()

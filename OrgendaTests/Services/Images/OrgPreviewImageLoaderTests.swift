@@ -10,9 +10,9 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         let backend = ImageWorkspaceBackend(bytes: try imageData(width: 12, height: 8))
         let connection = StorageConnection(provider: .webDAV, displayName: "Images", rootID: "/org")
         let store = try WorkspaceSession(connection: connection, cacheDirectory: root, remote: backend)
-        try await store.initialize()
+        try await store.synchronize()
         let image = try await OrgPreviewImageLoader().load(
-            candidates: ["missing.png", "image.png"], fileStore: store, workspaceID: connection.id)
+            candidates: ["missing.png", "image.png"], fileStore: store)
         XCTAssertEqual(image.size.width, 12)
         XCTAssertEqual(image.size.height, 8)
     }
@@ -23,7 +23,7 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         try imageData(width: 12, height: 8).write(to: root.appendingPathComponent("image.png"))
         let image = try await OrgPreviewImageLoader().load(
             candidates: ["missing.png", "image.png"],
-            fileStore: WorkspaceFileStore(rootURL: root), workspaceID: UUID())
+            fileStore: WorkspaceFileStore(rootURL: root))
         XCTAssertEqual(image.size.width, 12)
         XCTAssertEqual(image.size.height, 8)
     }
@@ -34,11 +34,10 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         let url = root.appendingPathComponent("image.png")
         let loader = OrgPreviewImageLoader()
         let store = WorkspaceFileStore(rootURL: root)
-        let workspace = UUID()
         try imageData(width: 12, height: 8).write(to: url)
-        let first = try await loader.load(candidates: ["image.png"], fileStore: store, workspaceID: workspace)
+        let first = try await loader.load(candidates: ["image.png"], fileStore: store)
         try imageData(width: 20, height: 10).write(to: url, options: .atomic)
-        let second = try await loader.load(candidates: ["image.png"], fileStore: store, workspaceID: workspace)
+        let second = try await loader.load(candidates: ["image.png"], fileStore: store)
         XCTAssertEqual(first.size.width, 12)
         XCTAssertEqual(second.size.width, 20)
     }
@@ -51,13 +50,13 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         let loader = OrgPreviewImageLoader()
         let store = WorkspaceFileStore(rootURL: root)
         do {
-            _ = try await loader.load(candidates: ["../outside.png", "image.png"], fileStore: store, workspaceID: UUID())
+            _ = try await loader.load(candidates: ["../outside.png", "image.png"], fileStore: store)
             XCTFail("An unsafe first candidate must not be concealed by a valid fallback")
         } catch let failure as WorkspaceFileStore.Failure {
             XCTAssertEqual(failure, .unsafePath("../outside.png"))
         }
         do {
-            _ = try await loader.load(candidates: ["damaged.png", "image.png"], fileStore: store, workspaceID: UUID())
+            _ = try await loader.load(candidates: ["damaged.png", "image.png"], fileStore: store)
             XCTFail("A damaged first candidate must not silently choose another image")
         } catch let failure as OrgPreviewImageLoader.Failure {
             XCTAssertEqual(failure, .unsupportedFormat)
@@ -71,7 +70,7 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         let session = mockSession()
         defer { session.invalidateAndCancel() }
         let image = try await OrgPreviewImageLoader(session: session).load(
-            candidates: [url.absoluteString], fileStore: nil, workspaceID: UUID())
+            candidates: [url.absoluteString], fileStore: nil)
         XCTAssertEqual(image.size.width, 12)
         XCTAssertEqual(image.size.height, 8)
         // The protocol registry matches the complete URL, including its query.
@@ -84,7 +83,7 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         try imageData(width: 400, height: 200, type: UTType.jpeg.identifier, orientation: 6)
             .write(to: root.appendingPathComponent("rotated.jpg"))
         let image = try await OrgPreviewImageLoader(maxPixelDimension: 160).load(
-            candidates: ["rotated.jpg"], fileStore: WorkspaceFileStore(rootURL: root), workspaceID: UUID())
+            candidates: ["rotated.jpg"], fileStore: WorkspaceFileStore(rootURL: root))
         XCTAssertEqual(image.size.width, 80)
         XCTAssertEqual(image.size.height, 160)
         XCTAssertEqual(image.imageOrientation, .up)
@@ -104,7 +103,7 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         let loader = OrgPreviewImageLoader(session: session, maxBytes: 16)
         for url in [advertisedURL, streamedURL] {
             do {
-                _ = try await loader.load(candidates: [url.absoluteString], fileStore: nil, workspaceID: UUID())
+                _ = try await loader.load(candidates: [url.absoluteString], fileStore: nil)
                 XCTFail("An image exceeding the byte budget must fail")
             } catch let failure as OrgPreviewImageLoader.Failure {
                 XCTAssertEqual(failure, .tooLarge)
@@ -126,7 +125,7 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         let loader = OrgPreviewImageLoader(session: session)
         for (url, expected) in [(missingURL, OrgPreviewImageLoader.Failure.httpStatus(404)), (damagedURL, .unsupportedFormat)] {
             do {
-                _ = try await loader.load(candidates: [url.absoluteString], fileStore: nil, workspaceID: UUID())
+                _ = try await loader.load(candidates: [url.absoluteString], fileStore: nil)
                 XCTFail("Invalid response accepted")
             } catch let failure as OrgPreviewImageLoader.Failure {
                 XCTAssertEqual(failure, expected)
@@ -143,7 +142,7 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         defer { ImageLoadingURLProtocol.unregister(url) }
         for source in ["https://user:secret@images.example.test/image.png", url.absoluteString] {
             do {
-                _ = try await loader.load(candidates: [source], fileStore: nil, workspaceID: UUID())
+                _ = try await loader.load(candidates: [source], fileStore: nil)
                 XCTFail("Unsafe URL accepted")
             } catch let failure as OrgPreviewImageLoader.Failure {
                 XCTAssertEqual(failure, .invalidURL)
@@ -159,7 +158,7 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         defer { session.invalidateAndCancel() }
         do {
             _ = try await OrgPreviewImageLoader(session: session).load(
-                candidates: [url.absoluteString], fileStore: nil, workspaceID: UUID())
+                candidates: [url.absoluteString], fileStore: nil)
             XCTFail("ATS failure was ignored")
         } catch let failure as OrgPreviewImageLoader.Failure {
             XCTAssertEqual(failure, .requiresHTTPS)
@@ -177,7 +176,7 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         defer { session.invalidateAndCancel() }
         let loader = OrgPreviewImageLoader(session: session)
         let task = Task {
-            try await loader.load(candidates: [url.absoluteString], fileStore: nil, workspaceID: UUID())
+            try await loader.load(candidates: [url.absoluteString], fileStore: nil)
         }
         await fulfillment(of: [started], timeout: 3)
         task.cancel()

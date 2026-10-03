@@ -36,6 +36,7 @@ struct AgendaTodoList<Row: View>: View {
                 .frame(maxWidth: .infinity)
             }
         }
+        .swipeActionsContainer()
         .defaultScrollAnchor(items.isEmpty ? .center : .top, for: .alignment)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("agenda.view.todos")
@@ -84,6 +85,7 @@ struct AgendaOverdueList<Row: View>: View {
                 .frame(maxWidth: .infinity)
             }
         }
+        .swipeActionsContainer()
         .defaultScrollAnchor(items.isEmpty ? .center : .top, for: .alignment)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("agenda.view.overdue")

@@ -27,14 +27,14 @@ enum OrgPlanningKeyword: String, CaseIterable, Identifiable, Sendable {
 }
 
 struct OrgPlanningTimestampDraft: Hashable, Sendable {
-    private static let sameDayTimeExpression = try? NSRegularExpression(pattern: #"^-\d{2}:\d{2}"#)
-    private static let recurrenceTokenExpression = try? NSRegularExpression(
+    private static let sameDayTimeExpression = try! NSRegularExpression(pattern: #"^-\d{2}:\d{2}"#)
+    private static let recurrenceTokenExpression = try! NSRegularExpression(
         pattern: #"(?<!\S)(?:\+\+|\.\+|\+)\d+[hdwmy](?:/\d+[hdwmy])?(?!\S)"#
     )
 
     /// Range of a leading `-HH:MM` same-day end time in the given suffix text.
     static func sameDayTimeRange(in text: String) -> Range<String.Index>? {
-        sameDayTimeExpression?
+        sameDayTimeExpression
             .firstMatch(in: text, range: NSRange(text.startIndex..., in: text))
             .flatMap { Range($0.range, in: text) }
     }
@@ -52,11 +52,6 @@ struct OrgPlanningTimestampDraft: Hashable, Sendable {
 
     /// Read-only annotation source for presentation; editing still preserves every token.
     var trailingText: String { sourceSuffix }
-
-    /// Only the repeater token changes; warning offsets and time ranges stay intact.
-    mutating func setRecurrence(_ recurrence: String?) {
-        self.recurrence = recurrence
-    }
 
     fileprivate var sourceSuffix: String {
         var suffix = suffix
@@ -88,7 +83,7 @@ struct OrgPlanningTimestampDraft: Hashable, Sendable {
     }
 
     fileprivate static func recurrenceRange(in suffix: String) -> Range<String.Index>? {
-        recurrenceTokenExpression?
+        recurrenceTokenExpression
             .firstMatch(in: suffix, range: NSRange(suffix.startIndex..., in: suffix))
             .flatMap { Range($0.range, in: suffix) }
     }
@@ -124,13 +119,13 @@ struct OrgPlanningTimestampDraft: Hashable, Sendable {
 /// tokens. Rebuilding therefore changes only the selected semantic values while
 /// preserving tabs, repeaters, warning offsets, ranges, and trailing whitespace.
 struct OrgPlanningEntryDraft: Hashable, Sendable {
-    private static let keywordExpression = try? NSRegularExpression(
+    private static let keywordExpression = try! NSRegularExpression(
         pattern: #"(SCHEDULED|DEADLINE|CLOSED):"#
     )
-    private static let timestampTokenExpression = try? NSRegularExpression(
+    private static let timestampTokenExpression = try! NSRegularExpression(
         pattern: #"<[^>\r\n]+>|\[[^\]\r\n]+\]"#
     )
-    private static let timestampBodyExpression = try? NSRegularExpression(
+    private static let timestampBodyExpression = try! NSRegularExpression(
         pattern: #"^((\d{4})-(\d{2})-(\d{2}))(?:(\s+)([[:alpha:]]+))?(?:(\s+)((\d{2}):(\d{2})))?(.*)$"#
     )
 
@@ -158,8 +153,7 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
             timestampsStart = source.startIndex
         } else {
             guard
-                let keywordExpression = Self.keywordExpression,
-                let keywordMatch = keywordExpression.firstMatch(
+                let keywordMatch = Self.keywordExpression.firstMatch(
                     in: source,
                     range: NSRange(source.startIndex..., in: source)
                 ),
@@ -173,9 +167,7 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
             keywordStart = keywordTokenRange.lowerBound
             timestampsStart = keywordTokenRange.upperBound
         }
-        guard let timestampExpression = Self.timestampTokenExpression else { return nil }
-
-        let timestampMatches = timestampExpression.matches(
+        let timestampMatches = Self.timestampTokenExpression.matches(
             in: source,
             range: NSRange(timestampsStart..<source.endIndex, in: source)
         )
@@ -196,8 +188,8 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
         }
         segments.append(String(source[cursor...]))
         if isPlainTimestamp {
-            guard segments.first?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true,
-                  segments.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true,
+            guard segments[0].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  segments[segments.count - 1].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   parsedTimestamps.count == 1 || segments[1] == "--" else { return nil }
         }
 
@@ -213,25 +205,16 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
             result += timestampSegments[index]
             result += Self.timestampSource(timestamps[index])
         }
-        result += timestampSegments.last ?? ""
+        result += timestampSegments[timestampSegments.count - 1]
         return result
     }
 
     var isRange: Bool { timestamps.count == 2 }
 
     private static func parseTimestamp(_ source: String) -> OrgPlanningTimestampDraft? {
-        guard source.count >= 2,
-              let opening = source.first,
-              let closing = source.last,
-              (opening == "<" && closing == ">") || (opening == "[" && closing == "]")
-        else {
-            return nil
-        }
-
         let inner = String(source.dropFirst().dropLast())
         guard
-            let expression = timestampBodyExpression,
-            let match = expression.firstMatch(
+            let match = timestampBodyExpression.firstMatch(
                 in: inner,
                 range: NSRange(inner.startIndex..., in: inner)
             )
@@ -240,10 +223,7 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
         }
 
         func integer(_ capture: Int) -> Int? {
-            guard match.range(at: capture).location != NSNotFound,
-                  let range = Range(match.range(at: capture), in: inner) else {
-                return nil
-            }
+            guard let range = Range(match.range(at: capture), in: inner) else { return nil }
             return Int(inner[range])
         }
 
@@ -264,19 +244,14 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
 
         guard let date = components.date else { return nil }
         let suffix: String
-        if match.range(at: 11).location != NSNotFound,
-           let range = Range(match.range(at: 11), in: inner) {
+        if let range = Range(match.range(at: 11), in: inner) {
             suffix = String(inner[range])
         } else {
             suffix = ""
         }
 
         func text(_ capture: Int) -> String? {
-            guard match.range(at: capture).location != NSNotFound,
-                  let range = Range(match.range(at: capture), in: inner) else {
-                return nil
-            }
-            return String(inner[range])
+            Range(match.range(at: capture), in: inner).map { String(inner[$0]) }
         }
 
         return OrgPlanningTimestampDraft(
@@ -288,7 +263,7 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
             weekdayText: text(6),
             timeSeparator: text(7),
             originalTimeText: text(8),
-            isActive: opening == "<",
+            isActive: source.hasPrefix("<"),
             suffix: suffix
         )
     }

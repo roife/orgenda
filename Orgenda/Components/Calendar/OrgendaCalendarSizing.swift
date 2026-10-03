@@ -21,7 +21,7 @@ enum OrgendaCalendarTransition {
     static let snapDuration = 0.32
 
     static func veilOpacity(at progress: CGFloat) -> Double {
-        let value = clamped(Double(progress) / opacityEnd)
+        let value = min(max(Double(progress) / opacityEnd, 0), 1)
         let opacity = value <= 0.5
             ? opacityMiddle + (1 - opacityMiddle) * pow(1 - 2 * value, opacityBend)
             : opacityMiddle * (1 - pow(2 * value - 1, opacityBend))
@@ -29,20 +29,13 @@ enum OrgendaCalendarTransition {
     }
 
     static func blurRadius(at progress: CGFloat) -> CGFloat {
-        let value = pow(clamped(Double(progress) / blurEnd), blurPower)
-        return CGFloat(blurMax * (1 - smootherStep(value)))
+        let value = pow(min(max(Double(progress) / blurEnd, 0), 1), blurPower)
+        let smoothed = value * value * value * (value * (value * 6 - 15) + 10)
+        return CGFloat(blurMax * (1 - smoothed))
     }
 
     static func morphProgress(at progress: CGFloat) -> CGFloat {
-        CGFloat(pow(clamped(Double(progress)), morphPower))
-    }
-
-    private static func smootherStep(_ value: Double) -> Double {
-        value * value * value * (value * (value * 6 - 15) + 10)
-    }
-
-    private static func clamped(_ value: Double) -> Double {
-        min(max(value, 0), 1)
+        CGFloat(pow(min(max(Double(progress), 0), 1), morphPower))
     }
 }
 

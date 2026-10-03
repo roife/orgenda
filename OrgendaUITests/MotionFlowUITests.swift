@@ -149,6 +149,10 @@ final class MotionFlowUITests: XCTestCase {
         delete.tap()
         app.buttons["Cancel"].tap()
         XCTAssertTrue(projects.exists)
+        // Native swipe actions close after invoking an action, including when
+        // the subsequent confirmation is canceled.
+        horizontalDrag(in: app, y: projects.frame.midY, from: 0.84, to: 0.22)
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
         delete.tap()
         app.alerts.buttons["Delete"].tap()
         XCTAssertTrue(projects.waitForNonExistence(timeout: 4))
@@ -322,7 +326,8 @@ final class MotionFlowUITests: XCTestCase {
         app.tabBars.buttons["Dashboard"].tap()
         let title = app.staticTexts["Plan iPad reading workflow"]
         XCTAssertTrue(title.waitForExistence(timeout: 3))
-        horizontalDrag(in: app, y: title.frame.midY, from: 0.24, to: 0.87)
+        // A system full swipe uses the row width, not the old 96-point threshold.
+        horizontalDrag(in: app, y: title.frame.midY, from: 0.12, to: 0.97)
         let undo = app.buttons["agenda.gesture.undo"]
         XCTAssertTrue(undo.waitForExistence(timeout: 3))
         XCTAssertTrue(title.waitForNonExistence(timeout: 3))
@@ -336,6 +341,39 @@ final class MotionFlowUITests: XCTestCase {
         XCTAssertTrue(undo.waitForExistence(timeout: 3))
         undo.tap()
         XCTAssertTrue(title.waitForExistence(timeout: 3))
+    }
+
+    func testNativeTaskSwipeClosesAcrossPerspectiveChanges() {
+        let app = gestureApp()
+        defer { app.terminate() }
+        app.tabBars.buttons["Dashboard"].tap()
+        chooseAgendaView("todos", in: app)
+        let title = app.staticTexts["Plan iPad reading workflow"]
+        XCTAssertTrue(title.waitForExistence(timeout: 3))
+        horizontalDrag(in: app, y: title.frame.midY, from: 0.86, to: 0.23)
+        XCTAssertTrue(app.buttons["agenda.swipe.more"].waitForExistence(timeout: 3))
+        chooseAgendaView("overdue", in: app)
+        chooseAgendaView("todos", in: app)
+        XCTAssertTrue(title.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["agenda.swipe.more"].isHittable,
+                       "Returning to a retained perspective must not restore an open swipe action.")
+    }
+
+    func testNativeFileSwipeCoordinatesRowsAndScrollDismissal() {
+        let app = fileGestureApp()
+        defer { app.terminate() }
+        let inbox = app.buttons["files.open.inbox.org"]
+        let projects = app.buttons["files.open.projects"]
+        XCTAssertTrue(inbox.waitForExistence(timeout: 3))
+        horizontalDrag(in: app, y: inbox.frame.midY, from: 0.84, to: 0.22)
+        XCTAssertTrue(app.buttons["files.swipe.delete"].waitForExistence(timeout: 3))
+        horizontalDrag(in: app, y: projects.frame.midY, from: 0.84, to: 0.22)
+        XCTAssertEqual(app.buttons.matching(identifier: "files.swipe.delete").count, 1,
+                       "Only the most recently swiped row should expose actions.")
+        app.scrollViews["files.browser"].swipeUp()
+        XCTAssertTrue(app.buttons["files.swipe.delete"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(inbox.exists)
+        XCTAssertTrue(projects.exists)
     }
 
     func testGestureCalendarDropAndCancelledDrop() {
@@ -360,27 +398,52 @@ final class MotionFlowUITests: XCTestCase {
     }
 
     func testOutlineFilterNarrowsHeadingsByStateAndRestores() {
-        let app = gestureApp()
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo-workspace", "--configured-agenda-fixture",
+                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        defer { app.terminate() }
         app.tabBars.buttons["Files"].tap()
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Inbox,'")).firstMatch.tap()
+        app.buttons["files.open.agenda/actions.org"].tap()
         app.buttons["org.document.outline"].tap()
 
-        let todo = outlineHeading("Review quarterly roadmap", in: app)
-        let project = outlineHeading("Write tree-sitter Org queries", in: app)
-        XCTAssertTrue(todo.waitForExistence(timeout: 3))
-        XCTAssertTrue(project.exists)
+        let next = outlineHeading("Prepare release notes", in: app)
+        let urgent = outlineHeading("Fix launch blocker", in: app)
+        let waiting = outlineHeading("Waiting for review", in: app)
+        XCTAssertTrue(next.waitForExistence(timeout: 3))
+        XCTAssertTrue(urgent.exists)
+        XCTAssertTrue(waiting.exists)
 
         app.buttons["org.document.outline.filter"].tap()
         XCTAssertTrue(app.navigationBars["Filter Outline"].waitForExistence(timeout: 3))
-        app.buttons["org.outline.filter.state.TODO"].tap()
+        app.switches["org.outline.filter.state.NEXT"].tap()
         app.buttons["org.outline.filter.done"].tap()
         XCTAssertTrue(app.navigationBars["Filter Outline"].waitForNonExistence(timeout: 3))
 
-        XCTAssertTrue(todo.waitForExistence(timeout: 3))
-        XCTAssertTrue(project.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(next.waitForExistence(timeout: 3))
+        XCTAssertTrue(urgent.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(waiting.waitForNonExistence(timeout: 3))
+
+        app.buttons["org.document.outline.filter"].tap()
+        app.switches["org.outline.filter.state.WAIT"].tap()
+        app.buttons["org.outline.filter.done"].tap()
+        XCTAssertTrue(app.navigationBars["Filter Outline"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(next.waitForExistence(timeout: 3))
+        XCTAssertTrue(waiting.waitForExistence(timeout: 3), "Multiple selected states form a union.")
+        XCTAssertFalse(urgent.exists)
+
+        app.buttons["org.document.outline.filter"].tap()
+        app.switches["org.outline.filter.state.NEXT"].tap()
+        app.buttons["org.outline.filter.done"].tap()
+        XCTAssertTrue(app.navigationBars["Filter Outline"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(next.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(waiting.exists)
 
         app.buttons["org.outline.filter.clear"].tap()
-        XCTAssertTrue(project.waitForExistence(timeout: 3))
+        XCTAssertTrue(next.waitForExistence(timeout: 3))
+        XCTAssertTrue(urgent.waitForExistence(timeout: 3))
+        XCTAssertTrue(waiting.exists)
         app.buttons["org.document.outline.done"].tap()
     }
 
@@ -538,7 +601,7 @@ final class MotionFlowUITests: XCTestCase {
         app.buttons["Preview"].tap()
         app.buttons["org.document.outline"].tap()
         app.buttons["org.document.outline.filter"].tap()
-        app.buttons["org.outline.filter.state.TODO"].tap()
+        app.switches["org.outline.filter.state.TODO"].tap()
         app.buttons["org.outline.filter.done"].tap()
         let alpha = outlineHeading("Filter Alpha", in: app)
         let beta = outlineHeading("Filter Beta", in: app)
@@ -1307,14 +1370,16 @@ final class MotionFlowUITests: XCTestCase {
         item.tap()
 
         for state in ["TODO", "NEXT", "WAIT", "SOMEDAY", "URGENT", "DONE", "CANCELED"] {
+            app.buttons["item.editor.state"].tap()
             let option = app.buttons["workflow.option.\(state)"]
             XCTAssertTrue(option.waitForExistence(timeout: 2))
             option.tap()
-            let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: option)
+            let selected = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "value == %@", state), object: app.buttons["item.editor.state"]
+            )
             XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 3), .completed, state)
-            XCTAssertGreaterThanOrEqual(option.frame.width, 44 - 0.001)
-            XCTAssertGreaterThanOrEqual(option.frame.height, 44 - 0.001)
         }
+        app.buttons["item.editor.state"].tap()
         app.buttons["workflow.option.URGENT"].tap()
         app.buttons["item.editor.save"].tap()
         XCTAssertTrue(app.buttons["item.editor.save"].waitForNonExistence(timeout: 3))
@@ -1558,8 +1623,13 @@ final class MotionFlowUITests: XCTestCase {
         let picker = app.buttons["agenda.viewMenu"]
         XCTAssertTrue(picker.waitForExistence(timeout: 3))
         picker.tap()
-        // Target the picker option, not the same-named tab behind its menu.
-        let option = app.buttons["agenda.mode.\(name.lowercased())"]
+        // UIKit's menu presentation does not always preserve Picker tag IDs.
+        // Menu entries have no identifier; tabs behind them have symbol IDs.
+        let title = ["todos": "Unscheduled", "overdue": "Overdue",
+                     "dashboard": "Dashboard", "projects": "Projects",
+                     "next": "Next actions", "urgent": "Urgent actions",
+                     "waiting": "Waiting", "someday": "Someday"][name.lowercased()] ?? name
+        let option = app.buttons.matching(NSPredicate(format: "label == %@ AND identifier == ''", title)).firstMatch
         XCTAssertTrue(option.waitForExistence(timeout: 2))
         option.tap()
     }

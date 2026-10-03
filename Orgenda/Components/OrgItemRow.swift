@@ -3,9 +3,6 @@ import UIKit
 
 struct OrgItemRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var swipeOffset: CGFloat = 0
-    @State private var swipeStart: CGFloat = 0
 
     let item: OrgItem
     let onToggle: () -> Void
@@ -17,50 +14,49 @@ struct OrgItemRow: View {
     var bottomPadding: CGFloat = 9
     var tagSpacing: CGFloat = 6
     var allowsSwipeActions = true
-    @Binding var revealedItemID: UUID?
 
     var body: some View {
-        ZStack {
-            swipeActions
+        interactiveRow
+            .accessibilityActions {
+                if canSchedule {
+                    Button("Reschedule") { onReschedule?() }
+                }
+                if let onShowInFile {
+                    Button("Show in File", action: onShowInFile)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var interactiveRow: some View {
+        if allowsSwipeActions {
+            swipeableRow
+        } else {
             rowContent
-                .background(Color(uiColor: .systemBackground))
-                .offset(x: swipeOffset)
-                .gesture(OrgendaHorizontalPan(onChange: { translation, began in
-                    if began {
-                        swipeStart = swipeOffset
-                        revealedItemID = item.id
+        }
+    }
+
+    private var swipeableRow: some View {
+        rowContent
+            .swipeActions(edge: .leading) {
+                if item.canComplete {
+                    Button(action: performToggle) {
+                        Label(completionLabel, systemImage: item.state.isTerminal ? "arrow.uturn.backward" : "checkmark")
                     }
-                    swipeOffset = min(max(swipeStart + translation, -trailingRevealWidth), item.canComplete ? 130 : 0)
-                }, onEnd: { translation, velocity, cancelled in
-                    let total = swipeStart + translation
-                    let completes = !cancelled && item.canComplete && total > 96 && velocity > -100
-                    withAnimation(OrgendaMotion.geometryAnimation(.selection, reduceMotion: reduceMotion)) {
-                        if !cancelled && !completes && total < -45 {
-                            swipeOffset = -trailingRevealWidth
-                        } else if !cancelled && !completes && item.canComplete && total > 45 {
-                            swipeOffset = 72
-                        } else {
-                            swipeOffset = 0
-                        }
-                    }
-                    if completes { performToggle() }
-                    if swipeOffset == 0 { revealedItemID = nil }
-                }, isEnabled: allowsSwipeActions))
-        }
-        .clipped()
-        .onChange(of: revealedItemID) { _, selected in
-            if selected != item.id {
-                withAnimation(OrgendaMotion.geometryAnimation(.selection, reduceMotion: reduceMotion)) { swipeOffset = 0 }
+                    .tint(.green)
+                    .accessibilityIdentifier("agenda.swipe.complete")
+                }
             }
-        }
-        .accessibilityActions {
-            if canSchedule {
-                Button("Reschedule") { closeActions(); onReschedule?() }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button("Edit", systemImage: "pencil", action: onOpen)
+                    .tint(.secondary)
+                    .accessibilityIdentifier("agenda.swipe.more")
+                if canSchedule {
+                    Button("Reschedule", systemImage: "calendar") { onReschedule?() }
+                        .tint(OrgendaTheme.accent)
+                        .accessibilityIdentifier("agenda.swipe.reschedule")
+                }
             }
-            if let onShowInFile {
-                Button("Show in File", action: onShowInFile)
-            }
-        }
     }
 
     @ViewBuilder
@@ -73,12 +69,11 @@ struct OrgItemRow: View {
             .accessibilityLabel(completionLabel)
         }
         if canSchedule {
-            Button("Reschedule…", systemImage: "calendar") { closeActions(); onReschedule?() }
+            Button("Reschedule…", systemImage: "calendar") { onReschedule?() }
         }
         Button("Edit", systemImage: "pencil", action: onOpen)
         if let onShowInFile {
             Button("Show in File", systemImage: "doc.text.magnifyingglass") {
-                closeActions()
                 onShowInFile()
             }
             .accessibilityIdentifier("agenda.item.showInFile")
@@ -86,68 +81,6 @@ struct OrgItemRow: View {
     }
 
     private var canSchedule: Bool { item.hasWorkflowState && item.kind != .event && onReschedule != nil }
-    private let actionDiameter: CGFloat = 48
-    private let actionSpacing: CGFloat = 12
-    private var trailingRevealWidth: CGFloat {
-        (canSchedule ? actionDiameter * 2 + actionSpacing : actionDiameter) + 24
-    }
-
-    private var swipeActions: some View {
-        GlassEffectContainer(spacing: 8) {
-            HStack(spacing: 0) {
-                if swipeOffset > 0 {
-                    Button { closeActions(); performToggle() } label: {
-                        Image(systemName: item.state.isTerminal ? "arrow.uturn.backward" : "checkmark")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: actionDiameter, height: actionDiameter)
-                            .glassEffect(.regular.tint(.green).interactive(), in: .circle)
-                            .contentShape(Circle())
-                    }
-                    .accessibilityLabel(item.state.isTerminal ? "Reopen" : "Done")
-                    .accessibilityIdentifier("agenda.swipe.complete")
-                    .modifier(SwipeActionReveal(progress: min(swipeOffset / 72, 1), reduceMotion: reduceMotion))
-                    .padding(.leading, 12)
-                    Spacer(minLength: 0)
-                } else if swipeOffset < 0 {
-                    Spacer(minLength: 0)
-                    HStack(spacing: actionSpacing) {
-                        if canSchedule {
-                            Button { closeActions(); onReschedule?() } label: {
-                                Image(systemName: "calendar")
-                                    .font(.system(size: 20, weight: .medium))
-                                    .foregroundStyle(.white)
-                                    .frame(width: actionDiameter, height: actionDiameter)
-                                    .glassEffect(.regular.tint(OrgendaTheme.accent).interactive(), in: .circle)
-                                    .contentShape(Circle())
-                            }
-                            .accessibilityLabel("Reschedule")
-                            .accessibilityIdentifier("agenda.swipe.reschedule")
-                        }
-                        Button { closeActions(); onOpen() } label: {
-                            Image(systemName: "pencil")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .frame(width: actionDiameter, height: actionDiameter)
-                                .glassEffect(.regular.interactive(), in: .circle)
-                                .contentShape(Circle())
-                        }
-                        .accessibilityLabel("Edit")
-                        .accessibilityIdentifier("agenda.swipe.more")
-                    }
-                    .modifier(SwipeActionReveal(progress: min(-swipeOffset / trailingRevealWidth, 1), reduceMotion: reduceMotion))
-                    .padding(.horizontal, 12)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityHidden(swipeOffset == 0)
-    }
-
-    private func closeActions() {
-        revealedItemID = nil
-        withAnimation(OrgendaMotion.geometryAnimation(.selection, reduceMotion: reduceMotion)) { swipeOffset = 0 }
-    }
 
     private var rowContent: some View {
         HStack(alignment: .top, spacing: 2) {
@@ -157,9 +90,7 @@ struct OrgItemRow: View {
                 completionControl
             }
 
-            Button {
-                if swipeOffset != 0 { closeActions() } else { onOpen() }
-            } label: {
+            Button(action: onOpen) {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         if item.priority != .none {
@@ -302,16 +233,5 @@ struct OrgItemRow: View {
         case .low: .blue
         case .none: .secondary
         }
-    }
-}
-
-private struct SwipeActionReveal: ViewModifier {
-    let progress: CGFloat
-    let reduceMotion: Bool
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(progress)
-            .scaleEffect(reduceMotion ? 1 : 0.86 + 0.14 * progress)
     }
 }

@@ -168,7 +168,7 @@ final class OrgSourceMutationTests: XCTestCase {
             draft.timestamps[0].recurrence = partial
         }
         XCTAssertEqual(draft.source, source.replacingOccurrences(of: ".+2d/3d", with: "+1y"))
-        draft.timestamps[0].setRecurrence(nil)
+        draft.timestamps[0].recurrence = nil
         XCTAssertEqual(draft.source, "DEADLINE:\t<2019-05-20  Mon\t09:00-10:30 \t-2d>  ")
     }
 

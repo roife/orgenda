@@ -5,7 +5,6 @@ struct StorageHTTPResponse: Sendable {
     var headers: [String: String]
     var data: Data
 
-    func header(_ name: String) -> String? { headers[name.lowercased()] }
     func checked(path: String = "") throws -> Self {
         switch status {
         case 200..<300: return self
@@ -15,9 +14,9 @@ struct StorageHTTPResponse: Sendable {
         case 413: throw StorageError.tooLarge
         case 429, 503:
             let delay: TimeInterval
-            if let raw = header("retry-after"), let seconds = Double(raw), seconds.isFinite {
+            if let raw = headers["retry-after"], let seconds = Double(raw), seconds.isFinite {
                 delay = max(1, seconds)
-            } else if let raw = header("retry-after") {
+            } else if let raw = headers["retry-after"] {
                 let formatter = DateFormatter()
                 formatter.locale = Locale(identifier: "en_US_POSIX")
                 formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -212,9 +211,6 @@ enum StorageHTTP {
         guard let url = components.url else { throw StorageError.invalidResponse }
         return url
     }
-    static func jsonData(_ object: [String: Any]) throws -> Data {
-        try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
-    }
     static func string(_ object: [String: Any], _ key: String) throws -> String {
         guard let value = object[key] as? String, !value.isEmpty else { throw StorageError.invalidResponse }
         return value
@@ -229,8 +225,6 @@ enum StorageHTTP {
         if let value = value as? NSNumber { return value.int64Value }
         return (value as? String).flatMap(Int64.init)
     }
-    static func parent(_ path: String) -> String { path.split(separator: "/").dropLast().joined(separator: "/") }
-    static func name(_ path: String) -> String { String(path.split(separator: "/").last ?? "") }
     static func child(_ parent: String, _ name: String) throws -> String {
         guard !name.contains("/") else { throw StorageError.unsafePath(name) }
         let path = parent.isEmpty ? name : parent + "/" + name
@@ -271,7 +265,7 @@ struct CloudHTTPClient: Sendable {
               headers: [String: String] = [:], path: String = "") async throws -> [String: Any] {
         var request = URLRequest(url: url)
         request.httpMethod = method
-        if let body { request.httpBody = try StorageHTTP.jsonData(body); request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
+        if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys]); request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         else if method == "POST" {
             // Argument-free JSON RPC endpoints (e.g. Dropbox account lookup)
             // expect JSON null, rather than an untyped empty request body.

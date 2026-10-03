@@ -41,6 +41,7 @@
 		2E4A11976A3A90E018B3E8A8 /* OrgPreviewRichText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC5055F12DDB730192A82EB /* OrgPreviewRichText.swift */; };
 		2E4EAB8FE1E2DF296222D99B /* AgendaPerspectiveContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 696BA40727DE2EB1295F2D17 /* AgendaPerspectiveContent.swift */; };
 		2E7E8DD772DB87C5088660C9 /* WorkspaceSession+FileOperations.swift in Sources */ = {isa = PBXBuildFile; fileRef = B787C21526B66FBDB8B0DA92 /* WorkspaceSession+FileOperations.swift */; };
+		2E8F7ACECF043D12C9702905 /* ConfigurationFilesSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A3683662A81DC16511AACA /* ConfigurationFilesSections.swift */; };
 		2E9EADA8D6F76CA46179978D /* StorageConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CCA22E4C304F73CE6CDA55B /* StorageConnection.swift */; };
 		302702B3F40C5205429F1401 /* DatePresentationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 072D3C59FCDF0622D78DDF09 /* DatePresentationUITests.swift */; };
 		30492AD01D97FD5EF6ED96BE /* OrgCodeHighlighting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 953EF669B82935717FE52572 /* OrgCodeHighlighting.swift */; };
@@ -130,6 +131,7 @@
 		81EB471E9ED292D8D9232096 /* OneDriveBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 737526F9E96FD7462371D984 /* OneDriveBackend.swift */; };
 		82656B274274F0757DFF5A8E /* OrgendaRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28B9525814C506B68D6B0A7 /* OrgendaRootView.swift */; };
 		82A7AFED80FE45ECC49C1F54 /* DocumentEditingControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3BF94B2CBC8ABA1341B7A29 /* DocumentEditingControls.swift */; };
+		8692FB2BC02CB531E03A5179 /* ConfigurationFieldSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BC409FFB783D950C04ADA74 /* ConfigurationFieldSupport.swift */; };
 		86DE3697EC4BE32F768009EB /* WorkspaceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9E317F1E72EA6F42F14DD26 /* WorkspaceStore.swift */; };
 		87EB4FE8B4B838AC0D61C752 /* WorkspaceSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BD32AADA884E7BE28612D6D /* WorkspaceSession.swift */; };
 		8A2423B9C3459B2196B76C80 /* SearchExcerpt.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4D12FD4DA592DAA7FCE2EC /* SearchExcerpt.swift */; };
@@ -165,6 +167,7 @@
 		A9915F77D13A474F4691A730 /* SearchJournalDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540C172440E26F7E534E9D73 /* SearchJournalDetail.swift */; };
 		AA0A3F488D50FFE48A91C27A /* Date+Orgenda.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40492DA16E987A972A7B54B9 /* Date+Orgenda.swift */; };
 		AA6B776014E7650C28AEF398 /* OrgendaDateHeading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EA4A353D1DA678263E3523F /* OrgendaDateHeading.swift */; };
+		B08526C555245FE797CB812B /* SettingsConfigurationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE9823A759F4CF1D278B147 /* SettingsConfigurationSupport.swift */; };
 		B0C03BBA98E605AC2417FC0E /* WorkspaceFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81358A073373D8DE6BE72ECD /* WorkspaceFileStoreTests.swift */; };
 		B6BA866D287F1010B5B497AE /* OrgendaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DF7EA84E3F24F0BD8D72EFD /* OrgendaApp.swift */; };
 		B95C5887E53B8AF3A19F7290 /* OrgHeadingMoveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08882EC32FA20BCC3A25D454 /* OrgHeadingMoveTests.swift */; };
@@ -183,6 +186,7 @@
 		BFE07989334D163F9785C5B1 /* OrgPreviewImageReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3359F3F2CE6D3C3FF3FFBE29 /* OrgPreviewImageReference.swift */; };
 		C019CACCDE9E63C7BAEE4177 /* OrgItemEditorSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F32DAA201C6D906A2E19D2C /* OrgItemEditorSupport.swift */; };
 		C1E79FA2DF79556A75311B70 /* OrgendaQuickActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B188C59A38734474A4CE27 /* OrgendaQuickActions.swift */; };
+		C25F0A27BA50BC0802CDAEB2 /* ConfigurationImportEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86FDBDA5BCD7851455301035 /* ConfigurationImportEditor.swift */; };
 		C35B2CE59D3527F52FE2B62A /* SearchResultLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34BE3C918E33042C31F334F3 /* SearchResultLabel.swift */; };
 		C4341B0964A7EF7E608B4E01 /* SearchModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA78864F114B76F9AA4E930 /* SearchModels.swift */; };
 		C44361808E33280BBB899336 /* OrgDocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40A4D1A5A8466A88F22AA80F /* OrgDocumentView.swift */; };
@@ -215,6 +219,7 @@
 		EFB18829C0B5BA1F12D68881 /* WorkspaceStore+Reminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8C7C572535340215C98B18 /* WorkspaceStore+Reminders.swift */; };
 		F0DFC1995E963851A4508CE7 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 6D1ED5771EDC7374918C65DC /* Localizable.xcstrings */; };
 		F1CA821096FD2B4ECC81333D /* AgendaTaskLists.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B9456E037964B05722A8553 /* AgendaTaskLists.swift */; };
+		F375B980AFACA1E300C00265 /* CloudAuthorizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A720556DB06A8C2B0E9A8A87 /* CloudAuthorizationTests.swift */; };
 		F3A6281B818174119E4F79E9 /* PerformanceAblationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 631F932146738714128AE076 /* PerformanceAblationTests.swift */; };
 		F4088D90DDB52A15131FB4E1 /* OrgRepeater.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0559EA826F4ED23FD7CE2E /* OrgRepeater.swift */; };
 		F438A1B1DCD61DBD2C9BF80E /* StorageConflictView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EB84B8AC26D62237520EE78 /* StorageConflictView.swift */; };
@@ -308,6 +313,7 @@
 		46E39521999E2B7D1225D4FC /* WorkspaceDocumentContextPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDocumentContextPreview.swift; sourceTree = "<group>"; };
 		4A9C8A492059537D0BCB18A7 /* WorkspaceSession+Attachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceSession+Attachments.swift"; sourceTree = "<group>"; };
 		4CE0103C0AABD470A9EDDD7D /* SyncManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncManifest.swift; sourceTree = "<group>"; };
+		4CE9823A759F4CF1D278B147 /* SettingsConfigurationSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsConfigurationSupport.swift; sourceTree = "<group>"; };
 		4D0023C893AC67A478EB380A /* OrgPreviewMarkup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewMarkup.swift; sourceTree = "<group>"; };
 		4D0177289D07F20C602B4328 /* IPadLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadLayoutUITests.swift; sourceTree = "<group>"; };
 		4EB84B8AC26D62237520EE78 /* StorageConflictView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageConflictView.swift; sourceTree = "<group>"; };
@@ -333,6 +339,7 @@
 		696BA40727DE2EB1295F2D17 /* AgendaPerspectiveContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaPerspectiveContent.swift; sourceTree = "<group>"; };
 		6987B00DE5535E7152E68A61 /* OrgendaHaptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaHaptics.swift; sourceTree = "<group>"; };
 		6A3295BDE82739EB166D17E7 /* OrgendaDateButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaDateButton.swift; sourceTree = "<group>"; };
+		6BC409FFB783D950C04ADA74 /* ConfigurationFieldSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurationFieldSupport.swift; sourceTree = "<group>"; };
 		6D1ED5771EDC7374918C65DC /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		6D66F670B32D675888FF3806 /* DocumentOutlineFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentOutlineFilterTests.swift; sourceTree = "<group>"; };
 		6D8D741C4F4896B29DE23593 /* InteractiveOrgPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveOrgPreview.swift; sourceTree = "<group>"; };
@@ -350,6 +357,7 @@
 		7603B5B291DC4AAA65694446 /* WorkspaceDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDocument.swift; sourceTree = "<group>"; };
 		7744F4168975723DC87BE79A /* StorageHTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageHTTP.swift; sourceTree = "<group>"; };
 		774E6DD86E3B95C31A2F3B10 /* OrgLatexCompatibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgLatexCompatibility.swift; sourceTree = "<group>"; };
+		78A3683662A81DC16511AACA /* ConfigurationFilesSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurationFilesSections.swift; sourceTree = "<group>"; };
 		795286A32693E901BE1D5A72 /* JournalDayContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalDayContent.swift; sourceTree = "<group>"; };
 		79DD43ABC921F3EC2D490B3B /* Welcome.org */ = {isa = PBXFileReference; path = Welcome.org; sourceTree = "<group>"; };
 		7A1CCC795479D6D8C9BE7FED /* OrgSyntaxTextEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgSyntaxTextEditorTests.swift; sourceTree = "<group>"; };
@@ -359,6 +367,7 @@
 		81358A073373D8DE6BE72ECD /* WorkspaceFileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFileStoreTests.swift; sourceTree = "<group>"; };
 		83A49E7641DC12C3B6B05434 /* UIUXPolishUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIUXPolishUITests.swift; sourceTree = "<group>"; };
 		850DBC2467480DE0319E8ADB /* OrgHeadingDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgHeadingDrag.swift; sourceTree = "<group>"; };
+		86FDBDA5BCD7851455301035 /* ConfigurationImportEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurationImportEditor.swift; sourceTree = "<group>"; };
 		8824366E5594588E9E323E38 /* ConfigurationColor+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ConfigurationColor+Presentation.swift"; sourceTree = "<group>"; };
 		8882F0AC03BC93B9FC38F7F9 /* OrgendaCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaCalendar.swift; sourceTree = "<group>"; };
 		888B990FFA570D68D5B2C948 /* OrgPreviewMathFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPreviewMathFlow.swift; sourceTree = "<group>"; };
@@ -386,9 +395,11 @@
 		A4805395F1DAC32A144BCFB4 /* ConfiguredCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfiguredCaptureView.swift; sourceTree = "<group>"; };
 		A4A690B4D979A6BA9724371E /* CloudAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudAuthorization.swift; sourceTree = "<group>"; };
 		A4A6DE59F4366B1A39786674 /* WorkspaceStore+Editing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceStore+Editing.swift"; sourceTree = "<group>"; };
+		A4B3D921FE3C767D69EF268F /* CloudOAuth.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CloudOAuth.xcconfig; sourceTree = "<group>"; };
 		A4B929B637C9ED9E1949D0A2 /* AgendaDayHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaDayHeader.swift; sourceTree = "<group>"; };
 		A55D8CD9C0CF7C33EDADDD43 /* WorkspaceSyncUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceSyncUITests.swift; sourceTree = "<group>"; };
 		A6E99551CE53519D735EF855 /* OrgEditorSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgEditorSession.swift; sourceTree = "<group>"; };
+		A720556DB06A8C2B0E9A8A87 /* CloudAuthorizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudAuthorizationTests.swift; sourceTree = "<group>"; };
 		A9E317F1E72EA6F42F14DD26 /* WorkspaceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceStore.swift; sourceTree = "<group>"; };
 		AB8420ABBCF8288720741638 /* OrgIndexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgIndexService.swift; sourceTree = "<group>"; };
 		AC4D12FD4DA592DAA7FCE2EC /* SearchExcerpt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchExcerpt.swift; sourceTree = "<group>"; };
@@ -533,6 +544,7 @@
 		14ECD7F2AB947E8BC51A3662 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				4CE9823A759F4CF1D278B147 /* SettingsConfigurationSupport.swift */,
 				B21CB0A2E079961F097D395B /* SettingsDestination.swift */,
 			);
 			path = Settings;
@@ -564,6 +576,7 @@
 		2536619B9068324A750647B3 /* Storage */ = {
 			isa = PBXGroup;
 			children = (
+				A720556DB06A8C2B0E9A8A87 /* CloudAuthorizationTests.swift */,
 				8EBAA4975407A928F67B7627 /* CloudBackendTests.swift */,
 				1BF01903767673AD44A70AA1 /* WorkspaceSessionTests.swift */,
 			);
@@ -652,6 +665,14 @@
 				2863BCB82E0D28BA50D10560 /* OrgendaTagList.swift */,
 			);
 			path = Tags;
+			sourceTree = "<group>";
+		};
+		443C2C834BD2902F1A05BE2B /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				A4B3D921FE3C767D69EF268F /* CloudOAuth.xcconfig */,
+			);
+			path = Configurations;
 			sourceTree = "<group>";
 		};
 		456E23DF761ED22345F00C5C /* Date */ = {
@@ -804,6 +825,7 @@
 		763C5FDF166B851A554AAE03 = {
 			isa = PBXGroup;
 			children = (
+				443C2C834BD2902F1A05BE2B /* Configurations */,
 				EEF2160F1F8AD673C8A84918 /* Orgenda */,
 				67A285F4A29F44C501A0E8CA /* OrgendaTests */,
 				8A629A791E9740E0A6DB398B /* OrgendaUITests */,
@@ -1034,6 +1056,9 @@
 			children = (
 				978F62ED3D23946E4F82A9F8 /* AppearanceSettingsView.swift */,
 				05C26EF44D79B1D1C602B14F /* ConfigurationEditors.swift */,
+				6BC409FFB783D950C04ADA74 /* ConfigurationFieldSupport.swift */,
+				78A3683662A81DC16511AACA /* ConfigurationFilesSections.swift */,
+				86FDBDA5BCD7851455301035 /* ConfigurationImportEditor.swift */,
 				5B3F78D3CECB7B7B4A9D1ACE /* ConfigurationPromptView.swift */,
 				3E526952676FD97303C3F06C /* ConfigurationSettingsView.swift */,
 				6E449EF301C43A54A6A6EC14 /* ReminderSettingsView.swift */,
@@ -1248,6 +1273,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3018D4914ACF75798BA43CFE /* Build configuration list for PBXNativeTarget "Orgenda" */;
 			buildPhases = (
+				254FAA7871D976A79C88765C /* Validate Cloud Sign-In */,
 				029790BC424CC11734120159 /* Sources */,
 				A2409FEE88C14B5C58D13F3D /* Resources */,
 				F2FA68D2DCB0AA6517F5B4A9 /* Frameworks */,
@@ -1330,6 +1356,29 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		254FAA7871D976A79C88765C /* Validate Cloud Sign-In */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Scripts/cloud_oauth.py",
+			);
+			name = "Validate Cloud Sign-In";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "xcrun python3 \"$SRCROOT/Scripts/cloud_oauth.py\" validate-build";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		029790BC424CC11734120159 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -1349,6 +1398,9 @@
 				8BAC4B97692C208CD78D488D /* ConfigurationColor+Presentation.swift in Sources */,
 				2C8EB1152B496B121317AB4E /* ConfigurationEditors.swift in Sources */,
 				364A7686E1E8117A3E1C85F4 /* ConfigurationEnvironment.swift in Sources */,
+				8692FB2BC02CB531E03A5179 /* ConfigurationFieldSupport.swift in Sources */,
+				2E8F7ACECF043D12C9702905 /* ConfigurationFilesSections.swift in Sources */,
+				C25F0A27BA50BC0802CDAEB2 /* ConfigurationImportEditor.swift in Sources */,
 				7E735DD13459FB34D5874DED /* ConfigurationPromptView.swift in Sources */,
 				48B8B61B75C640AE1E4C2C17 /* ConfigurationSettingsView.swift in Sources */,
 				2128F09FAD6B2C73D0ED52E6 /* ConfiguredCapture.swift in Sources */,
@@ -1465,6 +1517,7 @@
 				7DC9F468B2A4094811003DE6 /* SearchSuggestions.swift in Sources */,
 				6D36A6AD2D446E9CBE9D25A9 /* SearchSuggestionsView.swift in Sources */,
 				3D20FB0260E0BC0B5636D1EE /* SearchView.swift in Sources */,
+				B08526C555245FE797CB812B /* SettingsConfigurationSupport.swift in Sources */,
 				07EEDB1F10BCAB42B48F7ECE /* SettingsDestination.swift in Sources */,
 				A584129FAB6B030FB266175F /* SettingsRow.swift in Sources */,
 				65AC9B688472F285F9101AE6 /* SettingsValueRow.swift in Sources */,
@@ -1528,6 +1581,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F375B980AFACA1E300C00265 /* CloudAuthorizationTests.swift in Sources */,
 				BF501DAD5F92B216A2F1F9E2 /* CloudBackendTests.swift in Sources */,
 				A98C7CC0F67FD273B4CF34F6 /* DocumentOutlineFilterTests.swift in Sources */,
 				8DE3982D92BB93FA968B8123 /* EmacsProfileIntegrationTests.swift in Sources */,
@@ -1592,6 +1646,7 @@
 /* Begin XCBuildConfiguration section */
 		028BCA387E8CC35D61C35568 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A4B3D921FE3C767D69EF268F /* CloudOAuth.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1649,13 +1704,6 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				ORGENDA_DROPBOX_CLIENT_ID = "";
-				ORGENDA_DROPBOX_REDIRECT_URI = "orgenda-dropbox://oauth";
-				ORGENDA_GOOGLE_CLIENT_ID = "";
-				ORGENDA_GOOGLE_REDIRECT_URI = "$(ORGENDA_GOOGLE_URL_SCHEME):/oauth2redirect";
-				ORGENDA_GOOGLE_URL_SCHEME = "orgenda-google";
-				ORGENDA_ONEDRIVE_CLIENT_ID = "";
-				ORGENDA_ONEDRIVE_REDIRECT_URI = "orgenda-onedrive://oauth";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -1736,6 +1784,7 @@
 		};
 		6ED3C84134E4C41F98318A53 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A4B3D921FE3C767D69EF268F /* CloudOAuth.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1786,13 +1835,6 @@
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				ORGENDA_DROPBOX_CLIENT_ID = "";
-				ORGENDA_DROPBOX_REDIRECT_URI = "orgenda-dropbox://oauth";
-				ORGENDA_GOOGLE_CLIENT_ID = "";
-				ORGENDA_GOOGLE_REDIRECT_URI = "$(ORGENDA_GOOGLE_URL_SCHEME):/oauth2redirect";
-				ORGENDA_GOOGLE_URL_SCHEME = "orgenda-google";
-				ORGENDA_ONEDRIVE_CLIENT_ID = "";
-				ORGENDA_ONEDRIVE_REDIRECT_URI = "orgenda-onedrive://oauth";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;

@@ -59,51 +59,31 @@ enum ConfigurationPrompt {
     }
 }
 
-struct ConfigurationPromptView: View {
+struct ConfigurationPromptSection: View {
     let configuration: WorkspaceConfiguration
     @State private var copied = false
+    @State private var showsPrompt = false
 
     var body: some View {
-        List {
-            Section {
-                Button {
-                    UIPasteboard.general.string = ConfigurationPrompt.text(configuration: configuration)
-                    copied = true
-                    OrgendaHaptics.selectionChanged()
-                } label: {
-                    // List can impose a leading-aligned Label style. Center
-                    // the complete icon/text pair explicitly instead.
-                    HStack(spacing: 8) {
-                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                            .accessibilityHidden(true)
-                        Text(copied ? "Copied" : "Copy prompt")
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                .accessibilityLabel(copied ? "Copied" : "Copy prompt")
-                .accessibilityIdentifier("configuration.copyPrompt")
-            }
-            Section {
+        Section("Extract from Emacs") {
+            DisclosureGroup("Full conversion prompt", isExpanded: $showsPrompt) {
                 Text(ConfigurationPrompt.text(configuration: configuration))
                     .font(.system(.footnote, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("configuration.promptPreview")
-                    .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
             }
+            .accessibilityIdentifier("configuration.showPrompt")
+
+            Button(LocalizedStringKey(copied ? "Prompt copied" : "Copy prompt")) {
+                UIPasteboard.general.string = ConfigurationPrompt.text(configuration: configuration)
+                copied = true
+                OrgendaHaptics.selectionChanged()
+                UIAccessibility.post(notification: .announcement, argument: String(localized: "Prompt copied"))
+            }
+            .accessibilityIdentifier("configuration.copyPrompt")
         }
-        .listStyle(.insetGrouped)
-        .contentMargins(.top, 16, for: .scrollContent)
-        .listSectionSpacing(20)
-        .tint(OrgendaTheme.accent)
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationTitle("Extract from Emacs")
+        .onChange(of: configuration) { _, _ in copied = false }
     }
 }

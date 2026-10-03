@@ -149,7 +149,7 @@ public struct OrgSyntaxNode {
     }
 
     public var sExpression: String {
-        guard let expression = ts_node_string(rawNode) else { return "" }
+        let expression = ts_node_string(rawNode)!
         defer { free(expression) }
         return String(cString: expression)
     }

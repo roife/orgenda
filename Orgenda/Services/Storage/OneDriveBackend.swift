@@ -103,8 +103,8 @@ actor OneDriveBackend: RemoteWorkspaceBackend {
             headers["If-Match"] = etag
             url = try itemURL(existing.id, suffix: "/createUploadSession")
         } else {
-            let parentID = try await directoryID(StorageHTTP.parent(path))
-            url = try pathURL(parentID: parentID, name: StorageHTTP.name(path), suffix: "/createUploadSession")
+            let parentID = try await directoryID((path as NSString).deletingLastPathComponent)
+            url = try pathURL(parentID: parentID, name: (path as NSString).lastPathComponent, suffix: "/createUploadSession")
         }
         guard !data.isEmpty else {
             // Graph upload sessions do not accept zero-byte ranges. Use the
@@ -112,8 +112,8 @@ actor OneDriveBackend: RemoteWorkspaceBackend {
             let contentURL: URL
             if let existing { contentURL = try itemURL(existing.id, suffix: "/content") }
             else {
-                let parent = try await directoryID(StorageHTTP.parent(path))
-                var components = URLComponents(url: try pathURL(parentID: parent, name: StorageHTTP.name(path), suffix: "/content"), resolvingAgainstBaseURL: false)!
+                let parent = try await directoryID((path as NSString).deletingLastPathComponent)
+                var components = URLComponents(url: try pathURL(parentID: parent, name: (path as NSString).lastPathComponent, suffix: "/content"), resolvingAgainstBaseURL: false)!
                 components.queryItems = [.init(name: "@microsoft.graph.conflictBehavior", value: "fail")]
                 contentURL = components.url!
             }
@@ -128,7 +128,7 @@ actor OneDriveBackend: RemoteWorkspaceBackend {
         }
         let json = try await client.json(url, method: "POST",
                                          body: ["item": ["@microsoft.graph.conflictBehavior": existing == nil ? "fail" : "replace",
-                                                          "name": StorageHTTP.name(path)]], headers: headers, path: path)
+                                                          "name": (path as NSString).lastPathComponent]], headers: headers, path: path)
         guard let link = json["uploadUrl"] as? String, let uploadURL = URL(string: link) else { throw StorageError.invalidResponse }
         try StorageHTTP.requireHTTPS(uploadURL)
         let chunkSize = 10 * 320 * 1024
@@ -160,9 +160,9 @@ actor OneDriveBackend: RemoteWorkspaceBackend {
 
     func createDirectory(path: String) async throws -> RemoteFile {
         try StorageError.validate(path: path)
-        let parent = try await directoryID(StorageHTTP.parent(path))
+        let parent = try await directoryID((path as NSString).deletingLastPathComponent)
         let json = try await client.json(itemURL(parent, suffix: "/children"), method: "POST",
-                                         body: ["name": StorageHTTP.name(path), "folder": [:], "@microsoft.graph.conflictBehavior": "fail"], path: path)
+                                         body: ["name": (path as NSString).lastPathComponent, "folder": [:], "@microsoft.graph.conflictBehavior": "fail"], path: path)
         deltaCursor = nil
         return try decode(json, path: path)
     }
@@ -170,12 +170,12 @@ actor OneDriveBackend: RemoteWorkspaceBackend {
     func move(_ file: RemoteFile, to path: String) async throws -> RemoteFile {
         try StorageError.validate(path: path)
         guard path != file.path, !path.hasPrefix(file.path + "/") else { throw StorageError.unsafePath(path) }
-        let parent = try await directoryID(StorageHTTP.parent(path))
+        let parent = try await directoryID((path as NSString).deletingLastPathComponent)
         guard let etag = file.revision else { throw StorageError.conflict(file.path) }
         let current = try await client.json(itemURL(file.id))
         guard try await self.path(for: current) == file.path else { throw StorageError.conflict(file.path) }
         let json = try await client.json(itemURL(file.id), method: "PATCH",
-                                         body: ["name": StorageHTTP.name(path), "parentReference": ["id": parent],
+                                         body: ["name": (path as NSString).lastPathComponent, "parentReference": ["id": parent],
                                                 "@microsoft.graph.conflictBehavior": "fail"],
                                          headers: ["If-Match": etag], path: path)
         deltaCursor = nil

@@ -37,12 +37,12 @@ enum OrgInputCommands {
             let line = lines[index]
             let prefix: String
             var removed = 0
-            let heading = match(#"^(\*+)[ \t]+"#, in: line)
+            let heading = headingExpression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line))
             switch command {
             case .heading:
                 prefix = heading == nil ? "* " : "*"
             case .checkbox:
-                if let item = match(#"^([ \t]*(?:[-+]|\d+[.)])[ \t]+)(\[[ Xx-]\][ \t]*)?"#, in: line) {
+                if let item = checkboxExpression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
                     guard item.range(at: 2).location == NSNotFound else {
                         offset += line.utf16.count + 1
                         continue
@@ -93,10 +93,10 @@ enum OrgInputCommands {
             if marker.hasPrefix("#+BEGIN_") { inBlock = true }
             if marker.hasPrefix("#+END_") { inBlock = false }
             if marker == ":END:" { inDrawer = false }
-            else if match(#"^:[A-Z0-9_@#%]+:$"#, in: marker) != nil { inDrawer = true }
+            else if drawerExpression.firstMatch(in: marker, range: NSRange(marker.startIndex..., in: marker)) != nil { inDrawer = true }
         }
         guard !inBlock, !inDrawer,
-              let item = match(#"^([ \t]*)([-+]|\d+[.)])([ \t]+)(?:\[[ Xx-]\]([ \t]+))?"#, in: line),
+              let item = listExpression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
               selection.location >= lineRange.location + item.range.length else { return nil }
         let nsLine = line as NSString
         let body = nsLine.substring(from: item.range.length)
@@ -126,20 +126,12 @@ enum OrgInputCommands {
                            selection: NSRange(location: location + inserted.utf16.count, length: 0))
     }
 
-    private static let expressions: [String: NSRegularExpression] = {
-        let patterns = [
-            #"^(\*+)[ \t]+"#,
-            #"^([ \t]*(?:[-+]|\d+[.)])[ \t]+)(\[[ Xx-]\][ \t]*)?"#,
-            #"^:[A-Z0-9_@#%]+:$"#,
-            #"^([ \t]*)([-+]|\d+[.)])([ \t]+)(?:\[[ Xx-]\]([ \t]+))?"#,
-        ]
-        return patterns.reduce(into: [:]) { result, pattern in
-            result[pattern] = try? NSRegularExpression(pattern: pattern)
-        }
-    }()
-
-    private static func match(_ pattern: String, in string: String) -> NSTextCheckingResult? {
-        let expression = expressions[pattern] ?? (try? NSRegularExpression(pattern: pattern))
-        return expression?.firstMatch(in: string, range: NSRange(location: 0, length: string.utf16.count))
-    }
+    private static let headingExpression = try! NSRegularExpression(pattern: #"^(\*+)[ \t]+"#)
+    private static let checkboxExpression = try! NSRegularExpression(
+        pattern: #"^([ \t]*(?:[-+]|\d+[.)])[ \t]+)(\[[ Xx-]\][ \t]*)?"#
+    )
+    private static let drawerExpression = try! NSRegularExpression(pattern: #"^:[A-Z0-9_@#%]+:$"#)
+    private static let listExpression = try! NSRegularExpression(
+        pattern: #"^([ \t]*)([-+]|\d+[.)])([ \t]+)(?:\[[ Xx-]\]([ \t]+))?"#
+    )
 }

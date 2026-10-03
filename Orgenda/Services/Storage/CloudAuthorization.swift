@@ -66,6 +66,10 @@ struct CloudOAuthConfiguration: Sendable {
     var scopes: String
 
     static func configured(_ provider: StorageProvider, bundle: Bundle = .main) throws -> Self {
+        try configured(provider, info: bundle.infoDictionary ?? [:])
+    }
+
+    static func configured(_ provider: StorageProvider, info: [String: Any]) throws -> Self {
         let prefix: String, authorization: String, token: String, scopes: String
         switch provider {
         case .oneDrive:
@@ -85,12 +89,32 @@ struct CloudOAuthConfiguration: Sendable {
             scopes = "files.metadata.read files.content.read files.content.write account_info.read"
         default: throw StorageError.configuration("This storage provider does not use OAuth.")
         }
-        guard let clientID = bundle.object(forInfoDictionaryKey: prefix + "ClientID") as? String,
-              let redirect = bundle.object(forInfoDictionaryKey: prefix + "RedirectURI") as? String,
+        let configurationError = StorageError.configuration(String(localized: "\(provider.title) sign-in is unavailable because this app's configuration is incomplete. Contact the app developer."))
+        guard let clientID = info[prefix + "ClientID"] as? String,
+              let redirect = info[prefix + "RedirectURI"] as? String,
               !clientID.isEmpty, !clientID.contains("$("), !redirect.contains("$("),
-              let redirectURL = URL(string: redirect), let scheme = redirectURL.scheme,
-              !["http", "https"].contains(scheme.lowercased()) else {
-            throw StorageError.configuration(String(localized: "This build has not configured \(provider.title) sign-in. See CloudStorage.md for setup."))
+              clientID.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+              redirect.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+              let redirectURL = URLComponents(string: redirect), let scheme = redirectURL.scheme,
+              !["http", "https", "file"].contains(scheme.lowercased()),
+              redirectURL.user == nil, redirectURL.password == nil, redirectURL.port == nil,
+              redirectURL.query == nil, redirectURL.fragment == nil,
+              let urlTypes = info["CFBundleURLTypes"] as? [[String: Any]],
+              urlTypes.flatMap({ $0["CFBundleURLSchemes"] as? [String] ?? [] })
+                .contains(where: { $0.lowercased() == scheme.lowercased() }) else {
+            throw configurationError
+        }
+        switch provider {
+        case .oneDrive:
+            guard UUID(uuidString: clientID) != nil, redirect == "orgenda-onedrive://oauth" else { throw configurationError }
+        case .googleDrive:
+            let expectedScheme = clientID.split(separator: ".").reversed().joined(separator: ".")
+            guard clientID.range(of: #"^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$"#, options: .regularExpression) != nil,
+                  redirect == expectedScheme + ":/oauth2redirect" else { throw configurationError }
+        case .dropbox:
+            guard clientID.range(of: #"^[A-Za-z0-9]+$"#, options: .regularExpression) != nil,
+                  redirect == "orgenda-dropbox://oauth" else { throw configurationError }
+        default: throw configurationError
         }
         return Self(provider: provider, clientID: clientID, redirectURI: redirect,
                     authorizationURL: URL(string: authorization)!, tokenURL: URL(string: token)!, scopes: scopes)
@@ -120,6 +144,31 @@ struct CloudOAuthConfiguration: Sendable {
             Self.formEscape($0) + "=" + Self.formEscape(parameters[$0]!)
         }.joined(separator: "&").utf8)
         return request
+    }
+
+    func authorizationCode(from callback: URL, expectedState: String) throws -> String {
+        guard let redirect = URLComponents(string: redirectURI),
+              let components = URLComponents(url: callback, resolvingAgainstBaseURL: false),
+              components.scheme?.lowercased() == redirect.scheme?.lowercased(),
+              components.host?.lowercased() == redirect.host?.lowercased(),
+              components.path == redirect.path, components.port == nil,
+              components.user == nil, components.password == nil, components.fragment == nil else {
+            throw StorageError.authenticationRequired
+        }
+        let values = components.queryItems ?? []
+        let states = values.filter { $0.name == "state" }
+        let codes = values.filter { $0.name == "code" }
+        let errors = values.filter { $0.name == "error" }
+        guard !expectedState.isEmpty, states.count == 1, states.first?.value == expectedState else {
+            throw StorageError.authenticationRequired
+        }
+        if errors.count == 1, errors.first?.value == "access_denied", codes.isEmpty {
+            throw CancellationError()
+        }
+        guard errors.isEmpty, codes.count == 1, let code = codes.first?.value, !code.isEmpty else {
+            throw StorageError.authenticationRequired
+        }
+        return code
     }
 
     private static func formEscape(_ text: String) -> String {
@@ -214,16 +263,7 @@ final class CloudSignIn: NSObject, ASWebAuthenticationPresentationContextProvidi
                 self.finish(.failure(CancellationError()))
             }
         }
-        guard callback.scheme == redirect.scheme, callback.host == redirect.host,
-              callback.path == redirect.path,
-              let components = URLComponents(url: callback, resolvingAgainstBaseURL: false) else {
-            throw StorageError.authenticationRequired
-        }
-        let values = components.queryItems ?? []
-        guard values.filter({ $0.name == "state" }).count == 1,
-              values.first(where: { $0.name == "state" })?.value == state,
-              let code = values.first(where: { $0.name == "code" })?.value,
-              !code.isEmpty else { throw StorageError.authenticationRequired }
+        let code = try configuration.authorizationCode(from: callback, expectedState: state)
         let request = configuration.tokenRequest(["grant_type": "authorization_code", "code": code,
                                                    "redirect_uri": configuration.redirectURI, "code_verifier": verifier])
         let json = try await transport.send(request, maxBytes: 256 * 1024).checked().json()

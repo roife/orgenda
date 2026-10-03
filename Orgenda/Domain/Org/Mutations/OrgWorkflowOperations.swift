@@ -51,7 +51,7 @@ enum OrgWorkflowOperations {
         var item = item
         if original.state != item.state {
             if item.state.isTerminal { item.closed = now }
-            else if original.state.isTerminal && !item.state.isTerminal { item.closed = nil }
+            else if original.state.isTerminal { item.closed = nil }
         }
         return item
     }
@@ -279,7 +279,6 @@ enum OrgWorkflowOperations {
         var subtree = String(decoding: source.contents.utf8.dropFirst(heading.start).prefix(end - heading.start), as: UTF8.self)
         for child in from.headings.filter({ $0.start >= heading.start && $0.start < end }).reversed() {
             let newLevel = child.level + levelChange
-            guard newLevel > 0 else { throw Failure.invalidTarget }
             subtree = try OrgSourceMutation(startByte: child.start - heading.start,
                                             endByte: child.start - heading.start + child.level,
                                             replacement: String(repeating: "*", count: newLevel)).applied(to: subtree)
@@ -323,18 +322,18 @@ enum OrgWorkflowOperations {
         return values.first.map { "[" + $0.dropFirst().dropLast() + "]" }
     }
 
-    private static let planningKeywordLineExpression = try? NSRegularExpression(
+    private static let planningKeywordLineExpression = try! NSRegularExpression(
         pattern: #"^\s*(SCHEDULED|DEADLINE|CLOSED):"#
     )
-    private static let dynamicBlockEndExpression = try? NSRegularExpression(
+    private static let dynamicBlockEndExpression = try! NSRegularExpression(
         pattern: #"^\s*#\+END:\s*$"#, options: [.caseInsensitive]
     )
-    private static let dynamicBlockBeginExpression = try? NSRegularExpression(
+    private static let dynamicBlockBeginExpression = try! NSRegularExpression(
         pattern: #"^\s*#\+BEGIN:"#, options: [.caseInsensitive]
     )
 
-    private static func matches(_ expression: NSRegularExpression?, in text: String) -> Bool {
-        expression?.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
+    private static func matches(_ expression: NSRegularExpression, in text: String) -> Bool {
+        expression.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 
     private static let captureExpressions: [String: NSRegularExpression] = {
@@ -349,16 +348,13 @@ enum OrgWorkflowOperations {
         ] + OrgPlanningKeyword.allCases.map {
             "\\b\($0.rawValue):[ \\t]*(<[^>\\r\\n]+>|\\[[^\\]\\r\\n]+\\])"
         }
-        return patterns.reduce(into: [:]) { result, pattern in
-            result[pattern] = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
-        }
+        return Dictionary(uniqueKeysWithValues: patterns.map {
+            ($0, try! NSRegularExpression(pattern: $0, options: [.caseInsensitive]))
+        })
     }()
 
     private static func capture(_ pattern: String, in source: String) -> String? {
-        let expression = captureExpressions[pattern]
-            ?? (try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]))
-        guard let expression,
-              let match = expression.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
+        guard let match = captureExpressions[pattern]!.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
               let range = Range(match.range(at: 1), in: source) else { return nil }
         return String(source[range])
     }
@@ -399,12 +395,12 @@ enum OrgWorkflowOperations {
             var lines: [Line] = []
             var offset = 0
             // Split on the scalar LF, since Swift treats CRLF as one Character.
-            for part in source.components(separatedBy: "\n").enumerated() {
-                let isLast = offset + part.element.utf8.count == byteCount
-                let end = offset + part.element.utf8.count + (isLast ? 0 : 1)
+            for part in source.components(separatedBy: "\n") {
+                let isLast = offset + part.utf8.count == byteCount
+                let end = offset + part.utf8.count + (isLast ? 0 : 1)
                 if offset < byteCount {
                     lines.append(Line(start: offset, end: end,
-                                      text: part.element.hasSuffix("\r") ? String(part.element.dropLast()) : part.element))
+                                      text: part.hasSuffix("\r") ? String(part.dropLast()) : part))
                 }
                 offset = end
             }

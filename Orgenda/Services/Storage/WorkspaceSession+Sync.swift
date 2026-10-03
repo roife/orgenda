@@ -109,7 +109,7 @@ extension WorkspaceSession {
             for file in files.values.sorted(by: { $0.path < $1.path }) {
                 try Task.checkCancellation()
                 let old = manifest.entries[file.path]
-                if !file.isDirectory, Self.isVisible(file.path), Self.documentKind(file.path) != nil {
+                if !file.isDirectory, Self.isVisible(file.path), WorkspaceDocument.Kind(path: file.path) != nil {
                     if let old, let blob = old.blob, old.file.id == file.id,
                        file.revision != nil, old.file.revision == file.revision {
                         staged[file.path] = SyncManifestEntry(file: file, blob: blob)
@@ -153,7 +153,7 @@ extension WorkspaceSession {
         next.conflicts = next.conflicts.filter { next.pending[$0.key] != nil }
         for (path, pending) in next.pending {
             let incoming = staged[path]
-            if pending.requiresResolution == true {
+            if pending.requiresResolution {
                 next.conflicts[path] = WorkspaceConflict(path: path, localContents: try text(pending.blob),
                     remoteContents: try incoming?.blob.map { try text($0) }, remoteRevision: incoming?.file.revision,
                     detectedAt: next.conflicts[path]?.detectedAt ?? .now, remoteModifiedAt: incoming?.file.modifiedAt)
@@ -239,9 +239,9 @@ extension WorkspaceSession {
         let presentedID = manifest.entries[path]?.file.id
         isSynchronizing = true
         do {
+            defer { isSynchronizing = false }
             try await refreshFromSource()
             guard let pending = manifest.pending[path], let latest = manifest.conflicts[path] else {
-                isSynchronizing = false
                 return
             }
             guard latest.remoteRevision == presented.remoteRevision,
@@ -278,10 +278,6 @@ extension WorkspaceSession {
             }
             next.conflicts.removeValue(forKey: path)
             try commit(next)
-            isSynchronizing = false
-        } catch {
-            isSynchronizing = false
-            throw error
         }
         try await synchronize()
     }

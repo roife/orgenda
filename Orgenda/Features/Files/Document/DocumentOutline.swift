@@ -336,15 +336,22 @@ struct DocumentOutlineFilterSheet: View {
         NavigationStack {
             Form {
                 Section("Status") {
-                    OrgendaFlowLayout(horizontalSpacing: 2, verticalSpacing: 8) {
+                    OrgendaFlowLayout(horizontalSpacing: 8, verticalSpacing: 8) {
                         ForEach(workflow.states) { state in
-                            OrgWorkflowOption(state: state, isSelected: filter.states.contains(state)) {
-                                if filter.states.contains(state) {
-                                    filter.states.remove(state)
-                                } else {
-                                    filter.states.insert(state)
+                            Toggle(isOn: Binding(
+                                get: { filter.states.contains(state) },
+                                set: { isSelected in
+                                    if isSelected {
+                                        filter.states.insert(state)
+                                    } else {
+                                        filter.states.remove(state)
+                                    }
                                 }
+                            )) {
+                                OrgWorkflowLabel(state: state)
                             }
+                            .toggleStyle(.button)
+                            .tint(OrgendaTheme.workflowColor(state))
                             .accessibilityIdentifier("org.outline.filter.state.\(state.rawValue)")
                         }
                     }

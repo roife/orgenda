@@ -19,7 +19,7 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
             let selfEntries = listing.filter { $0.path == parent }
             guard selfEntries.count == 1, selfEntries[0].isDirectory else { throw StorageError.conflict(parent) }
             for file in listing where file.path != parent {
-                guard StorageHTTP.parent(file.path) == parent, visited.insert(file.path).inserted else {
+                guard (file.path as NSString).deletingLastPathComponent == parent, visited.insert(file.path).inserted else {
                     throw StorageError.invalidResponse
                 }
                 files.append(file)
@@ -43,7 +43,7 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
                                           headers: ["If-Match": revision], limit: maxBytes)
             if response.status == 412 { continue }
             _ = try response.checked(path: file.path)
-            if let returned = response.header("ETag"), returned != revision { continue }
+            if let returned = response.headers["etag"], returned != revision { continue }
             let after = try await metadata(file.path)
             guard after.revision == revision else { continue }
             return RemoteDownload(file: after, data: response.data)

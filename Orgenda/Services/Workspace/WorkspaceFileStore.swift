@@ -120,7 +120,7 @@ actor WorkspaceFileStore {
     func write(path: String, contents: String, expectedContents: String?) throws {
         try Task.checkCancellation()
         try validate(path: path)
-        guard Self.documentKind(for: path) != nil else { throw Failure.unsupportedFile(path) }
+        guard WorkspaceDocument.Kind(path: path) != nil else { throw Failure.unsupportedFile(path) }
         let root = try resolvedRoot()
         let requestedURL = root.appendingPathComponent(path)
         let destination = try containedURL(requestedURL, root: root, path: path)
@@ -177,7 +177,7 @@ actor WorkspaceFileStore {
                 // names. Ignoring one would report an evicted file as deleted.
                 if name.hasSuffix(".icloud") {
                     let originalName = String(name.dropFirst().dropLast(".icloud".count))
-                    if Self.documentKind(for: originalName) != nil {
+                    if WorkspaceDocument.Kind(path: originalName) != nil {
                         throw Failure.unreadable(relativePath.isEmpty ? originalName : relativePath + "/" + originalName)
                     }
                 }
@@ -191,7 +191,7 @@ actor WorkspaceFileStore {
                 documents.append(WorkspaceDocument(path: path, title: name, contents: "", kind: .folder))
                 try collect(directory: safeURL, relativePath: path, root: root,
                             ancestors: ancestors, coordinator: coordinator, documents: &documents)
-            } else if let kind = Self.documentKind(for: path) {
+            } else if let kind = WorkspaceDocument.Kind(path: path) {
                 guard values.isRegularFile == true else { throw Failure.unreadable(path) }
                 // Directory coordination does not coordinate its ordinary child
                 // files. Each read also gives a file provider a chance to finish
@@ -273,14 +273,6 @@ actor WorkspaceFileStore {
         return try result.get()
     }
 
-    private static func documentKind(for path: String) -> WorkspaceDocument.Kind? {
-        if path == "config.json" { return .configuration }
-        switch (path as NSString).pathExtension.lowercased() {
-        case "org", "org_archive": return .org
-        case "md", "markdown": return .markdown
-        default: return nil
-        }
-    }
 }
 
 extension WorkspaceFileStore {
@@ -412,7 +404,7 @@ extension WorkspaceFileStore {
             }
             return result
         }
-        guard let kind = Self.documentKind(for: path) else { return [] }
+        guard let kind = WorkspaceDocument.Kind(path: path) else { return [] }
         guard values.isRegularFile == true else { throw Failure.unreadable(path) }
         guard let contents = String(data: try Data(contentsOf: safe), encoding: .utf8) else { throw Failure.invalidUTF8(path) }
         return [WorkspaceDocument(path: path, title: safe.deletingPathExtension().lastPathComponent, contents: contents, kind: kind)]

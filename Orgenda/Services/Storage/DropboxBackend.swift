@@ -3,7 +3,6 @@ import Foundation
 actor DropboxBackend: RemoteWorkspaceBackend {
     let rootID: String
     let client: CloudHTTPClient
-    private var cachedFiles: [String: RemoteFile] = [:]
     private var cachedCursor: String?
     private var cachedRootPath: String?
 
@@ -13,34 +12,31 @@ actor DropboxBackend: RemoteWorkspaceBackend {
         let root = try await rootPath()
         if let cursor, cursor == cachedCursor, root == cachedRootPath {
             do {
-                let result = try await list(cursor: cursor, root: root)
+                let result = try await list(cursor: cursor)
                 // Folder moves can alter every descendant path. Re-enumerate the
                 // complete tree rather than publish incomplete path updates.
                 if result.entries.contains(where: { ($0[".tag"] as? String) != "file" }) {
                     return try await fullScan(root: root)
                 }
                 let files = coalesce(try result.entries.map { try decode($0, root: root) })
-                files.forEach { cachedFiles[$0.id] = $0 }
                 cachedCursor = result.cursor
                 return RemoteScan(files: files, cursor: result.cursor, isFullSnapshot: false)
-            } catch StorageError.http(409) { return try await fullScan(root: root) }
-            catch StorageError.conflict { return try await fullScan(root: root) }
+            } catch StorageError.conflict { return try await fullScan(root: root) }
         }
         return try await fullScan(root: root)
     }
 
     private func fullScan(root: String) async throws -> RemoteScan {
-        let result = try await list(cursor: nil, root: root)
+        let result = try await list(cursor: nil)
         let files = coalesce(try result.entries.compactMap { entry -> RemoteFile? in
             if entry[".tag"] as? String == "deleted" { return nil }
             return try decode(entry, root: root)
         })
-        cachedFiles = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
         cachedCursor = result.cursor; cachedRootPath = root
         return RemoteScan(files: files, cursor: result.cursor)
     }
 
-    private func list(cursor: String?, root: String) async throws -> (entries: [[String: Any]], cursor: String) {
+    private func list(cursor: String?) async throws -> (entries: [[String: Any]], cursor: String) {
         var cursor = cursor, entries: [[String: Any]] = [], seen = Set<String>()
         while true {
             let endpoint = cursor == nil ? "list_folder" : "list_folder/continue"
@@ -66,7 +62,7 @@ actor DropboxBackend: RemoteWorkspaceBackend {
             if latest[file.id] == nil { order.append(file.id) }
             latest[file.id] = file
         }
-        return order.compactMap { latest[$0] }
+        return order.map { latest[$0]! }
     }
 
     func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload {
@@ -75,7 +71,7 @@ actor DropboxBackend: RemoteWorkspaceBackend {
         request.httpMethod = "POST"
         request.setValue(try argument(["path": file.id]), forHTTPHeaderField: "Dropbox-API-Arg")
         let response = try await client.send(request, maxBytes: maxBytes).checked(path: file.path)
-        guard let metadata = response.header("Dropbox-API-Result"),
+        guard let metadata = response.headers["dropbox-api-result"],
               let json = try JSONSerialization.jsonObject(with: Data(metadata.utf8)) as? [String: Any] else {
             throw StorageError.invalidResponse
         }
@@ -168,7 +164,7 @@ actor DropboxBackend: RemoteWorkspaceBackend {
 
     private func argument(_ json: [String: Any]) throws -> String {
         // Dropbox arguments live in an HTTP header, so escape non-ASCII scalars.
-        let string = String(decoding: try StorageHTTP.jsonData(json), as: UTF8.self)
+        let string = String(decoding: try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]), as: UTF8.self)
         return string.utf16.map { unit in
             if unit > 0x7e { return String(format: "\\u%04x", unit) }
             return String(UnicodeScalar(unit)!)

@@ -1,7 +1,7 @@
 import Foundation
 
 extension WorkspaceStore {
-    static let repeaterTokenExpression = try? NSRegularExpression(
+    static let repeaterTokenExpression = try! NSRegularExpression(
         pattern: #"(?:\+\+|\.\+|\+)\d+[hdwmy]"#
     )
 
@@ -116,7 +116,7 @@ extension WorkspaceStore {
         if repeatedDate != nil, let resolved = resolvedHeading(for: updated) {
             func repeatedStamps(_ node: ParsedOrgNode) -> Int {
                 if node.type == "active_timestamp" {
-                    return Self.repeaterTokenExpression?
+                    return Self.repeaterTokenExpression
                         .firstMatch(in: node.text, range: NSRange(node.text.startIndex..., in: node.text)) == nil ? 0 : 1
                 }
                 return node.children.reduce(0) { $0 + repeatedStamps($1) }
@@ -403,13 +403,7 @@ extension WorkspaceStore {
     /// Start byte of every line (1-based lookup). Built with a single scan so
     /// per-item line repair is a binary search instead of a full prefix count.
     private static func lineStarts(in contents: String) -> [Int] {
-        var starts = [0]
-        var offset = 0
-        for byte in contents.utf8 {
-            if byte == 10 { starts.append(offset + 1) }
-            offset += 1
-        }
-        return starts
+        [0] + contents.utf8.enumerated().compactMap { $0.element == 10 ? $0.offset + 1 : nil }
     }
 
     /// 1-based line number containing the given byte offset.
@@ -442,10 +436,13 @@ extension WorkspaceStore {
 
     private func appendItem(_ item: OrgItem) {
         let path = item.source.file
-        if !documents.contains(where: { $0.path == path }) {
+        let index: Int
+        if let existing = documents.firstIndex(where: { $0.path == path }) {
+            index = existing
+        } else {
+            index = documents.endIndex
             documents.append(WorkspaceDocument(path: path, title: path, contents: "", kind: .org))
         }
-        guard let index = documents.firstIndex(where: { $0.path == path }) else { return }
         var lines = [item.orgHeading]
         if [.event, .note].contains(item.kind), !item.state.isTerminal {
             lines[0] = lines[0].replacingOccurrences(of: "* \(item.state.rawValue) ", with: "* ")

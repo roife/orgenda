@@ -31,6 +31,12 @@ extension WorkspaceStore {
         }
         if isUITestWorkspace {
             #if DEBUG
+            // Exercise empty pages without touching the connected workspace.
+            if arguments.contains("--empty-workspace-fixture") {
+                items = []
+                journalEntries = []
+                documents = []
+            }
             if arguments.contains("--workflow-settings-fixture") {
                 // Real local persistence for reorder/add UI tests, never the
                 // user's selected workspace or standard connection preferences.
@@ -38,7 +44,16 @@ extension WorkspaceStore {
                     let id = UUID().uuidString
                     let root = FileManager.default.temporaryDirectory.appendingPathComponent("Workflow Settings-" + id)
                     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-                    let source = try ConfigurationDocument(configuration: .standard).encoded(.standard)
+                    var configuration = WorkspaceConfiguration.standard
+                    if arguments.contains("--native-selection-fixture") {
+                        configuration.agenda.sources = ["projects/work.org", "offline/planned.org"]
+                        configuration.workflow.keywords["TODO"] = .init(key: "t")
+                        configuration.workflow.keywords["DONE"] = .init(key: "d")
+                        try FileManager.default.createDirectory(at: root.appendingPathComponent("projects"), withIntermediateDirectories: true)
+                        try "* TODO Inbox selection probe\n".write(to: root.appendingPathComponent("inbox.org"), atomically: true, encoding: .utf8)
+                        try "* TODO Project selection probe\n".write(to: root.appendingPathComponent("projects/work.org"), atomically: true, encoding: .utf8)
+                    }
+                    let source = try ConfigurationDocument(configuration: configuration).encoded(configuration)
                     try source.write(to: root.appendingPathComponent("config.json"), atomically: true, encoding: .utf8)
                     let defaults = UserDefaults(suiteName: "orgenda.workflow-ui." + id)!
                     await connectFolder(root, remember: false, defaults: defaults)

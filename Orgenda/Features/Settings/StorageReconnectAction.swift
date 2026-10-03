@@ -20,7 +20,7 @@ struct StorageReconnectAction: View {
         } label: {
             HStack(spacing: 12) {
                 if isReconnecting { ProgressView() }
-                Label(store.storageConnection?.provider == .webDAV ? "Update Password" : "Sign In Again",
+                Label(LocalizedStringKey(store.storageConnection?.provider == .webDAV ? "Update Password" : "Sign In Again"),
                       systemImage: "key.fill")
             }
         }
@@ -75,8 +75,6 @@ private struct StorageWebDAVCredentialsView: View {
                     }
                     .disabled(password.isEmpty)
                     .accessibilityIdentifier("storage.reauthenticate.save")
-                } footer: {
-                    Text("Keeps this workspace and its unsynced edits. Only the saved password changes.")
                 }
                 if let connectionError {
                     Section("Could Not Connect") {

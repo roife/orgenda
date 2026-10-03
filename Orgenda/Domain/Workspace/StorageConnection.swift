@@ -45,9 +45,7 @@ struct StorageConnection: Codable, Equatable, Sendable, Identifiable {
 
     var emailAddress: String? {
         guard provider.usesEmailAccount else { return nil }
-        // Older Google Drive and Dropbox connections stored the email in accountName.
-        let legacyEmail = provider == .googleDrive || provider == .dropbox ? accountName : nil
-        return [accountEmail, legacyEmail].compactMap(Self.normalizedEmail).first
+        return Self.normalizedEmail(accountEmail)
     }
 
     static func normalizedEmail(_ value: String?) -> String? {

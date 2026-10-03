@@ -86,7 +86,7 @@ actor GoogleDriveBackend: RemoteWorkspaceBackend {
             request.setValue(current.revision, forHTTPHeaderField: "If-Match")
             var response = try await client.send(request, maxBytes: maxBytes)
             if response.status == 412 { continue }
-            if (300..<400).contains(response.status), let location = response.header("Location"),
+            if (300..<400).contains(response.status), let location = response.headers["location"],
                let url = URL(string: location),
                (url.host?.hasSuffix(".googleusercontent.com") == true || url.host == "googleusercontent.com") {
                 try StorageHTTP.requireHTTPS(url)
@@ -120,13 +120,13 @@ actor GoogleDriveBackend: RemoteWorkspaceBackend {
                   !existing.isDirectory else { throw StorageError.conflict(path) }
             etag = revision; fileID = existing.id
         } else {
-            let parent = try await directoryID(StorageHTTP.parent(path))
+            let parent = try await directoryID((path as NSString).deletingLastPathComponent)
             let siblings = try await children(parent)
-            let matching = siblings.filter { $0["title"] as? String == StorageHTTP.name(path) }
+            let matching = siblings.filter { $0["title"] as? String == (path as NSString).lastPathComponent }
             if matching.count == 1, Self.operation(matching[0]) == operation,
                matching[0]["md5Checksum"] as? String == checksum { return try decode(matching[0], path: path) }
             guard matching.isEmpty else { throw StorageError.conflict(path) }
-            payload["title"] = StorageHTTP.name(path)
+            payload["title"] = (path as NSString).lastPathComponent
             payload["mimeType"] = "application/octet-stream"
             payload["parents"] = [["id": parent]]
             let generated = try await client.json(Self.fileURL("generateIds", query: [.init(name: "maxResults", value: "1")]))
@@ -147,7 +147,7 @@ actor GoogleDriveBackend: RemoteWorkspaceBackend {
     private func multipart(data: Data, metadata: [String: Any], fileID: String?, etag: String?, path: String) async throws -> [String: Any] {
         let boundary = "orgenda-" + UUID().uuidString
         var body = Data("--\(boundary)\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n".utf8)
-        body.append(try StorageHTTP.jsonData(metadata))
+        body.append(try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys]))
         body.append(Data("\r\n--\(boundary)\r\nContent-Type: application/octet-stream\r\n\r\n".utf8))
         body.append(data); body.append(Data("\r\n--\(boundary)--\r\n".utf8))
         var request = URLRequest(url: try Self.uploadURL(fileID, type: "multipart"))
@@ -159,13 +159,13 @@ actor GoogleDriveBackend: RemoteWorkspaceBackend {
 
     private func resumable(data: Data, metadata: [String: Any], fileID: String?, etag: String?, path: String) async throws -> [String: Any] {
         var request = URLRequest(url: try Self.uploadURL(fileID, type: "resumable"))
-        request.httpMethod = fileID == nil ? "POST" : "PUT"; request.httpBody = try StorageHTTP.jsonData(metadata)
+        request.httpMethod = fileID == nil ? "POST" : "PUT"; request.httpBody = try JSONSerialization.data(withJSONObject: metadata, options: [.sortedKeys])
         request.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
         request.setValue("application/octet-stream", forHTTPHeaderField: "X-Upload-Content-Type")
         request.setValue(String(data.count), forHTTPHeaderField: "X-Upload-Content-Length")
         if let etag { request.setValue(etag, forHTTPHeaderField: "If-Match") }
         let response = try await client.send(request).checked(path: path)
-        guard let location = response.header("Location"), let url = URL(string: location),
+        guard let location = response.headers["location"], let url = URL(string: location),
               url.host == "www.googleapis.com", url.scheme == "https" else { throw StorageError.invalidResponse }
         var offset = 0
         let chunkSize = 8 * 256 * 1024
@@ -177,7 +177,7 @@ actor GoogleDriveBackend: RemoteWorkspaceBackend {
             upload.setValue("bytes \(offset)-\(end - 1)/\(data.count)", forHTTPHeaderField: "Content-Range")
             let result = try await client.send(upload)
             if result.status == 308 {
-                guard end < data.count, result.header("Range") == "bytes=0-\(end - 1)" else { throw StorageError.invalidResponse }
+                guard end < data.count, result.headers["range"] == "bytes=0-\(end - 1)" else { throw StorageError.invalidResponse }
             } else {
                 _ = try result.checked(path: path) // Includes 412 at final commit.
                 guard end == data.count else { throw StorageError.invalidResponse }
@@ -190,11 +190,11 @@ actor GoogleDriveBackend: RemoteWorkspaceBackend {
 
     func createDirectory(path: String) async throws -> RemoteFile {
         try StorageError.validate(path: path)
-        let parent = try await directoryID(StorageHTTP.parent(path))
-        let matches = try await children(parent).filter { $0["title"] as? String == StorageHTTP.name(path) }
+        let parent = try await directoryID((path as NSString).deletingLastPathComponent)
+        let matches = try await children(parent).filter { $0["title"] as? String == (path as NSString).lastPathComponent }
         guard matches.isEmpty else { throw StorageError.conflict(path) }
         let json = try await client.json(Self.fileURL(), method: "POST",
-                                         body: ["title": StorageHTTP.name(path), "mimeType": "application/vnd.google-apps.folder",
+                                         body: ["title": (path as NSString).lastPathComponent, "mimeType": "application/vnd.google-apps.folder",
                                                 "parents": [["id": parent]]], path: path)
         return try decode(json, path: path)
     }
@@ -207,18 +207,16 @@ actor GoogleDriveBackend: RemoteWorkspaceBackend {
               let revision = StorageHTTP.strongETag(file.revision), current["etag"] as? String == revision else {
             throw StorageError.conflict(file.path)
         }
-        let parent = try await directoryID(StorageHTTP.parent(path))
-        guard try await children(parent).allSatisfy({ $0["title"] as? String != StorageHTTP.name(path) }) else {
+        let parent = try await directoryID((path as NSString).deletingLastPathComponent)
+        guard try await children(parent).allSatisfy({ $0["title"] as? String != (path as NSString).lastPathComponent }) else {
             throw StorageError.conflict(path)
         }
         let oldParents = (current["parents"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? String }
         let query = [URLQueryItem(name: "addParents", value: parent), .init(name: "removeParents", value: oldParents.joined(separator: ","))]
         let json = try await client.json(Self.fileURL(file.id, query: query), method: "PATCH",
-                                         body: ["title": StorageHTTP.name(path)], headers: ["If-Match": revision], path: path)
+                                         body: ["title": (path as NSString).lastPathComponent], headers: ["If-Match": revision], path: path)
         return try decode(json, path: path)
     }
-
-    func validateRoot() async throws { _ = try await root() }
 
     private func root() async throws -> [String: Any] {
         let json = try await metadata(rootID)

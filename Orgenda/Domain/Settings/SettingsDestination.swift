@@ -9,7 +9,6 @@ enum SettingsDestination: String, CaseIterable, Hashable, Sendable {
     case workflow
     case capture
     case files
-    case emacs
     case configuration
 
     var title: String {
@@ -20,7 +19,6 @@ enum SettingsDestination: String, CaseIterable, Hashable, Sendable {
         case .workflow: String(localized: "Workflow")
         case .capture: String(localized: "Capture templates")
         case .files: String(localized: "Files & agenda")
-        case .emacs: String(localized: "Extract from Emacs")
         case .configuration: String(localized: "Configuration file")
         }
     }
@@ -28,13 +26,29 @@ enum SettingsDestination: String, CaseIterable, Hashable, Sendable {
     var subtitle: String {
         switch self {
         case .workspace: String(localized: "Workspace folder, saving, and sync")
-        case .appearance: String(localized: "System, light, or dark theme")
-        case .reminders: String(localized: "Notifications, permission and reminder timing")
-        case .workflow: String(localized: "Task states, icons, colors and history rules")
-        case .capture: String(localized: "Capture templates, destinations and quick keys")
-        case .files: String(localized: "Agenda sources, inbox, attachments, journal, archive and refile")
-        case .emacs: String(localized: "Copy a prompt to extract your Emacs Org settings")
-        case .configuration: String(localized: "config.json, saving, presets and reset")
+        case .appearance: String(localized: "Theme on this device")
+        case .reminders: String(localized: "Device notifications and shared timing")
+        case .workflow: String(localized: "States and history · Workspace")
+        case .capture: String(localized: "Templates and destinations · Workspace")
+        case .files: String(localized: "File locations and agenda · Workspace")
+        case .configuration: String(localized: "Shared config.json, import and presets")
         }
+    }
+
+    var searchTerms: [String] {
+        var terms = [title, subtitle]
+        if self == .configuration {
+            // The Emacs section remains discoverable after its standalone page is removed.
+            terms += [
+                "Extract from Emacs", "Copy prompt", "Full conversion prompt",
+                "Convert, review and import your settings",
+                String(localized: "Extract from Emacs"), String(localized: "Copy prompt"),
+                String(localized: "Full conversion prompt"),
+                "从 Emacs 提取", "從 Emacs 擷取", "复制提示词", "複製提示詞",
+                "查看完整转换提示词", "檢視完整轉換提示詞",
+                "转换、检查并导入设置", "轉換、檢查並匯入設定"
+            ]
+        }
+        return terms
     }
 }

@@ -22,19 +22,17 @@ enum OrgConfiguredHeading {
                 var localStyle = styles[token] ?? .init()
                 localStyle.key = ""
                 localStyle.log = .init()
-                styles[token] = localStyle
                 if let opening = word.firstIndex(of: "("), word.hasSuffix(")") {
                     let markers = String(word[word.index(after: opening)..<word.index(before: word.endIndex)])
                     let parts = markers.components(separatedBy: "/")
-                    var style = styles[token] ?? .init()
-                    style.key = String(parts[0].prefix { $0 != "!" && $0 != "@" })
+                    localStyle.key = String(parts[0].prefix { $0 != "!" && $0 != "@" })
                     func rule(_ value: String) -> WorkspaceConfiguration.LogRule {
                         value.contains("@") ? .note : value.contains("!") ? .time : .none
                     }
-                    style.log.enter = rule(parts[0])
-                    style.log.leave = parts.count > 1 ? rule(parts[1]) : .none
-                    styles[token] = style
+                    localStyle.log.enter = rule(parts[0])
+                    localStyle.log.leave = parts.count > 1 ? rule(parts[1]) : .none
                 }
+                styles[token] = localStyle
                 if done { terminal.append(token) } else { process.append(token) }
             }
             if terminal.isEmpty, process.count > 1 { terminal.append(process.removeLast()) }

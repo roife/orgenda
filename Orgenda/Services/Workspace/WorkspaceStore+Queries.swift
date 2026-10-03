@@ -76,7 +76,9 @@ extension WorkspaceStore {
         }
         if scope == .all || scope == .settings {
             results += SettingsDestination.allCases
-                .filter { $0.title.range(of: needle, options: options) != nil || $0.subtitle.range(of: needle, options: options) != nil }
+                .filter { destination in
+                    destination.searchTerms.contains { $0.range(of: needle, options: options) != nil }
+                }
                 .map(SearchResult.setting)
         }
         return results

@@ -102,9 +102,8 @@ struct ConfiguredCaptureView: View {
     }
     private func render() {
         do {
-            let rendered = try ConfiguredCapture.render(template.template, answers: answers, cursorText: text, date: date,
-                                                       link: link, selection: selection, clipboard: clipboard)
-            output = rendered
+            output = try ConfiguredCapture.render(template.template, answers: answers, cursorText: text, date: date,
+                                                  link: link, selection: selection, clipboard: clipboard)
             baseline = store.documents.first { $0.path == template.target.path }?.contents
             configRevision = store.configurationRevision
             workspaceID = store.workspaceFileSessionID
@@ -121,8 +120,8 @@ private struct ConfigurationCaptureDateField: View {
     @State private var date = Date.now
     var body: some View {
         DatePicker(title, selection: $date, displayedComponents: includesTime ? [.date, .hourAndMinute] : [.date])
-            .onAppear { update() }
-            .onChange(of: date) { _, _ in update() }
+            .onChange(of: date, initial: true) { _, date in
+                value = ConfiguredCapture.timestamp(date, active: active, time: includesTime)
+            }
     }
-    private func update() { value = ConfiguredCapture.timestamp(date, active: active, time: includesTime) }
 }

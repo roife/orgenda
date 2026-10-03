@@ -32,6 +32,9 @@ struct SearchView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(uiColor: .systemBackground))
                 .navigationTitle("Search")
+                // Search has its own scope header. Keep navigation chrome from
+                // collapsing separately while the search field gains focus.
+                .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) { scopeBar }
                 .sheet(item: $presentation) { destination in
                     switch destination {
@@ -171,22 +174,15 @@ struct SearchView: View {
     }
 
     private var searchGuidance: some View {
-        ScrollView {
-            ContentUnavailableView {
-                Label("Start a search", systemImage: "magnifyingglass")
-            } description: {
-                Text(searchGuidanceDescription)
-            } actions: {
-                if scope != .all {
-                    Button("Search All") { scope = .all }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                        .accessibilityIdentifier("search.expandScope")
-                }
+        SearchEmptyState(title: "Start a search", description: searchGuidanceDescription) {
+            if scope != .all {
+                Button("Search All") { scope = .all }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .accessibilityIdentifier("search.expandScope")
+                    .padding(.top, 24)
             }
-            .frame(maxWidth: .infinity)
         }
-        .defaultScrollAnchor(.center, for: .alignment)
         .scrollDismissesKeyboard(.interactively)
         .accessibilityIdentifier("search.guidance")
     }
@@ -203,14 +199,13 @@ struct SearchView: View {
     }
 
     private var noResults: some View {
-        ScrollView {
-            ContentUnavailableView {
-                Label("No results", systemImage: "magnifyingglass")
-            } description: {
-                Text(scope == .all
-                     ? "No matches for “\(trimmedQuery)”. Try another word or a shorter phrase."
-                     : "No matches for “\(trimmedQuery)” in \(scope.title). Try searching all categories.")
-            } actions: {
+        SearchEmptyState(
+            title: "No results",
+            description: scope == .all
+                ? String(localized: "No matches for “\(trimmedQuery)”. Try another word or a shorter phrase.")
+                : String(localized: "No matches for “\(trimmedQuery)” in \(scope.title). Try searching all categories.")
+        ) {
+            VStack(spacing: 12) {
                 if scope != .all {
                     Button("Search All") { scope = .all }
                         .buttonStyle(.borderedProminent)
@@ -221,10 +216,39 @@ struct SearchView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.large)
             }
-            .frame(maxWidth: .infinity)
+            .padding(.top, 24)
         }
-        .defaultScrollAnchor(.center, for: .alignment)
         .scrollDismissesKeyboard(.interactively)
     }
 
+}
+
+/// A single SwiftUI layout keeps the icon, title, and description together
+/// during search activation and keyboard resizing. ContentUnavailableView
+/// adjusts its own placement during that transition, producing a second jump.
+private struct SearchEmptyState<Actions: View>: View {
+    let title: LocalizedStringKey
+    let description: String
+    @ViewBuilder let actions: () -> Actions
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 24)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.title3.bold())
+                .padding(.bottom, 4)
+                .accessibilityAddTraits(.isHeader)
+            Text(description)
+                .font(.body)
+                .foregroundStyle(.secondary)
+            actions()
+        }
+        .multilineTextAlignment(.center)
+        .padding(20)
+        .orgendaEmptyState()
+    }
 }

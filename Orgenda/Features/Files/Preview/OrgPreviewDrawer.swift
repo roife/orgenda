@@ -6,7 +6,7 @@ struct OrgPreviewDrawer: View {
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
-            OrgPreviewReadOnlyContent(nodes: contents)
+            OrgPreviewReadOnlyContent(nodes: OrgPreviewMarkup.contents(of: node))
                 .padding(.top, 2)
         } label: {
             Text(name)
@@ -27,7 +27,6 @@ struct OrgPreviewDrawer: View {
             .trimmingCharacters(in: CharacterSet(charactersIn: ":"))
     }
 
-    private var contents: [ParsedOrgNode] { OrgPreviewMarkup.contents(of: node) }
 }
 
 struct OrgPreviewClock: View {
@@ -175,14 +174,13 @@ struct OrgWorkflowLogEntry {
     let details: String
     let sourcePrefix: String
 
-    private static let expression = try? NSRegularExpression(
+    private static let expression = try! NSRegularExpression(
         pattern: #"^State\s+"([^"]+)"(?:\s+from\s+"([^"]*)")?\s*(.*)$"#,
         options: .dotMatchesLineSeparators
     )
 
     init?(_ source: String) {
-        guard let expression = Self.expression,
-              let match = expression.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
+        guard let match = Self.expression.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
               let currentRange = Range(match.range(at: 1), in: source),
               let detailsRange = Range(match.range(at: 3), in: source) else { return nil }
         current = String(source[currentRange])

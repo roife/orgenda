@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "workflow": {
+    "sequences": [{
+      "id": "tasks",
+      "process": ["TODO", "NEXT", "WAIT"],
+      "terminal": ["DONE", "CANCELED"],
+      "initial": "TODO",
+      "complete": "DONE",
+      "reopen": "TODO"
+    }],
+    "keywords": {
+      "WAIT": {"label": "Waiting", "icon": "hourglass", "color": "amber"}
+    }
+  },
+  "files": {
+    "inbox": "inbox.org",
+    "attachments": ".attach",
+    "journal": "journal",
+    "archive": "%s_archive::* Archived",
+    "refile": [],
+    "refileMaxLevel": 3
+  },
+  "agenda": {"sources": [], "excluded": []},
+  "reminders": {"advanceMinutes": 15, "repeatMinutes": 5, "deadlineWarningDays": 14},
+  "capture": {
+    "defaultTemplate": "inbox",
+    "templates": [{
+      "id": "inbox",
+      "name": "Inbox task",
+      "type": "entry",
+      "target": {"type": "file", "path": "inbox.org", "outline": []},
+      "template": "* TODO %^{Title}\n%?",
+      "key": "t"
+    }]
+  }
+}

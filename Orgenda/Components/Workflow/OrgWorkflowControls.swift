@@ -25,49 +25,44 @@ struct OrgWorkflowPicker: View {
     var states: [OrgWorkflowState] = OrgWorkspaceConfiguration.taskStates
 
     var body: some View {
-        OrgendaFlowLayout(horizontalSpacing: 2, verticalSpacing: 8) {
+        Picker(selection: $selection) {
             ForEach(states) { state in
-                OrgWorkflowOption(state: state, isSelected: selection == state) {
-                    selection = state
-                }
-                .keyboardShortcut(workflow.keywords[state.rawValue]?.key.first.map { KeyboardShortcut(KeyEquivalent($0), modifiers: []) })
-                .accessibilityIdentifier("workflow.option.\(state.rawValue)")
+                OrgWorkflowLabel(state: state)
+                    .foregroundStyle(OrgendaTheme.workflowColor(state))
+                    .tag(state)
+                    .accessibilityIdentifier("workflow.option.\(state.rawValue)")
+            }
+        } label: {
+            Text("Status")
+        } currentValueLabel: {
+            OrgWorkflowLabel(state: selection)
+                .foregroundStyle(OrgendaTheme.workflowColor(selection))
+        }
+        .pickerStyle(.menu)
+        .accessibilityValue(selection.title)
+        .tint(OrgendaTheme.workflowColor(selection))
+        .background {
+            // Picker labels do not perform actions. Keep real controls in the
+            // scene for the configured workflow keyboard shortcuts instead.
+            shortcutCommands.hidden()
+        }
+    }
+
+    private var shortcutCommands: some View {
+        ForEach(states) { state in
+            if let key = workflow.keywords[state.rawValue]?.key.first {
+                Button(state.title) { selection = state }
+                    .keyboardShortcut(KeyEquivalent(key), modifiers: [])
+                    .accessibilityHidden(true)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Status")
-        .accessibilityValue(selection.title)
     }
 }
 
-struct OrgWorkflowOption: View {
+struct OrgWorkflowLabel: View {
     let state: OrgWorkflowState
-    let isSelected: Bool
-    let action: () -> Void
-    @ScaledMetric(relativeTo: .body) private var symbolSize = 21.0
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                OrgWorkflowIcon(state)
-                    .font(.system(size: symbolSize, weight: .medium))
-                Text(state.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(OrgendaTheme.workflowColor(state))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-                .padding(.horizontal, 10)
-                .frame(minWidth: 44, minHeight: 44)
-                .background(isSelected ? OrgendaTheme.workflowColor(state).opacity(0.12) : .clear,
-                            in: RoundedRectangle(cornerRadius: 10))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(isSelected ? OrgendaTheme.workflowColor(state) : .clear, lineWidth: 2)
-                }
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(state.title)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        Label(state.title, systemImage: state.symbol)
     }
 }
