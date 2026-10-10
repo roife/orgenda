@@ -88,7 +88,7 @@ final class UIUXPolishUITests: XCTestCase {
     func testReplacingSearchQueryAndChangingScopeShowsCurrentResults() {
         let app = launchApp()
         defer { app.terminate() }
-        app.tabBars.buttons["Search"].tap()
+        app.selectRootTab("Search")
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         search.tap()
@@ -215,7 +215,7 @@ final class UIUXPolishUITests: XCTestCase {
 
     func testPreviewLoadsRelativeAndAttachmentImagesAndOpensZoom() {
         let app = launchTestApp(["--image-preview-fixture"], workspace: "--ui-test-workspace", appearance: "Light")
-        app.tabBars.buttons["Files"].tap()
+        app.selectRootTab("Files")
         app.buttons["files.open.notes"].tap()
         app.buttons["files.open.notes/note.org"].tap()
         let relative = app.buttons["Relative picture"]
@@ -254,7 +254,7 @@ final class UIUXPolishUITests: XCTestCase {
     }
 
     private func openInbox(in app: XCUIApplication) {
-        app.tabBars.buttons["Files"].tap()
+        app.selectRootTab("Files")
         let inbox = app.buttons["files.open.inbox.org"]
         XCTAssertTrue(inbox.waitForExistence(timeout: 5))
         inbox.tap()

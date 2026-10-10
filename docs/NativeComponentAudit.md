@@ -1,8 +1,30 @@
 # Orgenda 原生组件替代清单
 
-优先替换文档模式切换的 UIKit 桥接、标题拖拽桥接、文件浏览的手工列表外观、计划编辑表单和大纲展开控件。月历、键盘工具条和源码编辑器涉及专门的交互要求，应先做替代原型。保留已经基于系统控件的业务封装。
+## 本轮实施结果
 
-审查日期为 2026 年 10 月 10 日，基于工作区当时的代码，包括已有未提交修改；基准提交为 c4d9734。完整通读 Components、DesignSystem、Features 及 App 顶层的 110 个 Swift 文件，共 15,858 行。另读图片加载服务及相关测试片段核对行为。范围不包括开发 fixture、第三方包实现、全部领域与存储代码。本文是源码审查清单；未改动应用源码，未运行替换原型或 UI 回归。
+已落实本轮确认的七项化简，对应 R01 至 R06 和 D01。应用源码净减少 175 行（含注释和空行）。其余 R07 至 R12、C 类条目仍是候选建议。
+
+| 项目 | 原编号 | 当前实现 | 结果 |
+| --- | --- | --- | --- |
+| 文档模式切换 | R01 | [Picker(.segmented)](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/OrgDocumentView.swift:7) | 移除 UISegmentedControl 桥接，保留模式切换时的键盘与编辑会话处理。 |
+| 标题拖拽 | R02 | [SwiftUI 拖放会话](/Users/roifewu/.config/orgenda/Orgenda/Components/Gestures/OrgHeadingDrag.swift:47) | 使用 dragContainer、Transferable 和 DropSession；同一次拖拽复用源码快照，取消及数据交付后清理。 |
+| 文件浏览 | R03 | [List 与 NavigationLink](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/FilesView.swift:115) | 系统管理选中行、分隔线和导航外观；文件夹接收拖放使用下面说明的 UIKit 适配。 |
+| 计划日期编辑 | R04 | [Form 与 Section](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPlanningEditorSheet.swift:24) | 移除手工卡片外壳，保留日期范围、前后一天、时间与重复规则。 |
+| 大纲展开 | R05 | [DisclosureGroup](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/DocumentOutline.swift:420) | 移除手画箭头和旋转逻辑。标题定位与系统展开箭头保留独立点击区域。 |
+| 弹窗状态 | R06 | [Optional item 绑定](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/ConfigurationSettingsView.swift:113) | 删除重复的 Optional 转 Bool 连接代码，保留异步保存、版本确认和失败留稿。 |
+| 未使用横向手势 | D01 | OrgendaHorizontalPan.swift（已删除） | 删除 48 行未调用代码，已重新生成 Xcode 工程。 |
+
+文件夹拖放保留一个小型公共 UIKit 适配：List 会截获行内 SwiftUI dropDestination，实测无法完成同一列表内的目录拖放。WorkspaceFolderDropTarget 把 UIDropInteraction 放在文件夹自己的视图上，仍复用 WorkspaceFileTransfer 和 store 的快照校验，不查找、不修改 List 私有内部视图。SwiftUI 列表内拖放问题也有公开的[开发者反馈](https://developer.apple.com/forums/thread/730367)。
+
+大纲使用原生 ScrollView 和 DisclosureGroup，保留前／后／子级三个落点；没有把树形移动退化成 List 的线性排序。文件列表使用原生 List，并保留拖入目录、长按菜单、滑动操作和撤销。
+
+验证状态：构建通过，55 项相关单元测试通过。分批 UI 回归已覆盖 iPad 分栏与旋转留稿、大纲展开与定位、过滤后重排、跨层级拖拽与撤销、取消拖拽、计划日期保存、文件目录拖放往返和冲突替换确认。文件夹长按删除确认、取消及撤销恢复也已通过。以上为分批定向回归，不是全量测试套件。
+
+## 原始审查范围
+
+原审查建议优先替换文档模式切换的 UIKit 桥接、标题拖拽桥接、文件浏览的手工列表外观、计划编辑表单和大纲展开控件。月历、键盘工具条和源码编辑器涉及专门的交互要求，应先做替代原型。保留已经基于系统控件的业务封装。
+
+审查日期为 2026 年 10 月 10 日，基于工作区当时的代码，包括已有未提交修改；基准提交为 c4d9734。完整通读 Components、DesignSystem、Features 及 App 顶层的 110 个 Swift 文件，共 15,858 行。另读图片加载服务及相关测试片段核对行为。范围不包括开发 fixture、第三方包实现、全部领域与存储代码。下文行数及判断保留改造前的审查快照，源码链接已更新；本轮落实情况以“本轮实施结果”为准。
 
 这里的“原生”包括 SwiftUI 与 UIKit。UIViewRepresentable 包装系统控件仍然是原生；替换它的价值在于减少桥接和同步代码。HStack、Canvas、Layout 使用系统基础能力，但仍可能自行实现了系统成品控件已有的行为。
 
@@ -12,12 +34,12 @@ P1 表示优先实施或验证，P2 表示收益较小或布局取舍较多；�
 
 | 编号 | 顺序 | 组件和位置 | 原生替代 | 可以简化什么及保留条件 |
 | --- | --- | --- | --- | --- |
-| R01 | P1 | [OrgDocumentView.swift:208](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/OrgDocumentView.swift:208) 的 NativeModePicker | Picker + .pickerStyle(.segmented) | 当前只创建 UISegmentedControl、同步 index、设字体和无障碍信息，属于很薄的桥接。保留 modeBinding 内的 suspendEditing；大字体继续使用现有 menu 分支。验证工具栏宽度、模式切换后光标与滚动位置。 |
-| R02 | P1 | [OrgHeadingDrag.swift:41](/Users/roifewu/.config/orgenda/Orgenda/Components/Gestures/OrgHeadingDrag.swift:41) 的 OrgHeadingDragSource；[DocumentOutline.swift:447](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/DocumentOutline.swift:447)、[OrgPreviewHeading.swift:51](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPreviewHeading.swift:51) 的透明覆盖层 | SwiftUI .draggable／.onDrag、.onDragSessionUpdated、.dragConfiguration | 本机 iOS 27 SDK 已有拖拽生命周期回调，原注释所述的“需要 UIKit 接收取消后的结束通知”值得重新验证。可去掉 UIView、UIDragInteractionDelegate、手工 UILabel 预览及透明点击转发。保留开始时源码快照校验、仅应用内拖动、结束清理和拖拽预览；覆盖成功、取消、拖出应用三条路径。现有 DropDelegate 已是原生，不必连带删除。 |
-| R03 | P1 | [FilesView.swift:118](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/FilesView.swift:118)、[WorkspaceBrowser.swift:13](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/WorkspaceBrowser.swift:13)、[WorkspaceFileActions.swift:13](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/WorkspaceFileActions.swift:13) | List(selection:) + NavigationLink(value:) + .listStyle(.sidebar／.plain) | 当前手画分隔线、右箭头、选中底色，使用 Button 推导航，并为紧凑分栏补 preferredCompactColumn。让系统列表和链接管理这些展示与导航行为；保留文件树、路径请求、删除确认、拖放验证和快捷预览。左侧图标独立拖动与标题长按菜单须回归，不能直接让整个 NavigationLink 同时承担所有手势。 |
-| R04 | P1 | [OrgPlanningEditorSheet.swift:24](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPlanningEditorSheet.swift:24)、[OrgPlanningEditorSheet.swift:129](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPlanningEditorSheet.swift:129) | Form + Section + DatePicker + Toggle + 现有 OrgRecurrenceEditor | DatePicker 本身已经原生；可替换的是外面的 ScrollView、卡片背景、标题、Divider 和人工间距。开始／结束分别放 Section，错误放 footer。前后一天按钮如需保留可放原生 Button 行。不得丢失范围、时间、重复规则和 trailingText 中的提醒偏移。 |
-| R05 | P1 | [DocumentOutline.swift:214](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/DocumentOutline.swift:214)、[DocumentOutline.swift:408](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/DocumentOutline.swift:408) | List + 递归 DisclosureGroup(isExpanded:) | 可去掉手画箭头、旋转动画、空白占位及分隔线。保留 expandedHeadingIDs、过滤时强制展开、移动后的 ID 映射和标题点击定位。优先可绑定的 DisclosureGroup；直接套 OutlineGroup 无法自动满足现有展开状态控制。树形 before／after／child 移动仍需领域逻辑，不能拿 .onMove 当完整替代。 |
-| R06 | P1 | [WorkspaceFileActions.swift:95](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/WorkspaceFileActions.swift:95)、[ConfigurationSettingsView.swift:112](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/ConfigurationSettingsView.swift:112)、[StorageConflictView.swift:113](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/StorageConflictView.swift:113) 等 | .alert(_:item:actions:message:)／.confirmationDialog(_:item:...) | SDK 已提供可绑定 Optional 数据的现代重载，可替换重复的 Binding(get: optional != nil, set: 清空 optional) 和另传 presenting。保留动作中的期望版本、错误信息与异步处理；这是状态连接的简化，弹窗本身已经是系统弹窗。 |
+| R01 | P1 | [OrgDocumentView.swift:212](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/OrgDocumentView.swift:212) 的 NativeModePicker | Picker + .pickerStyle(.segmented) | 当前只创建 UISegmentedControl、同步 index、设字体和无障碍信息，属于很薄的桥接。保留 modeBinding 内的 suspendEditing；大字体继续使用现有 menu 分支。验证工具栏宽度、模式切换后光标与滚动位置。 |
+| R02 | P1 | [OrgHeadingDrag.swift:40](/Users/roifewu/.config/orgenda/Orgenda/Components/Gestures/OrgHeadingDrag.swift:40) 的 OrgHeadingDragSource；[DocumentOutline.swift:426](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/DocumentOutline.swift:426)、[OrgPreviewHeading.swift:51](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPreviewHeading.swift:51) 的透明覆盖层 | SwiftUI .draggable／.onDrag、.onDragSessionUpdated、.dragConfiguration | 本机 iOS 27 SDK 已有拖拽生命周期回调，原注释所述的“需要 UIKit 接收取消后的结束通知”值得重新验证。可去掉 UIView、UIDragInteractionDelegate、手工 UILabel 预览及透明点击转发。保留开始时源码快照校验、仅应用内拖动、结束清理和拖拽预览；覆盖成功、取消、拖出应用三条路径。现有 DropDelegate 已是原生，不必连带删除。 |
+| R03 | P1 | [FilesView.swift:115](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/FilesView.swift:115)、[WorkspaceBrowser.swift:13](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/WorkspaceBrowser.swift:13)、[WorkspaceFileActions.swift:15](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/WorkspaceFileActions.swift:15) | List(selection:) + NavigationLink(value:) + .listStyle(.sidebar／.plain) | 当前手画分隔线、右箭头、选中底色，使用 Button 推导航，并为紧凑分栏补 preferredCompactColumn。让系统列表和链接管理这些展示与导航行为；保留文件树、路径请求、删除确认、拖放验证和快捷预览。左侧图标独立拖动与标题长按菜单须回归，不能直接让整个 NavigationLink 同时承担所有手势。 |
+| R04 | P1 | [OrgPlanningEditorSheet.swift:24](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPlanningEditorSheet.swift:24)、[OrgPlanningEditorSheet.swift:112](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPlanningEditorSheet.swift:112) | Form + Section + DatePicker + Toggle + 现有 OrgRecurrenceEditor | DatePicker 本身已经原生；可替换的是外面的 ScrollView、卡片背景、标题、Divider 和人工间距。开始／结束分别放 Section，错误放 footer。前后一天按钮如需保留可放原生 Button 行。不得丢失范围、时间、重复规则和 trailingText 中的提醒偏移。 |
+| R05 | P1 | [DocumentOutline.swift:212](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/DocumentOutline.swift:212)、[DocumentOutline.swift:397](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Document/DocumentOutline.swift:397) | List + 递归 DisclosureGroup(isExpanded:) | 可去掉手画箭头、旋转动画、空白占位及分隔线。保留 expandedHeadingIDs、过滤时强制展开、移动后的 ID 映射和标题点击定位。优先可绑定的 DisclosureGroup；直接套 OutlineGroup 无法自动满足现有展开状态控制。树形 before／after／child 移动仍需领域逻辑，不能拿 .onMove 当完整替代。 |
+| R06 | P1 | [WorkspaceFileActions.swift:76](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/WorkspaceFileActions.swift:76)、[ConfigurationSettingsView.swift:112](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/ConfigurationSettingsView.swift:112)、[StorageConflictView.swift:113](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/StorageConflictView.swift:113) 等 | .alert(_:item:actions:message:)／.confirmationDialog(_:item:...) | SDK 已提供可绑定 Optional 数据的现代重载，可替换重复的 Binding(get: optional != nil, set: 清空 optional) 和另传 presenting。保留动作中的期望版本、错误信息与异步处理；这是状态连接的简化，弹窗本身已经是系统弹窗。 |
 | R07 | P2 | [AgendaTaskLists.swift:8](/Users/roifewu/.config/orgenda/Orgenda/Features/Agenda/AgendaTaskLists.swift:8)、[AgendaTaskLists.swift:57](/Users/roifewu/.config/orgenda/Orgenda/Features/Agenda/AgendaTaskLists.swift:57)、[AgendaPerspectiveContent.swift:15](/Users/roifewu/.config/orgenda/Orgenda/Features/Agenda/AgendaPerspectiveContent.swift:15) | List + Section + 原有 OrgItemRow | 无日历联动的 Unscheduled、Overdue、Dashboard 可以交给系统管理行、组头、间距。保留多区域重复出现任务的稳定 ID。AgendaCalendarView 的连续日期时间线另行保留，它依赖可见日期与日历双向同步。现有滑动操作已原生，改 List 的理由不是“让 swipeActions 能用”。 |
 | R08 | P2 | [OrgendaCalendar.swift:437](/Users/roifewu/.config/orgenda/Orgenda/Components/Calendar/OrgendaCalendar.swift:437)、[OrgendaCalendar.swift:562](/Users/roifewu/.config/orgenda/Orgenda/Components/Calendar/OrgendaCalendar.swift:562) | ScrollView + LazyVStack + .scrollTargetBehavior(.paging) | 周视图仍手算拖动距离、预测阈值、offset 和进出动画；可复用本文件月／年视图的原生分页做法。保留跨月周、selectedDate、Reduce Motion，以及内外纵向滚动的协调。月份和年份分页已经原生，无须重写。 |
 | R09 | P2 | [AgendaView.swift:181](/Users/roifewu/.config/orgenda/Orgenda/Features/Agenda/AgendaView.swift:181) | .navigationTitle + .toolbarTitleMenu | 当前是原生 Menu 外加手拼标题及 chevron；若接受系统标题菜单的位置和样式，可以删掉标题外观代码。iPad sidebar 下继续使用当前透视名称；属于外观取舍，不是 Menu 用错。 |
@@ -42,7 +64,7 @@ R02 的回调与拖动配置已在本机 SDK 中确认 iOS 27 可用，符合 pr
 | C07 | [OrgSyntaxTextEditor.swift:8](/Users/roifewu/.config/orgenda/Orgenda/Components/Editor/OrgSyntaxTextEditor.swift:8)、[OrgEditorSession.swift:7](/Users/roifewu/.config/orgenda/Orgenda/Components/Editor/OrgEditorSession.swift:7)、[OrgSyntaxPresentation.swift:5](/Users/roifewu/.config/orgenda/Orgenda/Components/Editor/OrgSyntaxPresentation.swift:5) | TextEditor 绑定 AttributedString + AttributedTextSelection | iOS 26 起已有富文本 TextEditor，所以不能用“SwiftUI 不支持富文本”作为永久保留理由。但当前承担 Tree-sitter 展示属性、中文 marked text 保护、Org 换行命令、统一撤销、外部修订清空历史、UTF-8／UTF-16 定位和模式切换恢复。先做行为原型；高亮与源码模型不会因换控件而消失。现有 UITextView + TextKit 2 已是原生编辑器。 |
 | C08 | [OrgPreviewImageView.swift:171](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/Images/OrgPreviewImageView.swift:171)、[OrgPreviewImageView.swift:192](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/Images/OrgPreviewImageView.swift:192) | QuickLook 的 .quickLookPreview／QLPreviewController | 可以承接独立图片预览，但现状只持有降采样 UIImage；Quick Look 需要可访问的文件 URL。需要让加载服务提供原文件或管理临时导出及生命周期，不能假设 UIImage 可直接传入。当前 UIScrollView 原生缩放只用约 67 行，保持内存图像预览时未必值得换。 |
 | C09 | [OrgItemEditor.swift:306](/Users/roifewu/.config/orgenda/Orgenda/Features/ItemEditor/OrgItemEditor.swift:306)、[JournalComposer.swift:26](/Users/roifewu/.config/orgenda/Orgenda/Features/Journal/JournalComposer.swift:26) | TextField(prompt:axis: .vertical) | 如果备注／日记定位是短多行输入，可移除 TextEditor 上方的手工占位文字和 8／5pt 偏移。长篇输入更适合当前 TextEditor；本机 SDK 的 TextEditor 初始化器没有 prompt 参数，不应虚构这个 API。 |
-| C10 | [JournalComposer.swift:70](/Users/roifewu/.config/orgenda/Orgenda/Features/Journal/JournalComposer.swift:70)、[OrgItemEditor.swift:125](/Users/roifewu/.config/orgenda/Orgenda/Features/ItemEditor/OrgItemEditor.swift:125)、[ConfigurationEditors.swift:116](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/ConfigurationEditors.swift:116)、[OrgPlanningEditorSheet.swift:97](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPlanningEditorSheet.swift:97) | .dismissalConfirmationDialog | 本机 SDK 标记 iOS 27 可用，可验证是否适用于这些页面的系统关闭路径。Apple 文档区分用户发起关闭和代码 dismiss；iOS 上不能假设所有代码关闭或 NavigationStack 返回都会被拦截。非取消动作会允许关闭，因此不能直接替代“异步保存成功后再离开”的逻辑。保存失败保留草稿、主动 Cancel 按钮和移动态禁退仍须单独处理。 |
+| C10 | [JournalComposer.swift:70](/Users/roifewu/.config/orgenda/Orgenda/Features/Journal/JournalComposer.swift:70)、[OrgItemEditor.swift:125](/Users/roifewu/.config/orgenda/Orgenda/Features/ItemEditor/OrgItemEditor.swift:125)、[ConfigurationEditors.swift:116](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/ConfigurationEditors.swift:116)、[OrgPlanningEditorSheet.swift:80](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPlanningEditorSheet.swift:80) | .dismissalConfirmationDialog | 本机 SDK 标记 iOS 27 可用，可验证是否适用于这些页面的系统关闭路径。Apple 文档区分用户发起关闭和代码 dismiss；iOS 上不能假设所有代码关闭或 NavigationStack 返回都会被拦截。非取消动作会允许关闭，因此不能直接替代“异步保存成功后再离开”的逻辑。保存失败保留草稿、主动 Cancel 按钮和移动态禁退仍须单独处理。 |
 
 UICalendarView 提供日期选择、可见日期以及日期装饰；这些能力适合月历，但不足以证明它能覆盖当前所有自定义交互。[Apple 日历文档](https://developer.apple.com/documentation/uikit/uicalendarview)。
 
@@ -54,7 +76,7 @@ Quick Look 以 URL 为输入。[Quick Look 文档](https://developer.apple.com/d
 
 ## 可以直接清理的未使用组件
 
-D01：[OrgendaHorizontalPan.swift:6](/Users/roifewu/.config/orgenda/Orgenda/Components/Gestures/OrgendaHorizontalPan.swift:6) 共 48 行。全仓应用与测试搜索只找到定义，没有调用。建议删掉这个未使用的 UIGestureRecognizerRepresentable，并按仓库要求重新生成 Xcode 工程。当前日历与 Agenda／Journal 的分页并不依赖它，不需要找新的手势组件替代。
+D01：OrgendaHorizontalPan.swift（已删除） 共 48 行。全仓应用与测试搜索只找到定义，没有调用。建议删掉这个未使用的 UIGestureRecognizerRepresentable，并按仓库要求重新生成 Xcode 工程。当前日历与 Agenda／Journal 的分页并不依赖它，不需要找新的手势组件替代。
 
 ## 建议保留的封装
 
@@ -62,7 +84,7 @@ D01：[OrgendaHorizontalPan.swift:6](/Users/roifewu/.config/orgenda/Orgenda/Comp
 | --- | --- | --- |
 | [OrgRecurrenceEditor.swift:17](/Users/roifewu/.config/orgenda/Orgenda/Components/OrgRecurrenceEditor.swift:17) | Toggle、Stepper、Picker、LabeledContent | 自定义的是 Org 的 +、++、.+ 和 habit 最大间隔规则。系统 DatePicker 没有这些完整语义，也没有可直接代替的 Org 重复规则编辑器。 |
 | [OrgWorkflowControls.swift:22](/Users/roifewu/.config/orgenda/Orgenda/Components/Workflow/OrgWorkflowControls.swift:22) | Picker(.menu)、Label、SF Symbols | 已经原生；状态颜色、符号与快捷键来自工作区配置。不要用 Bool Toggle 替代多状态工作流。 |
-| [OrgItemRow.swift:39](/Users/roifewu/.config/orgenda/Orgenda/Components/OrgItemRow.swift:39)、[OrgPreviewHeading.swift:281](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPreviewHeading.swift:281) | Button、swipeActions、contextMenu、draggable | 完成操作可能推进重复任务日期，预览复选框需要写回源码，不能一概改 Bool 开关。本机 SDK 的 ToggleStyle.checkbox 不支持 iOS。需要完整勾选外观时保留小型 Button 封装。 |
+| [OrgItemRow.swift:39](/Users/roifewu/.config/orgenda/Orgenda/Components/OrgItemRow.swift:39)、[OrgPreviewHeading.swift:279](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/OrgPreviewHeading.swift:279) | Button、swipeActions、contextMenu、draggable | 完成操作可能推进重复任务日期，预览复选框需要写回源码，不能一概改 Bool 开关。本机 SDK 的 ToggleStyle.checkbox 不支持 iOS。需要完整勾选外观时保留小型 Button 封装。 |
 | [OrgendaFlowLayout.swift:3](/Users/roifewu/.config/orgenda/Orgenda/DesignSystem/Layout/OrgendaFlowLayout.swift:3)、[OrgendaTagList.swift:4](/Users/roifewu/.config/orgenda/Orgenda/Components/Tags/OrgendaTagList.swift:4) | SwiftUI Layout 协议 | 当前要求是不等宽标签自然换行。Grid／LazyVGrid 的列布局不等价；换成网格会改变语义与宽度。可减少使用场景，不必重写这 43 行布局。 |
 | [HabitHistoryView.swift:3](/Users/roifewu/.config/orgenda/Orgenda/Components/HabitHistoryView.swift:3) | LazyVGrid + RoundedRectangle | 已是简单原生组合；热力格子不是系统现成控件。为 28 个格子引入 Charts 不会明显减少复杂度。 |
 | [OrgendaRootView.swift:190](/Users/roifewu/.config/orgenda/Orgenda/Features/Root/OrgendaRootView.swift:190) | TabView、TabSection、sidebarAdaptable | 顶层标签、侧栏及搜索角色已交给系统。保留路由、配置透视和启动时机。 |
@@ -72,7 +94,7 @@ D01：[OrgendaHorizontalPan.swift:6](/Users/roifewu/.config/orgenda/Orgenda/Comp
 | [OrgPreviewMarkup.swift:99](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/Markup/OrgPreviewMarkup.swift:99)、[OrgMathRendering.swift:24](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/Rendering/OrgMathRendering.swift:24)、[OrgCodeHighlighting.swift:14](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/Rendering/OrgCodeHighlighting.swift:14) | AttributedString、Image、NSCache；领域渲染由解析器与第三方库补充 | Org 语法、公式、编程语言高亮不是基础控件替换能解决的。Text(markdown:) 不能等价解释 Org。不要为了“原生”丢弃公式、源代码高亮或原文回写位置。 |
 | [OrgPreviewImageView.swift:147](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/Preview/Images/OrgPreviewImageView.swift:147) | task、Image、ProgressView；URLSession／ImageIO 在加载服务 | AsyncImage 不能直接替代工作区相对路径、attachment:、权限检查、流式大小限制及降采样。保留加载服务；C08 只讨论点击后的预览外壳。 |
 | [OrgContextPreview.swift:14](/Users/roifewu/.config/orgenda/Orgenda/Components/OrgContextPreview.swift:14)、[WorkspaceDocumentContextPreview.swift:7](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/WorkspaceDocumentContextPreview.swift:7) | 系统 contextMenu(preview:) 中的普通 SwiftUI 内容 | 自定义的是文件／任务摘要，系统菜单呈现已经原生。 |
-| [AgendaView.swift:110](/Users/roifewu/.config/orgenda/Orgenda/Features/Agenda/AgendaView.swift:110)、[WorkspaceFileActions.swift:214](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/WorkspaceFileActions.swift:214) | safeAreaInset、Button、Material／glassEffect | Undo 提示条没有一对一系统 toast 成品。可统一两处样式，但 UndoManager 只解决撤销管理，不会自动生成提示条；文件事务回滚仍是领域行为。 |
+| [AgendaView.swift:110](/Users/roifewu/.config/orgenda/Orgenda/Features/Agenda/AgendaView.swift:110)、[WorkspaceFileActions.swift:193](/Users/roifewu/.config/orgenda/Orgenda/Features/Files/WorkspaceFileActions.swift:193) | safeAreaInset、Button、Material／glassEffect | Undo 提示条没有一对一系统 toast 成品。可统一两处样式，但 UndoManager 只解决撤销管理，不会自动生成提示条；文件事务回滚仍是领域行为。 |
 | [OrgendaHaptics.swift:6](/Users/roifewu/.config/orgenda/Orgenda/DesignSystem/OrgendaHaptics.swift:6)、[OrgendaMotion.swift:7](/Users/roifewu/.config/orgenda/Orgenda/DesignSystem/OrgendaMotion.swift:7)、[OrgendaTheme.swift:3](/Users/roifewu/.config/orgenda/Orgenda/DesignSystem/OrgendaTheme.swift:3) | UIKit 反馈生成器、SwiftUI Animation、动态系统颜色 | 小型策略层可保留。反馈生成器在视图即将关闭时仍能触发是现有设计原因，不必为了统一 .sensoryFeedback 增加额外状态。 |
 
 ## 建议实施顺序与验收
@@ -87,7 +109,7 @@ D01：[OrgendaHorizontalPan.swift:6](/Users/roifewu/.config/orgenda/Orgenda/Comp
 
 ## 逐文件阅读记录
 
-每行代表全文已读，行数包含空行与注释。“保留”表示该文件没有值得单独进行的控件替换；不代表对所有业务逻辑或运行时行为作出正确性保证。R、C、D 编号对应上面的改造项。同一文件可以同时含原生控件和可简化的局部代码。
+每行代表原审查时全文已读，行数包含空行与注释，保留改造前统计。“保留”表示该文件没有值得单独进行的控件替换；不代表对所有业务逻辑或运行时行为作出正确性保证。R、C、D 编号对应上面的改造项。同一文件可以同时含原生控件和可简化的局部代码。
 
 ### 应用入口
 
@@ -114,7 +136,7 @@ D01：[OrgendaHorizontalPan.swift:6](/Users/roifewu/.config/orgenda/Orgenda/Comp
 | [OrgSyntaxPresentation.swift](/Users/roifewu/.config/orgenda/Orgenda/Components/Editor/OrgSyntaxPresentation.swift:1) | 263 | 保留 | 语法节点到原生文本属性的映射；换控件不会消除领域语义。 |
 | [OrgSyntaxTextEditor.swift](/Users/roifewu/.config/orgenda/Orgenda/Components/Editor/OrgSyntaxTextEditor.swift:1) | 368 | C07 | 原生 UITextView 包装负责输入法、源文同步与撤销；不能直接扔掉。 |
 | [OrgHeadingDrag.swift](/Users/roifewu/.config/orgenda/Orgenda/Components/Gestures/OrgHeadingDrag.swift:1) | 175 | R02 | 迁移拖拽源生命周期；保留 DropDelegate、落点分区及循环嵌套防护。 |
-| [OrgendaHorizontalPan.swift](/Users/roifewu/.config/orgenda/Orgenda/Components/Gestures/OrgendaHorizontalPan.swift:1) | 48 | D01 | 全仓没有调用，建议删掉未使用的横向识别器。 |
+| OrgendaHorizontalPan.swift（已删除） | 48 | D01 | 全仓没有调用，建议删掉未使用的横向识别器。 |
 | [HabitHistoryView.swift](/Users/roifewu/.config/orgenda/Orgenda/Components/HabitHistoryView.swift:1) | 20 | 保留 | 20 行 LazyVGrid 热力格和逐日无障碍值；无需引入 Charts。 |
 | [OrgContextPreview.swift](/Users/roifewu/.config/orgenda/Orgenda/Components/OrgContextPreview.swift:1) | 86 | 保留 | 系统长按预览中的业务摘要及 28 天记录。 |
 | [OrgItemRow.swift](/Users/roifewu/.config/orgenda/Orgenda/Components/OrgItemRow.swift:1) | 237 | 保留 | Button、swipeActions、contextMenu、draggable 已原生；完成操作不总是 Bool。 |

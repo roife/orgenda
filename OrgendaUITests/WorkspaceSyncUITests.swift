@@ -226,7 +226,7 @@ final class WorkspaceSyncUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
         app.launch()
-        app.tabBars.buttons["Files"].tap()
+        app.selectRootTab("Files")
         app.buttons["files.settings"].tap()
         let workspace = app.buttons["settings.workspace"]
         XCTAssertTrue(workspace.waitForExistence(timeout: 5))

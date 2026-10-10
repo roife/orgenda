@@ -19,3 +19,20 @@ extension XCTestCase {
         add(attachment)
     }
 }
+
+extension XCUIApplication {
+    /// Native iPad tabs can be exposed as cells rather than TabBar buttons.
+    func selectRootTab(_ title: String) {
+        let candidates = descendants(matching: .any).matching(NSPredicate(format: "label == %@", title))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            candidates.allElementsBoundByIndex.contains { $0.isHittable }
+        }, object: self)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
+        candidates.allElementsBoundByIndex.first { $0.isHittable }?.tap()
+    }
+
+    func scrollSurface(_ identifier: String) -> XCUIElement {
+        let matches = descendants(matching: .any).matching(identifier: identifier)
+        return matches.allElementsBoundByIndex.first { $0.isHittable } ?? matches.firstMatch
+    }
+}

@@ -121,13 +121,10 @@ struct ConfigurationKeywordEditor: View {
             }
         }
         .interactiveDismissDisabled(hasChanges || isSaving)
-        .alert("Unable to save", isPresented: Binding(
-            get: { error != nil },
-            set: { if !$0 { error = nil } }
-        )) {
+        .alert("Unable to save", item: $error) { _ in
             Button("OK", role: .cancel) { error = nil }
-        } message: {
-            Text(error ?? "")
+        } message: { message in
+            Text(message)
             Text("Your changes are still here. Correct the problem and try saving again.")
         }
     }
@@ -309,13 +306,10 @@ struct ConfigurationTemplateEditor: View {
             }
         }
         .interactiveDismissDisabled(hasChanges || isSaving)
-        .alert("Unable to save", isPresented: Binding(
-            get: { error != nil },
-            set: { if !$0 { error = nil } }
-        )) {
+        .alert("Unable to save", item: $error) { _ in
             Button("OK", role: .cancel) { error = nil }
-        } message: {
-            Text(error ?? "")
+        } message: { message in
+            Text(message)
             Text("Your changes are still here. Correct the problem and try saving again.")
         }
     }

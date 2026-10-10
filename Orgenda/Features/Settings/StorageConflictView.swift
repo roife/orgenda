@@ -110,17 +110,12 @@ struct StorageConflictView: View {
         .disabled(isResolving || store.isSynchronizing)
         .navigationTitle("Resolve Conflict")
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog(resolutionTitle, isPresented: Binding(
-            get: { pendingResolution != nil }, set: { if !$0 { pendingResolution = nil } }
-        ), titleVisibility: .visible) {
-            if let pendingResolution {
-                Button(LocalizedStringKey(pendingResolution.resolution == .useLocal ? "Use This Device's Version" : "Use Storage Version"), role: .destructive) {
-                    resolve(pendingResolution.resolution, expectedConflict: pendingResolution.conflict)
-                    self.pendingResolution = nil
-                }
+        .confirmationDialog(resolutionTitle, item: $pendingResolution, titleVisibility: .visible) { prompt in
+            Button(LocalizedStringKey(prompt.resolution == .useLocal ? "Use This Device's Version" : "Use Storage Version"), role: .destructive) {
+                resolve(prompt.resolution, expectedConflict: prompt.conflict)
             }
-            Button("Cancel", role: .cancel) { pendingResolution = nil }
-        } message: {
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
             Text(resolutionMessage)
         }
     }

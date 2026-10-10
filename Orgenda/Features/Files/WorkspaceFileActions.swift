@@ -1,66 +1,46 @@
 import SwiftUI
+import UIKit
+import CoreTransferable
+import UniformTypeIdentifiers
 
 struct WorkspaceBrowserRow: View {
     let store: WorkspaceStore
     let document: WorkspaceDocument
     var showsPath = false
-    var isSelected = false
     let onOpen: () -> Void
     @State private var dropTargeted = false
     @State private var deletion: WorkspaceFileTransfer?
     @State private var moveRequest: WorkspaceFileTransfer?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: document.kind == .folder ? "folder.fill" : "doc.text")
-                .font(.system(size: 20))
-                .foregroundStyle(document.kind == .folder ? Color.orange : OrgendaTheme.accentText)
-                .frame(width: 24, height: 56)
-                .contentShape(Rectangle())
-                .draggable(store.fileTransfer(document))
-                .onTapGesture(perform: onOpen)
-                .accessibilityLabel(document.title)
-                .accessibilityIdentifier("files.drag.\(document.path)")
-            Button(action: onOpen) {
-                HStack(spacing: 8) {
-                    WorkspaceFileRow(
-                        document: document,
-                        showsPath: showsPath,
-                        showsIcon: false,
-                        headingCount: store.parsedDocuments[document.path]?.headings.count
-                    )
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
-                }
-                .padding(.vertical, 6)
-                .frame(minHeight: 56)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("files.open.\(document.path)")
-            .accessibilityAddTraits(isSelected ? .isSelected : [])
-            .contextMenu {
-                Button("Open", systemImage: document.kind == .folder ? "folder" : "doc.text") {
-                    onOpen()
-                }
-                .accessibilityIdentifier("files.context.open")
-                Button("Move", systemImage: "folder") {
-                    moveRequest = store.fileTransfer(document)
-                }
-                .accessibilityIdentifier("files.context.move")
-                Button("Delete", systemImage: "trash", role: .destructive) {
-                    deletion = store.fileTransfer(document)
-                }
-                .accessibilityIdentifier("files.context.delete")
-            } preview: {
-                WorkspaceDocumentContextPreview(document: document, store: store)
-            }
+        NavigationLink(value: document.path) {
+            WorkspaceFileRow(
+                document: document, showsPath: showsPath,
+                headingCount: store.parsedDocuments[document.path]?.headings.count
+            )
         }
-        .background {
-            if isSelected {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(OrgendaTheme.accentText.opacity(0.14))
+        .accessibilityIdentifier("files.open.\(document.path)")
+        .contextMenu {
+            Button("Open", systemImage: document.kind == .folder ? "folder" : "doc.text") {
+                onOpen()
             }
+            .accessibilityIdentifier("files.context.open")
+            Button("Move", systemImage: "folder") {
+                moveRequest = store.fileTransfer(document)
+            }
+            .accessibilityIdentifier("files.context.move")
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                deletion = store.fileTransfer(document)
+            }
+            .accessibilityIdentifier("files.context.delete")
+        } preview: {
+            WorkspaceDocumentContextPreview(document: document, store: store)
         }
+        .draggable(containerItemID: document.path)
+        .dragConfiguration(DragConfiguration(
+            operationsWithinApp: .init(allowMove: true),
+            operationsOutsideApp: .init(allowCopy: false)
+        ))
         .contentShape(Rectangle())
         .overlay {
             if dropTargeted && document.kind == .folder {
@@ -70,12 +50,13 @@ struct WorkspaceBrowserRow: View {
                     .allowsHitTesting(false)
             }
         }
-        .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
-            guard document.kind == .folder, files.count == 1, let file = files.first,
-                  store.canMoveFile(file, to: document.path) else { return false }
-            Task { OrgendaHaptics.result(await store.moveFile(file, to: document.path)) }
-            return true
-        } isTargeted: { dropTargeted = $0 }
+        .overlay {
+            if document.kind == .folder {
+                WorkspaceFolderDropTarget(store: store, path: document.path,
+                                          isTargeted: $dropTargeted, onOpen: onOpen)
+                    .accessibilityHidden(true)
+            }
+        }
         .accessibilityActions {
             Button("Move") { moveRequest = store.fileTransfer(document) }
             Button("Delete") { deletion = store.fileTransfer(document) }
@@ -92,9 +73,7 @@ struct WorkspaceBrowserRow: View {
             .tint(OrgendaTheme.accent)
             .accessibilityIdentifier("files.swipe.move")
         }
-        .alert("Delete \(document.title)?", isPresented: Binding(
-            get: { deletion != nil }, set: { if !$0 { deletion = nil } }
-        ), presenting: deletion) { file in
+        .alert("Delete \(document.title)?", item: $deletion) { file in
             Button("Delete", role: .destructive) {
                 Task { OrgendaHaptics.result(await store.deleteFile(file)) }
             }
@@ -137,9 +116,9 @@ private struct WorkspaceMoveSheet: View {
             }
             .disabled(store.isPerformingFileAction)
             .overlay { if store.isPerformingFileAction { ProgressView("Moving…").padding().background(.regularMaterial, in: Capsule()) } }
-            .alert("Couldn't Move Item", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            .alert("Couldn't Move Item", item: $error) { _ in
                 Button("OK", role: .cancel) {}
-            } message: { Text(error ?? "") }
+            } message: { message in Text(message) }
         }
         .interactiveDismissDisabled(store.isPerformingFileAction)
     }
@@ -203,16 +182,16 @@ struct WorkspaceRecentlyDeleted: View {
                 if let failure = store.fileActionError { error = failure; store.fileActionError = nil }
             }
             .disabled(store.isPerformingFileAction)
-            .alert("Couldn't Restore Item", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            .alert("Couldn't Restore Item", item: $error) { _ in
                 Button("OK", role: .cancel) {}
-            } message: { Text(error ?? "") }
+            } message: { message in Text(message) }
         }
         .interactiveDismissDisabled(store.isPerformingFileAction)
     }
 }
 
 struct WorkspaceFileFeedback: ViewModifier {
-    let store: WorkspaceStore
+    @Bindable var store: WorkspaceStore
 
     func body(content: Content) -> some View {
         content
@@ -238,8 +217,71 @@ struct WorkspaceFileFeedback: ViewModifier {
             .overlay {
                 if store.isPerformingFileAction { ProgressView("Updating files…").padding().background(.regularMaterial, in: Capsule()) }
             }
-            .alert("Couldn't Update Files", isPresented: Binding(
-                get: { store.fileActionError != nil }, set: { if !$0 { store.fileActionError = nil } }
-            )) { Button("OK", role: .cancel) {} } message: { Text(store.fileActionError ?? "") }
+            .alert("Couldn't Update Files", item: $store.fileActionError) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { Text($0) }
+    }
+}
+
+/// List owns its collection view's drop interaction, so SwiftUI row destinations
+/// do not receive in-list drops. A public UIKit interaction on the folder's own
+/// view preserves folder drops without inspecting or replacing List internals.
+private struct WorkspaceFolderDropTarget: UIViewRepresentable {
+    let store: WorkspaceStore
+    let path: String
+    @Binding var isTargeted: Bool
+    let onOpen: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.addInteraction(UIDropInteraction(delegate: context.coordinator))
+        view.addGestureRecognizer(UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.open)))
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) { context.coordinator.parent = self }
+
+    final class Coordinator: NSObject, UIDropInteractionDelegate {
+        var parent: WorkspaceFolderDropTarget
+        init(_ parent: WorkspaceFolderDropTarget) { self.parent = parent }
+        @objc func open() { parent.onOpen() }
+
+        func dropInteraction(_ interaction: UIDropInteraction, canHandle session: UIDropSession) -> Bool {
+            session.localDragSession != nil && session.items.count == 1
+                && session.hasItemsConforming(toTypeIdentifiers: [UTType.orgendaWorkspaceFile.identifier])
+        }
+
+        func dropInteraction(_ interaction: UIDropInteraction, sessionDidEnter session: UIDropSession) {
+            parent.isTargeted = true
+        }
+
+        func dropInteraction(_ interaction: UIDropInteraction, sessionDidUpdate session: UIDropSession) -> UIDropProposal {
+            UIDropProposal(operation: dropInteraction(interaction, canHandle: session) ? .move : .forbidden)
+        }
+
+        func dropInteraction(_ interaction: UIDropInteraction, sessionDidExit session: UIDropSession) {
+            parent.isTargeted = false
+        }
+
+        func dropInteraction(_ interaction: UIDropInteraction, sessionDidEnd session: UIDropSession) {
+            parent.isTargeted = false
+        }
+
+        func dropInteraction(_ interaction: UIDropInteraction, performDrop session: UIDropSession) {
+            parent.isTargeted = false
+            guard dropInteraction(interaction, canHandle: session),
+                  let provider = session.items.first?.itemProvider else { return }
+            let store = parent.store
+            let path = parent.path
+            _ = provider.loadTransferable(type: WorkspaceFileTransfer.self) { result in
+                guard case .success(let file) = result else { return }
+                Task { @MainActor in
+                    guard store.canMoveFile(file, to: path) else { return }
+                    OrgendaHaptics.result(await store.moveFile(file, to: path))
+                }
+            }
+        }
     }
 }

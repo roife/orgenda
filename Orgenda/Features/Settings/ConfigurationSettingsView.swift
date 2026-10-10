@@ -110,8 +110,7 @@ struct ConfigurationSettingsView: View {
             }
         }
         .alert(LocalizedStringKey(pendingPreset == "classic" ? "Replace task states?" : "Replace workspace configuration?"),
-                            isPresented: Binding(get: { pendingPreset != nil }, set: { if !$0 { pendingPreset = nil } }),
-                            presenting: pendingPreset) { preset in
+                            item: $pendingPreset) { preset in
             Button("Apply", role: .destructive) {
                 let value = preset == "classic" ? draft.applyingClassicWorkflowPreset() : .standard
                 if value != draft {
@@ -128,9 +127,7 @@ struct ConfigurationSettingsView: View {
                 Text("Replace task states, templates, file locations, agenda sources, history and reminder rules with defaults. Existing Org files will not be rewritten. You can undo this replacement after saving.")
             }
         }
-        .alert("Unsaved changes", isPresented: Binding(
-            get: { pendingExit != nil }, set: { if !$0 { pendingExit = nil } }
-        ), presenting: pendingExit) { target in
+        .alert("Unsaved changes", item: $pendingExit) { target in
             if target != .reload {
                 Button("Save and continue") {
                     pendingExit = nil
@@ -144,9 +141,7 @@ struct ConfigurationSettingsView: View {
             }
             Button("Keep editing", role: .cancel) { pendingExit = nil }
         } message: { _ in Text("Your changes have not been saved to the workspace.") }
-        .alert("Update default task actions?", isPresented: Binding(
-            get: { pendingSequence != nil }, set: { if !$0 { pendingSequence = nil } }
-        ), presenting: pendingSequence) { next in
+        .alert("Update default task actions?", item: $pendingSequence) { next in
             Button("Update actions", role: .destructive) {
                 submit(next)
                 pendingSequence = nil

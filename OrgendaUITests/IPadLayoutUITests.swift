@@ -145,10 +145,11 @@ final class IPadLayoutUITests: XCTestCase {
         let documentHeading = app.staticTexts["Nested content 中文"]
         XCTAssertTrue(documentHeading.waitForExistence(timeout: 5))
 
+        // Native List containers need not be AX hit targets; check their rows below.
         // The browser and document must both be usable in the expanded split.
-        let browser = app.scrollViews["files.browser"]
+        let browser = app.scrollSurface("files.browser")
         let preview = app.scrollViews["org.preview.scroll"]
-        XCTAssertTrue(browser.isHittable)
+        XCTAssertTrue(browser.exists)
         XCTAssertTrue(preview.isHittable)
         let inboxRow = app.buttons["files.open.inbox.org"]
         XCTAssertTrue(inboxRow.isHittable)
@@ -161,6 +162,7 @@ final class IPadLayoutUITests: XCTestCase {
         let editor = app.textViews["Org source editor"]
         tap(editor)
         dismissTypingIntroduction(in: app)
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.25)).tap()
         editor.typeText("\niPad rotation draft\n")
         let draft = try XCTUnwrap(editor.value as? String)
         XCTAssertTrue(draft.contains("iPad rotation draft"))
@@ -179,7 +181,7 @@ final class IPadLayoutUITests: XCTestCase {
 
         rotate(.landscapeLeft, in: app)
         XCTAssertEqual(editor.value as? String, draft)
-        XCTAssertTrue(browser.isHittable)
+        XCTAssertTrue(browser.exists)
         // Selecting another root file proves that the sidebar still drives the detail.
         tap(app.buttons["files.open.inbox.org"])
         XCTAssertTrue(app.staticTexts["File gesture probe"].waitForExistence(timeout: 5))

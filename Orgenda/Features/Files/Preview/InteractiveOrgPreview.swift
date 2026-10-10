@@ -135,12 +135,10 @@ struct InteractiveOrgPreview: View {
             OrgItemEditor(store: store, draft: item, proposedState: proposedState)
                 .onDisappear { proposedState = nil }
         }
-        .alert("Could not move heading", isPresented: Binding(
-            get: { moveError != nil }, set: { if !$0 { moveError = nil } }
-        )) {
+        .alert("Could not move heading", item: $moveError) { _ in
             Button("OK", role: .cancel) { moveError = nil }
-        } message: {
-            Text(moveError ?? "")
+        } message: { message in
+            Text(message)
         }
         .onChange(of: isActive) { _, active in
             if !active { endHeadingDrag() }

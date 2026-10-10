@@ -48,19 +48,13 @@ struct OrgPreviewHeading: View {
                                 )
                             }
                         }
-                        .overlay {
-                            // Keep image buttons and their context menus interactive.
-                            // Image headings can still be moved from the outline.
-                            if !titleFragments.contains(where: { if case .image = $0 { return true }; return false }) {
-                                OrgHeadingDragSource(
-                                    title: title,
-                                    onBegin: onBeginDrag,
-                                    onEnd: onEndDrag,
-                                    onTap: onEdit
-                                )
-                                    .accessibilityHidden(true)
-                            }
+                        .onTapGesture {
+                            if !titleContainsImage { onEdit() }
                         }
+                        .modifier(OrgHeadingDragSource(
+                            headingID: node.id, onBegin: onBeginDrag, onEnd: onEndDrag,
+                            isEnabled: !titleContainsImage
+                        ))
                 }
                 .padding(.top, node.todoNode == nil ? 8 : 0)
                 if priority != nil || !tags.isEmpty {
@@ -178,6 +172,10 @@ struct OrgPreviewHeading: View {
             String(localized: "Tap to mark \(workflow.toggled($0).title). Touch and hold to choose a status.")
         } ?? String(localized: "Touch and hold to choose a status."))
         .accessibilityIdentifier("org.preview.todo.\(todoNode.startByte)")
+    }
+
+    private var titleContainsImage: Bool {
+        titleFragments.contains { if case .image = $0 { return true }; return false }
     }
 
     private var title: String {

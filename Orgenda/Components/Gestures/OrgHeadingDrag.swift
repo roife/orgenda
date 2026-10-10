@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 import UniformTypeIdentifiers
 
 extension UTType {
@@ -36,71 +35,55 @@ enum OrgHeadingDropZone {
     }
 }
 
-/// UIKit supplies a session-end callback even when a drag is cancelled outside
-/// the document, so the source and all its descendants always stop dimming.
-struct OrgHeadingDragSource: UIViewRepresentable {
-    let title: String
+/// A session token ties the transfer to the validated source snapshot.
+private struct OrgHeadingTransfer: Codable, Transferable, Identifiable {
+    let id: String
+    let token: String
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .orgendaHeading)
+    }
+}
+
+struct OrgHeadingDragSource: ViewModifier {
+    let headingID: String
+    @Namespace private var namespace
+    @State private var transfer: OrgHeadingTransfer?
     let onBegin: () -> String?
     let onEnd: () -> Void
-    var onTap: (() -> Void)? = nil
+    var isEnabled = true
 
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        view.backgroundColor = .clear
-        let interaction = UIDragInteraction(delegate: context.coordinator)
-        interaction.isEnabled = true
-        view.addInteraction(interaction)
-        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tapped))
-        tap.isEnabled = onTap != nil
-        view.addGestureRecognizer(tap)
-        return view
-    }
-
-    func updateUIView(_ view: UIView, context: Context) {
-        context.coordinator.source = self
-        view.gestureRecognizers?.first { $0 is UITapGestureRecognizer }?.isEnabled = onTap != nil
-    }
-
-    final class Coordinator: NSObject, UIDragInteractionDelegate {
-        var source: OrgHeadingDragSource
-        init(_ source: OrgHeadingDragSource) { self.source = source }
-
-        @objc func tapped() { source.onTap?() }
-
-        func dragInteraction(_ interaction: UIDragInteraction,
-                             itemsForBeginning session: UIDragSession) -> [UIDragItem] {
-            guard let token = source.onBegin() else { return [] }
-            let provider = NSItemProvider(item: token as NSString, typeIdentifier: UTType.orgendaHeading.identifier)
-            provider.suggestedName = token
-            let item = UIDragItem(itemProvider: provider)
-            let title = source.title
-            let width = max(120, interaction.view?.bounds.width ?? 240)
-            item.previewProvider = {
-                let label = UILabel()
-                label.text = title
-                label.font = .preferredFont(forTextStyle: .headline)
-                label.textColor = .label
-                label.numberOfLines = 3
-                let size = label.sizeThatFits(CGSize(width: width - 24, height: .greatestFiniteMagnitude))
-                label.frame = CGRect(x: 12, y: 10, width: width - 24, height: size.height)
-                let view = UIView(frame: CGRect(x: 0, y: 0, width: width, height: size.height + 20))
-                view.backgroundColor = .secondarySystemBackground
-                view.layer.cornerRadius = 8
-                view.addSubview(label)
-                return UIDragPreview(view: view)
-            }
-            return [item]
-        }
-
-        func dragInteraction(_ interaction: UIDragInteraction, sessionIsRestrictedToDraggingApplication session: UIDragSession) -> Bool {
-            true
-        }
-
-        func dragInteraction(_ interaction: UIDragInteraction, session: UIDragSession,
-                             didEndWith operation: UIDropOperation) {
-            source.onEnd()
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content
+                .draggable(containerItemID: headingID, containerNamespace: namespace)
+                .dragContainer(for: OrgHeadingTransfer.self, in: namespace) { (id: String) -> [OrgHeadingTransfer] in
+                    // SwiftUI may request a payload more than once during a lift.
+                    // Keep one validated source snapshot for the entire session.
+                    if let transfer { return [transfer] }
+                    guard let token = onBegin() else { return [] }
+                    let payload = OrgHeadingTransfer(id: id, token: token)
+                    transfer = payload
+                    return [payload]
+                }
+                .dragConfiguration(DragConfiguration(
+                    operationsWithinApp: .init(allowMove: true),
+                    operationsOutsideApp: .init(allowCopy: false)
+                ))
+                .onDragSessionUpdated { session in
+                    switch session.phase {
+                    case .ended(let operation) where operation != .move:
+                        transfer = nil
+                        onEnd()
+                    case .dataTransferCompleted:
+                        // Typed payload delivery can finish after the gesture ends.
+                        transfer = nil
+                        onEnd()
+                    default:
+                        break
+                    }
+                }
+        } else {
+            content
         }
     }
 }
@@ -121,55 +104,38 @@ struct OrgHeadingDropModifier: ViewModifier {
                 .coordinateSpace(name: headingID)
                 .onPreferenceChange(OrgHeadingTitleBounds.self) { titleBounds = $0 }
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
-                .onDrop(of: [.orgendaHeading], delegate: HeadingDropDelegate(
-                    headingID: headingID, parentHeadingIDs: parentHeadingIDs, drag: drag,
-                    titleBounds: titleBounds ?? CGRect(x: 0, y: 0, width: 0, height: height),
-                    target: $target, onMove: onMove
-                ))
+                .dropDestination(for: OrgHeadingTransfer.self) { items, session in
+                    guard accepts(session, headingID: headingID),
+                          items.count == 1, items.first?.token == drag?.token else { return }
+                    target = nil
+                    _ = onMove(headingID, placement(at: session.location.y))
+                }
+                .dropConfiguration { session in
+                    DropConfiguration(operation: accepts(session, headingID: headingID) ? .move : .forbidden)
+                }
+                .onDropSessionUpdated { session in
+                    switch session.phase {
+                    case .entering, .active:
+                        if accepts(session, headingID: headingID) {
+                            target = OrgHeadingDrop(headingID: headingID, placement: placement(at: session.location.y))
+                        }
+                    default:
+                        if target?.headingID == headingID { target = nil }
+                    }
+                }
         } else {
             content
         }
     }
-}
 
-private struct HeadingDropDelegate: DropDelegate {
-    let headingID: String
-    let parentHeadingIDs: [String]
-    let drag: OrgHeadingDrag?
-    let titleBounds: CGRect
-    @Binding var target: OrgHeadingDrop?
-    let onMove: (String, OrgHeadingPlacement) -> Bool
-
-    func validateDrop(info: DropInfo) -> Bool {
-        guard let drag,
-              OrgHeadingDropZone.accepts(headingID: drag.headingID, targetID: headingID,
-                                         parentHeadingIDs: parentHeadingIDs) else { return false }
-        return info.itemProviders(for: [.orgendaHeading]).contains { $0.suggestedName == drag.token }
+    private func accepts(_ session: DropSession, headingID: String) -> Bool {
+        guard let drag, session.itemsCount == 1,
+              session.localSession?.draggedItemIDs(for: String.self).contains(drag.headingID) == true else { return false }
+        return OrgHeadingDropZone.accepts(headingID: drag.headingID, targetID: headingID,
+                                          parentHeadingIDs: parentHeadingIDs)
     }
 
-    func dropEntered(info: DropInfo) { updateTarget(info) }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        guard validateDrop(info: info) else { return DropProposal(operation: .forbidden) }
-        updateTarget(info)
-        return DropProposal(operation: .move)
-    }
-
-    func dropExited(info: DropInfo) {
-        if target?.headingID == headingID { target = nil }
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        guard validateDrop(info: info) else { return false }
-        let placement = OrgHeadingDropZone.placement(at: info.location.y, titleBounds: titleBounds)
-        target = nil
-        return onMove(headingID, placement)
-    }
-
-    private func updateTarget(_ info: DropInfo) {
-        guard validateDrop(info: info) else { return }
-        target = OrgHeadingDrop(headingID: headingID,
-                                      placement: OrgHeadingDropZone.placement(
-                                        at: info.location.y, titleBounds: titleBounds))
+    private func placement(at y: CGFloat) -> OrgHeadingPlacement {
+        OrgHeadingDropZone.placement(at: y, titleBounds: titleBounds ?? CGRect(x: 0, y: 0, width: 0, height: height))
     }
 }

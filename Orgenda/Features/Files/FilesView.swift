@@ -44,9 +44,6 @@ struct FilesView: View {
                         navigationPath = []
                         activeLocationRequest = nil
                         selectedPath = path
-                        // Custom browser buttons need to reveal the detail
-                        // explicitly when an iPad window collapses the split.
-                        preferredCompactColumn = path == nil ? .sidebar : .detail
                     }).animation(OrgendaMotion.geometryAnimation(.selection, reduceMotion: reduceMotion)))
                         .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
                 } detail: {
@@ -117,44 +114,40 @@ struct FilesView: View {
 
     private func workspaceList(selection: Binding<String?>?) -> some View {
         let documents = visibleFolderDocuments(store.documents, folderPath: "")
-        return ScrollView {
+        let list = List(selection: selection) {
+            ForEach(documents) { document in
+                WorkspaceBrowserRow(store: store, document: document) {
+                    if let selection {
+                        selection.wrappedValue = document.path
+                        preferredCompactColumn = .detail
+                    } else {
+                        navigationPath.append(document.path)
+                    }
+                }
+                .tag(document.path)
+            }
+            .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
+                guard files.count == 1, let file = files.first,
+                      store.canMoveFile(file, to: "") else { return }
+                Task { OrgendaHaptics.result(await store.moveFile(file, to: "")) }
+            }
+        }
+        .dragContainer(for: WorkspaceFileTransfer.self) { (path: String) -> [WorkspaceFileTransfer] in
+            return store.documents.first { $0.path == path }.map { [store.fileTransfer($0)] } ?? []
+        }
+        .accessibilityIdentifier("files.browser")
+        return Group {
+            if selection == nil { list.listStyle(.plain) }
+            else { list.listStyle(.sidebar) }
+        }
+        .overlay {
             if documents.isEmpty {
                 ContentUnavailableView("This folder is empty", systemImage: "folder",
                     description: Text("Files in this folder will appear here."))
-                    .frame(maxWidth: .infinity)
-            } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    LazyVStack(spacing: selection == nil ? 0 : 4) {
-                        ForEach(documents) { document in
-                            WorkspaceBrowserRow(
-                                store: store,
-                                document: document,
-                                isSelected: selection?.wrappedValue == document.path
-                            ) {
-                                if let selection { selection.wrappedValue = document.path }
-                                else { navigationPath.append(document.path) }
-                            }
-                            if selection == nil {
-                                Divider().padding(.leading, 38)
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
-                .contentShape(Rectangle())
-                .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
-                    guard files.count == 1, let file = files.first,
-                          store.canMoveFile(file, to: "") else { return false }
-                    Task { OrgendaHaptics.result(await store.moveFile(file, to: "")) }
-                    return true
-                }
+                    .orgendaEmptyState()
             }
         }
-        .swipeActionsContainer()
-        .defaultScrollAnchor(documents.isEmpty ? .center : .top, for: .alignment)
         .background(Color.clear)
-        .accessibilityIdentifier("files.browser")
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .navigationTitle("Files")
         .refreshable { await store.synchronizeFiles() }

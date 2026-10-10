@@ -66,10 +66,7 @@ struct StorageProviderPicker: View {
             .fileImporter(isPresented: $isChoosingFolder, allowedContentTypes: [.folder]) { result in
                 handleFolderSelection(result)
             }
-            .confirmationDialog("Change storage location?", isPresented: Binding(
-                get: { pendingConnection != nil },
-                set: { if !$0 { pendingConnection = nil } }
-            ), titleVisibility: .visible, presenting: pendingConnection) { selection in
+            .confirmationDialog("Change storage location?", item: $pendingConnection, titleVisibility: .visible) { selection in
                 Button(LocalizedStringKey(shouldPreservePending ? "Keep Copies and Change Location" : "Change Location")) {
                     pendingConnection = nil
                     connect(selection)

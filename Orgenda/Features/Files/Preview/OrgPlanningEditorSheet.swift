@@ -21,52 +21,35 @@ struct OrgPlanningEditorSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    if draft.keyword != nil {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Planning type")
-                                .font(.subheadline.weight(.semibold))
-
-                            if dynamicTypeSize.isAccessibilitySize {
-                                planningTypePicker
-                                    .pickerStyle(.menu)
-                                    .labelsHidden()
-                            } else {
-                                planningTypePicker
-                                    .pickerStyle(.segmented)
-                            }
+            Form {
+                if draft.keyword != nil {
+                    Section("Planning type") {
+                        if dynamicTypeSize.isAccessibilitySize {
+                            planningTypePicker.pickerStyle(.menu)
+                        } else {
+                            planningTypePicker.pickerStyle(.segmented)
                         }
                     }
-
-                    ForEach(draft.timestamps.indices, id: \.self) { index in
-                        OrgPlanningTimestampEditor(
-                            title: draft.isRange
-                                ? (index == 0 ? String(localized: "Start") : String(localized: "End"))
-                                : String(localized: "Date"),
-                            identifierSuffix: index == 0 ? "start" : "end",
-                            timestamp: $draft.timestamps[index]
-                        )
-                    }
-
-                    if saveFailed {
-                        Label(
-                            "The source changed before this edit could be saved. Reopen the editor and try again.",
-                            systemImage: "exclamationmark.triangle.fill"
-                        )
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                        .transition(.opacity)
-                    }
-
-                    Text("Reminder offsets and timestamp ranges are kept when you edit the repeat rule.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(20)
+                ForEach(draft.timestamps.indices, id: \.self) { index in
+                    OrgPlanningTimestampEditor(
+                        title: draft.isRange
+                            ? (index == 0 ? String(localized: "Start") : String(localized: "End"))
+                            : String(localized: "Date"),
+                        identifierSuffix: index == 0 ? "start" : "end",
+                        timestamp: $draft.timestamps[index]
+                    )
+                }
+                Section {
+                    if saveFailed {
+                        Label("The source changed before this edit could be saved. Reopen the editor and try again.",
+                              systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                    }
+                } footer: {
+                    Text("Reminder offsets and timestamp ranges are kept when you edit the repeat rule.")
+                }
             }
-            .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.interactively)
             .accessibilityIdentifier("org.preview.planning.editor.scroll")
             .navigationTitle(draft.keyword == nil ? "Edit timestamp" : "Edit planning")
@@ -127,28 +110,12 @@ private struct OrgPlanningTimestampEditor: View {
     private let calendar = Calendar.autoupdatingCurrent
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-
-            GlassEffectContainer(spacing: 8) {
-                if dynamicTypeSize.isAccessibilitySize {
-                    VStack(alignment: .leading, spacing: 10) {
-                        dayPicker
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        HStack(spacing: 10) {
-                            previousDayButton
-                            Spacer()
-                            nextDayButton
-                        }
-                    }
-                } else {
-                    HStack(spacing: 10) {
-                        previousDayButton
-                        dayPicker.frame(maxWidth: .infinity)
-                        nextDayButton
-                    }
-                }
+        Section(title) {
+            dayPicker
+            HStack {
+                previousDayButton
+                Spacer()
+                nextDayButton
             }
 
             Toggle("Include time", isOn: $timestamp.includesTime)
@@ -182,20 +149,16 @@ private struct OrgPlanningTimestampEditor: View {
                 .transition(.opacity)
             }
 
-            Divider()
             OrgRecurrenceEditor(
                 recurrence: $timestamp.recurrence,
                 identifier: "org.preview.planning.\(identifierSuffix).recurrence"
             )
         }
-        .padding(14)
-        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var dayPicker: some View {
         DatePicker(title, selection: $timestamp.date, displayedComponents: .date)
             .datePickerStyle(.compact)
-            .labelsHidden()
             .accessibilityLabel(title)
             .accessibilityIdentifier("org.preview.planning.\(identifierSuffix).datePicker")
     }
@@ -212,9 +175,8 @@ private struct OrgPlanningTimestampEditor: View {
         } label: {
             Image(systemName: "chevron.left")
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.large)
+        .buttonStyle(.bordered)
+        .controlSize(.regular)
         .tint(OrgendaTheme.accentText)
         .accessibilityLabel("Previous \(title.lowercased()) day")
         .accessibilityIdentifier("org.preview.planning.\(identifierSuffix).previousDay")
@@ -226,9 +188,8 @@ private struct OrgPlanningTimestampEditor: View {
         } label: {
             Image(systemName: "chevron.right")
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.large)
+        .buttonStyle(.bordered)
+        .controlSize(.regular)
         .tint(OrgendaTheme.accentText)
         .accessibilityLabel("Next \(title.lowercased()) day")
         .accessibilityIdentifier("org.preview.planning.\(identifierSuffix).nextDay")

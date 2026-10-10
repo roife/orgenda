@@ -84,10 +84,7 @@ struct StorageWebDAVView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isConnecting)
         .interactiveDismissDisabled(isConnecting)
-        .confirmationDialog("Change storage location?", isPresented: Binding(
-            get: { pendingConfiguration != nil },
-            set: { if !$0 { pendingConfiguration = nil } }
-        ), titleVisibility: .visible, presenting: pendingConfiguration) { configuration in
+        .confirmationDialog("Change storage location?", item: $pendingConfiguration, titleVisibility: .visible) { configuration in
             Button(LocalizedStringKey(shouldPreservePending ? "Keep Copies and Change Location" : "Change Location")) {
                 pendingConfiguration = nil
                 performConnection(configuration)

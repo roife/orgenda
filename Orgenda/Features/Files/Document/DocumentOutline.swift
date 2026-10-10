@@ -194,12 +194,10 @@ struct DocumentOutlineSheet: View {
         }
         .onChange(of: filter) { _, _ in endDrag() }
         .onDisappear { endDrag() }
-        .alert("Could not move heading", isPresented: Binding(
-            get: { moveError != nil }, set: { if !$0 { moveError = nil } }
-        )) {
+        .alert("Could not move heading", item: $moveError) { _ in
             Button("OK", role: .cancel) { moveError = nil }
-        } message: {
-            Text(moveError ?? "")
+        } message: { message in
+            Text(message)
         }
     }
 
@@ -214,29 +212,20 @@ struct DocumentOutlineSheet: View {
     private var outline: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                if filter.isActive {
-                    filterSummary
-                }
+                if filter.isActive { filterSummary }
                 ForEach(filteredNodes) { node in
                     DocumentOutlineBranch(
-                        node: node,
-                        expandedHeadingIDs: $expandedHeadingIDs,
-                        isFiltering: filter.isActive,
-                        isEditing: isEditing,
-                        parentHeadingIDs: [],
-                        drag: headingDrag,
-                        dropTarget: $dropTarget,
-                        onBeginDrag: beginDrag,
-                        onEndDrag: endDrag,
-                        onMove: moveHeading,
-                        onSelect: selectHeading
+                        node: node, expandedHeadingIDs: $expandedHeadingIDs,
+                        isFiltering: filter.isActive, isEditing: isEditing,
+                        parentHeadingIDs: [], drag: headingDrag, dropTarget: $dropTarget,
+                        onBeginDrag: beginDrag, onEndDrag: endDrag,
+                        onMove: moveHeading, onSelect: selectHeading
                     )
                 }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
         }
-        .scrollIndicators(.hidden)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("org.document.outline.scroll")
     }
@@ -421,78 +410,20 @@ private struct DocumentOutlineBranch: View {
     let onSelect: (DocumentOutlineNode) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 4) {
-                leadingControl
-
-                Button {
-                    onSelect(node)
+        Group {
+            if node.children.isEmpty {
+                headingRow
+            } else if isFiltering {
+                headingRow
+                children
+            } else {
+                DisclosureGroup(isExpanded: expansion) {
+                    children
                 } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        if let state = node.state { OrgWorkflowIcon(state) }
-                        Text(node.title)
-                            .foregroundStyle(node.state.map(OrgendaTheme.workflowColor) ?? .primary)
-                    }
-                        .font(.body.weight(node.level == 1 ? .semibold : .regular))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
+                    // Keep the title action out of the system disclosure target.
+                    headingRow.padding(.trailing, 44)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(node.title)
-                .accessibilityValue("Heading level \(node.level)")
-                .accessibilityHint(isEditing ? "Moves the cursor to this heading in Edit" : "Shows this heading in Preview")
-                .accessibilityIdentifier("org.document.outline.heading.\(node.startByte)")
-                .overlay {
-                    OrgHeadingDragSource(
-                        title: node.title,
-                        onBegin: { onBeginDrag(node.id) },
-                        onEnd: onEndDrag,
-                        onTap: { onSelect(node) }
-                    )
-                    .accessibilityHidden(true)
-                }
-            }
-            .modifier(OrgHeadingDropModifier(
-                headingID: node.id, parentHeadingIDs: parentHeadingIDs,
-                drag: drag, target: $dropTarget, onMove: onMove
-            ))
-            .opacity(drag.map { $0.headingID == node.id || parentHeadingIDs.contains($0.headingID) } == true ? 0.4 : 1)
-            .background {
-                if dropTarget?.headingID == node.id && dropTarget?.placement == .child {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(OrgendaTheme.accentText.opacity(0.10))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 6)
-                                .strokeBorder(OrgendaTheme.accentText.opacity(0.55), lineWidth: 1)
-                        }
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                }
-            }
-            .overlay(alignment: .bottom) {
-                Divider().opacity(0.45)
-            }
-
-            if isExpanded {
-                ForEach(node.children) { child in
-                    DocumentOutlineBranch(
-                        node: child,
-                        expandedHeadingIDs: $expandedHeadingIDs,
-                        isFiltering: isFiltering,
-                        isEditing: isEditing,
-                        parentHeadingIDs: parentHeadingIDs + [node.id],
-                        drag: drag,
-                        dropTarget: $dropTarget,
-                        onBeginDrag: onBeginDrag,
-                        onEndDrag: onEndDrag,
-                        onMove: onMove,
-                        onSelect: onSelect
-                    )
-                    .padding(.leading, node.level < 4 ? 16 : 0)
-                }
-                .transition(.opacity)
+                .accessibilityIdentifier("org.document.outline.disclosure.\(node.startByte)")
             }
         }
         .overlay(alignment: dropTarget?.placement == .before ? .top : .bottom) {
@@ -505,42 +436,65 @@ private struct DocumentOutlineBranch: View {
                     .accessibilityHidden(true)
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(node.children.isEmpty || isFiltering
+            ? "org.document.outline.heading.\(node.startByte)"
+            : "org.document.outline.disclosure.\(node.startByte)")
     }
 
-    @ViewBuilder
-    private var leadingControl: some View {
-        // A filter always reveals matches, so folding is paused and the chevron
-        // would be a no-op. Keep its width for a stable title alignment.
-        if node.children.isEmpty || isFiltering {
-            Color.clear
-                .frame(width: 44, height: 44)
-                .accessibilityHidden(true)
-        } else {
-            Button {
-                withAnimation(
-                    OrgendaMotion.geometryAnimation(
-                        .content,
-                        reduceMotion: reduceMotion
-                    )
-                ) {
-                    expandedHeadingIDs.formSymmetricDifference([node.id])
-                }
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+    private var headingRow: some View {
+        Button { onSelect(node) } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if let state = node.state { OrgWorkflowIcon(state) }
+                Text(node.title)
+                    .foregroundStyle(node.state.map(OrgendaTheme.workflowColor) ?? .primary)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isExpanded ? "Collapse \(node.title)" : "Expand \(node.title)")
-            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
-            .accessibilityIdentifier("org.document.outline.disclosure.\(node.startByte)")
+            .font(.body.weight(node.level == 1 ? .semibold : .regular))
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(node.title)
+        .accessibilityValue("Heading level \(node.level)")
+        .accessibilityHint(isEditing ? "Moves the cursor to this heading in Edit" : "Shows this heading in Preview")
+        .accessibilityIdentifier("org.document.outline.heading.\(node.startByte)")
+        .modifier(OrgHeadingDragSource(
+            headingID: node.id, onBegin: { onBeginDrag(node.id) }, onEnd: onEndDrag
+        ))
+        .modifier(OrgHeadingDropModifier(
+            headingID: node.id, parentHeadingIDs: parentHeadingIDs,
+            drag: drag, target: $dropTarget, onMove: onMove
+        ))
+        .opacity(drag.map { $0.headingID == node.id || parentHeadingIDs.contains($0.headingID) } == true ? 0.4 : 1)
+        .background {
+            if dropTarget?.headingID == node.id && dropTarget?.placement == .child {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(OrgendaTheme.accentText.opacity(0.10))
+                    .allowsHitTesting(false)
+            }
         }
     }
 
-    private var isExpanded: Bool {
-        isFiltering || expandedHeadingIDs.contains(node.id)
+    private var children: some View {
+        ForEach(node.children) { child in
+            DocumentOutlineBranch(
+                node: child, expandedHeadingIDs: $expandedHeadingIDs,
+                isFiltering: isFiltering, isEditing: isEditing,
+                parentHeadingIDs: parentHeadingIDs + [node.id],
+                drag: drag, dropTarget: $dropTarget,
+                onBeginDrag: onBeginDrag, onEndDrag: onEndDrag,
+                onMove: onMove, onSelect: onSelect
+            )
+        }
+    }
+
+    private var expansion: Binding<Bool> {
+        Binding(get: { expandedHeadingIDs.contains(node.id) }, set: { expanded in
+            withAnimation(OrgendaMotion.geometryAnimation(.content, reduceMotion: reduceMotion)) {
+                if expanded { expandedHeadingIDs.insert(node.id) }
+                else { expandedHeadingIDs.remove(node.id) }
+            }
+        })
     }
 }

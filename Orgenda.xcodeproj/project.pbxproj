@@ -84,7 +84,6 @@
 		5BAED4DC2EA6D5FA8B0D9BC1 /* OrgPreviewPlanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B6C7E2F1AF2924B583E277A /* OrgPreviewPlanning.swift */; };
 		5BBD2A64F472128A6C1F2D92 /* AgendaCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEED065BA90E4AB53E426E3F /* AgendaCalendarView.swift */; };
 		5C305FE49F26B521C2ADC208 /* AgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC975333809986726915BC1D /* AgendaView.swift */; };
-		5C3461CCF7218F65B2020361 /* OrgendaHorizontalPan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 552EA4A56C92B7767B0B48F7 /* OrgendaHorizontalPan.swift */; };
 		5CFFF37F00D3F2C45B78BE46 /* OrgMathCorpusCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12DE9DA22DDF8F8264C59EC0 /* OrgMathCorpusCompatibilityTests.swift */; };
 		5EB1753D7C9FF669A2E2BD80 /* OrgCalendarDates.swift in Sources */ = {isa = PBXBuildFile; fileRef = D31F09402F7ED1AC06B1A141 /* OrgCalendarDates.swift */; };
 		5F09256F175AD3E37EF0E5B5 /* OrgendaCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8882F0AC03BC93B9FC38F7F9 /* OrgendaCalendar.swift */; };
@@ -319,7 +318,6 @@
 		512D3C0984BE7E6A426F33FC /* OrgAgendaPerspective+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OrgAgendaPerspective+Presentation.swift"; sourceTree = "<group>"; };
 		5215ABF6D16B3DECF00F5D90 /* WorkspaceStore+Indexing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkspaceStore+Indexing.swift"; sourceTree = "<group>"; };
 		540C172440E26F7E534E9D73 /* SearchJournalDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchJournalDetail.swift; sourceTree = "<group>"; };
-		552EA4A56C92B7767B0B48F7 /* OrgendaHorizontalPan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaHorizontalPan.swift; sourceTree = "<group>"; };
 		5702D483F61D27F042FB64B3 /* OrgendaCalendarDayGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgendaCalendarDayGrid.swift; sourceTree = "<group>"; };
 		58A7A350EFB13B494E4329C6 /* StorageReconnectAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageReconnectAction.swift; sourceTree = "<group>"; };
 		5900C0D508C0C7815DC70D84 /* WorkspaceFileActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFileActions.swift; sourceTree = "<group>"; };
@@ -778,7 +776,6 @@
 		6D2EA67151376E3ECE0F0761 /* Gestures */ = {
 			isa = PBXGroup;
 			children = (
-				552EA4A56C92B7767B0B48F7 /* OrgendaHorizontalPan.swift */,
 				850DBC2467480DE0319E8ADB /* OrgHeadingDrag.swift */,
 			);
 			path = Gestures;
@@ -1487,7 +1484,6 @@
 				70D1D84CBC403E313C1A691D /* OrgendaEmptyState.swift in Sources */,
 				80D5F4B9302428D76EBCB1A5 /* OrgendaFlowLayout.swift in Sources */,
 				DDE011156C820D9CB28972F4 /* OrgendaHaptics.swift in Sources */,
-				5C3461CCF7218F65B2020361 /* OrgendaHorizontalPan.swift in Sources */,
 				34DEDCB08E3229E5B7A888F4 /* OrgendaMotion.swift in Sources */,
 				C1E79FA2DF79556A75311B70 /* OrgendaQuickActions.swift in Sources */,
 				82656B274274F0757DFF5A8E /* OrgendaRootView.swift in Sources */,

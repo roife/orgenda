@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct OrgDocumentView: View {
     @Environment(\.dismiss) private var dismiss
@@ -173,7 +172,12 @@ struct OrgDocumentView: View {
         if dynamicTypeSize.isAccessibilitySize {
             modeMenu
         } else {
-            NativeModePicker(selection: modeBinding)
+            Picker("Document mode", selection: modeBinding) {
+                Text("Edit").tag(Mode.edit)
+                Text("Preview").tag(Mode.preview)
+            }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("org.document.mode")
                 .frame(width: modePickerWidth, height: 44)
         }
     }
@@ -203,40 +207,6 @@ struct OrgDocumentView: View {
         }
         .accessibilityLabel("Show document outline")
         .accessibilityIdentifier("org.document.outline")
-    }
-
-    private struct NativeModePicker: UIViewRepresentable {
-        @Binding var selection: Mode
-
-        func makeUIView(context _: Context) -> UISegmentedControl {
-            let control = UISegmentedControl(items: [String(localized: "Edit"), String(localized: "Preview")])
-            control.selectedSegmentIndex = selection.rawValue
-            control.accessibilityLabel = String(localized: "Document mode")
-            control.accessibilityIdentifier = "org.document.mode"
-            let selection = $selection
-            control.addAction(
-                UIAction { action in
-                    let control = action.sender as! UISegmentedControl
-                    selection.wrappedValue = control.selectedSegmentIndex == 0
-                        ? .edit
-                        : .preview
-                },
-                for: .valueChanged
-            )
-            return control
-        }
-
-        func updateUIView(
-            _ control: UISegmentedControl,
-            context _: Context
-        ) {
-            control.selectedSegmentIndex = selection.rawValue
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.preferredFont(forTextStyle: .subheadline)
-            ]
-            control.setTitleTextAttributes(attributes, for: .normal)
-            control.setTitleTextAttributes(attributes, for: .selected)
-        }
     }
 
     private var modeBinding: Binding<Mode> {

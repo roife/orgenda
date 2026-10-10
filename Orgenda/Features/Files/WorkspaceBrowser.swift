@@ -11,38 +11,51 @@ struct WorkspaceFolderView: View {
     }
 
     var body: some View {
-        ScrollView {
+        Group {
+            if onOpenDocument == nil {
+                folderList.navigationDestination(for: String.self) { path in
+                    destination(path)
+                }
+            } else {
+                folderList
+            }
+        }
+        .navigationDestination(item: $openedDocument) { document in
+            destination(document.path)
+        }
+    }
+
+    private var folderList: some View {
+        List(children) { document in
+            WorkspaceBrowserRow(store: store, document: document, showsPath: true) {
+                if let onOpenDocument { onOpenDocument(document.path) }
+                else { openedDocument = document }
+            }
+        }
+        .dragContainer(for: WorkspaceFileTransfer.self) { (path: String) -> [WorkspaceFileTransfer] in
+            return store.documents.first { $0.path == path }.map { [store.fileTransfer($0)] } ?? []
+        }
+        .listStyle(.plain)
+        .overlay {
             if children.isEmpty {
                 ContentUnavailableView("This folder is empty", systemImage: "folder",
                     description: Text("Files in this folder will appear here."))
-                    .frame(maxWidth: .infinity)
-            } else {
-                LazyVStack(spacing: 0) {
-                    ForEach(children) { document in
-                        WorkspaceBrowserRow(store: store, document: document, showsPath: true) {
-                            if let onOpenDocument { onOpenDocument(document.path) }
-                            else { openedDocument = document }
-                        }
-                        Divider().padding(.leading, 38)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
+                    .orgendaEmptyState()
             }
         }
-        .swipeActionsContainer()
-        .defaultScrollAnchor(children.isEmpty ? .center : .top, for: .alignment)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .refreshable { await store.synchronizeFiles() }
         .accessibilityIdentifier("files.folder.browser")
         .navigationTitle(folder.title)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $openedDocument) { document in
-            if document.kind == .folder {
-                WorkspaceFolderView(store: store, folder: document)
-            } else {
-                OrgDocumentView(store: store, path: document.path)
-            }
+    }
+
+    @ViewBuilder
+    private func destination(_ path: String) -> some View {
+        if let document = store.documents.first(where: { $0.path == path }), document.kind == .folder {
+            WorkspaceFolderView(store: store, folder: document)
+        } else {
+            OrgDocumentView(store: store, path: path)
         }
     }
 }
