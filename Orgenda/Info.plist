@@ -77,6 +77,16 @@
 			<key>UTTypeIdentifier</key>
 			<string>com.roifewu.orgenda.heading</string>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Org Workspace File</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.roifewu.orgenda.workspace-file</string>
+		</dict>
 	</array>
 </dict>
 </plist>

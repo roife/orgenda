@@ -256,6 +256,12 @@ final class WorkspaceConnectionTests: XCTestCase {
         let defaults = try startupDefaults()
         let store = WorkspaceStore()
         store.isSynchronizing = true
+        var waiting = false
+        let fileOperation = Task {
+            waiting = true
+            return await store.waitForFileOperation()
+        }
+        while !waiting { await Task.yield() }
         let startup = Task {
             await store.startWorkspace(arguments: [], defaults: defaults, localWorkspaceURL: root)
         }
@@ -266,6 +272,9 @@ final class WorkspaceConnectionTests: XCTestCase {
         await store.startWorkspace(arguments: [], defaults: defaults, localWorkspaceURL: root)
         XCTAssertTrue(store.isStartingWorkspace)
         startup.cancel()
+        fileOperation.cancel()
+        let canProceed = await fileOperation.value
+        XCTAssertFalse(canProceed)
         await startup.value
         XCTAssertFalse(store.hasStarted)
         XCTAssertTrue(store.isStartingWorkspace)

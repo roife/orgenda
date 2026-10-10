@@ -67,13 +67,13 @@ final class OrgSourceMutationTests: XCTestCase {
             "WAITING", "DELEGATED", "HOLD", "IMMEDIATE", "PROPOSED", "PLANNED",
             "ACTIVE", "BLOCKED", "PROJECT", "COMPLETED", "CANCELLED", "ABANDONED"
         ]
-        let source = keywords.map { "* \($0) Work item\n" }.joined()
+        let source = keywords.map { "* \($0) Work item\n" }.joined() + "* BUGS To investigate\n"
         let parsed = try XCTUnwrap(OrgIndexService.parseSynchronously([
             WorkspaceDocument(path: "workflow.org", title: "Workflow", contents: source, kind: .org)
         ]).first)
 
         XCTAssertFalse(parsed.hasError)
-        XCTAssertEqual(parsed.headings.map(\.title), keywords.map { "\($0) Work item" })
+        XCTAssertEqual(parsed.headings.map(\.title), keywords.map { "\($0) Work item" } + ["BUGS To investigate"])
         XCTAssertTrue(parsed.headings.allSatisfy { $0.state == nil && $0.kind == .task })
         XCTAssertTrue(keywords.allSatisfy { OrgWorkflowState(rawValue: $0) == nil })
     }
@@ -91,15 +91,6 @@ final class OrgSourceMutationTests: XCTestCase {
                        Array(repeating: .task, count: states.count)
                        + Array(repeating: .project, count: states.count))
         XCTAssertEqual(states.filter(\.isTerminal), [.done, .canceled])
-    }
-
-    func testOrdinaryUppercaseHeadingRemainsPartOfTitle() throws {
-        let document = WorkspaceDocument(
-            path: "notes.org", title: "Notes", contents: "* BUGS To investigate\n", kind: .org
-        )
-        let heading = try XCTUnwrap(OrgIndexService.parseSynchronously([document]).first?.headings.first)
-        XCTAssertNil(heading.state)
-        XCTAssertEqual(heading.title, "BUGS To investigate")
     }
 
     func testEditingWorkflowHeadingPreservesItsTokenAndOtherSource() throws {
@@ -155,6 +146,18 @@ final class OrgSourceMutationTests: XCTestCase {
         draft.timestamps[0].date = try date(year: 2019, month: 5, day: 21)
         XCTAssertEqual(draft.source, "<2019-05-21 Tue ++2y>")
         XCTAssertNil(OrgPlanningEntryDraft(timestampSource: "Text <2019-05-20 Mon +1y>"))
+    }
+
+    func testPlanningDraftRejectsDatesAndTimesThatWouldBeNormalized() {
+        for timestamp in ["<2026-02-30 Mon 09:00>", "<2026-13-01 Thu>", "<2026-09-00 Tue>",
+                          "<2026-09-19 Sat 25:00>", "<2026-09-19 Sat 09:61>"] {
+            XCTAssertNil(OrgPlanningEntryDraft(timestampSource: timestamp), timestamp)
+            XCTAssertNil(OrgPlanningEntryDraft(source: "SCHEDULED: " + timestamp), timestamp)
+            XCTAssertNil(OrgPlanningEntryDraft(timestampSource: "<2026-09-19 Sat>--" + timestamp), timestamp)
+        }
+        for timestamp in ["<2024-02-29 Thu>", "[2026-09-19 Sat 00:00]", "<2026-09-19 Sat 23:59 +1d>"] {
+            XCTAssertEqual(OrgPlanningEntryDraft(timestampSource: timestamp)?.source, timestamp)
+        }
     }
 
     func testRecurrenceEditingPreservesWarningTimeRangeAndWhitespace() throws {
@@ -658,35 +661,22 @@ final class OrgRepeaterTests: XCTestCase {
         XCTAssertEqual(OrgRepeater(".+2d/3d")?.maximumUnit, .day)
     }
 
-    func testCumulativeAdvancesExactlyOnceEvenWhenStillOverdue() throws {
-        let repeater = try XCTUnwrap(OrgRepeater("+1w"))
-        XCTAssertEqual(repeater.nextDate(afterCompletion: date(2026, 9, 25), from: date(2026, 9, 1, 9), calendar: calendar),
-                       date(2026, 9, 8, 9))
-    }
-
-    func testCatchUpKeepsCadenceAndCanUseLaterTimeToday() throws {
-        let repeater = try XCTUnwrap(OrgRepeater("++1w"))
-        XCTAssertEqual(repeater.nextDate(afterCompletion: date(2026, 9, 12, 10), from: date(2026, 9, 1, 9), calendar: calendar),
-                       date(2026, 9, 15, 9))
-        let daily = try XCTUnwrap(OrgRepeater("++1d"))
-        XCTAssertEqual(daily.nextDate(afterCompletion: date(2026, 9, 12, 10), from: date(2026, 9, 1, 20), calendar: calendar),
-                       date(2026, 9, 12, 20))
-        XCTAssertEqual(daily.nextDate(afterCompletion: date(2026, 9, 12, 20), from: date(2026, 9, 1, 20), calendar: calendar),
-                       date(2026, 9, 13, 20))
-        XCTAssertEqual(daily.nextDate(afterCompletion: date(2026, 9, 1, 10), from: date(2026, 9, 12, 20), calendar: calendar),
-                       date(2026, 9, 13, 20))
-    }
-
-    func testRestartPreservesBaseClockExceptForHourlyRepeater() throws {
-        let daily = try XCTUnwrap(OrgRepeater(".+1d"))
-        XCTAssertEqual(daily.nextDate(afterCompletion: date(2026, 9, 12, 10, 30), from: date(2026, 9, 1, 20), calendar: calendar),
-                       date(2026, 9, 13, 20))
-        let hourly = try XCTUnwrap(OrgRepeater(".+2h"))
-        XCTAssertEqual(hourly.nextDate(afterCompletion: date(2026, 9, 12, 10, 30), from: date(2026, 9, 1, 20), calendar: calendar),
-                       date(2026, 9, 12, 12, 30))
-        let monthly = try XCTUnwrap(OrgRepeater(".+1m"))
-        XCTAssertEqual(monthly.nextDate(afterCompletion: date(2026, 1, 31, 10), from: date(2025, 8, 1, 9), calendar: calendar),
-                       date(2026, 2, 28, 9))
+    func testCompletionDatesRespectCumulativeCatchUpAndRestartRules() throws {
+        let cases: [(String, Date, Date, Date)] = [
+            ("+1w", date(2026, 9, 25), date(2026, 9, 1, 9), date(2026, 9, 8, 9)),
+            ("++1w", date(2026, 9, 12, 10), date(2026, 9, 1, 9), date(2026, 9, 15, 9)),
+            ("++1d", date(2026, 9, 12, 10), date(2026, 9, 1, 20), date(2026, 9, 12, 20)),
+            ("++1d", date(2026, 9, 12, 20), date(2026, 9, 1, 20), date(2026, 9, 13, 20)),
+            ("++1d", date(2026, 9, 1, 10), date(2026, 9, 12, 20), date(2026, 9, 13, 20)),
+            (".+1d", date(2026, 9, 12, 10, 30), date(2026, 9, 1, 20), date(2026, 9, 13, 20)),
+            (".+2h", date(2026, 9, 12, 10, 30), date(2026, 9, 1, 20), date(2026, 9, 12, 12, 30)),
+            (".+1m", date(2026, 1, 31, 10), date(2025, 8, 1, 9), date(2026, 2, 28, 9))
+        ]
+        for (token, completion, base, expected) in cases {
+            let repeater = try XCTUnwrap(OrgRepeater(token))
+            XCTAssertEqual(repeater.nextDate(afterCompletion: completion, from: base, calendar: calendar),
+                           expected, "\(token), base=\(base), completion=\(completion)")
+        }
     }
 
     func testOccurrenceLookupIsBoundedToRequestedDayAndKeepsOriginalAnchor() throws {

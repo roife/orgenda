@@ -84,9 +84,7 @@ struct SettingsView: View {
 
     private var doneToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Button("Close", systemImage: "checkmark") { dismiss() }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.plain)
+            Button(role: .close) { dismiss() }
                 .accessibilityIdentifier("settings.done")
         }
     }

@@ -233,8 +233,10 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
 
         let hour = integer(9)
         let minute = integer(10)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
         var components = DateComponents()
-        components.calendar = Calendar(identifier: .gregorian)
+        components.calendar = calendar
         components.timeZone = .autoupdatingCurrent
         components.year = year
         components.month = month
@@ -243,6 +245,10 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
         components.minute = minute ?? 0
 
         guard let date = components.date else { return nil }
+        let validated = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        guard validated.year == components.year, validated.month == components.month,
+              validated.day == components.day, validated.hour == components.hour,
+              validated.minute == components.minute else { return nil }
         let suffix: String
         if let range = Range(match.range(at: 11), in: inner) {
             suffix = String(inner[range])

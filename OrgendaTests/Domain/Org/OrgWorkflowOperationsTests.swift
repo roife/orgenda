@@ -50,6 +50,26 @@ final class OrgWorkflowOperationsTests: XCTestCase {
         XCTAssertEqual(result, source.replacingOccurrences(of: ":LOGBOOK:\r\n", with: ":LOGBOOK:\r\n- State \"DONE\" from \"TODO\" \(stamp)\r\n"))
     }
 
+    func testConfiguredDrawerNamesReuseExistingHistoryAcrossStateChanges() throws {
+        for name in ["history", "2026", "工作記錄", "_history", "cafe\u{301}", "हिन्दी", "Ⓐ", "1️⃣", "custom-name"] {
+            let existingName = name.uppercased()
+            let source = "* DONE Example\n:\(existingName):\n- old history\n:END:\n"
+            let logging = WorkspaceConfiguration.Logging(done: .time, drawer: name)
+            let logged = try OrgWorkflowOperations.applyingLogs(
+                to: source, headingStartByte: 0, replacing: item(state: .todo),
+                with: item(state: .done), now: now, logging: logging)
+            XCTAssertEqual(logged, source.replacingOccurrences(of: ":\(existingName):\n",
+                with: ":\(existingName):\n- State \"DONE\" from \"TODO\" \(stamp)\n"), name)
+            let relogged = try OrgWorkflowOperations.applyingLogs(
+                to: logged, headingStartByte: 0, replacing: item(state: .todo),
+                with: item(state: .done), now: now, logging: logging)
+            let parsed = try XCTUnwrap(OrgIndexService.parseSynchronously([document("inbox.org", relogged)]).first)
+            XCTAssertFalse(parsed.hasError, name)
+            XCTAssertEqual(parsed.root.children.filter { $0.type == "drawer" }.count, 1, name)
+            XCTAssertEqual(parsed.headings.first?.body, "", name)
+        }
+    }
+
     func testOnlyWaitExitLogsWhenMovingToNext() throws {
         for old in OrgWorkflowState.allCases {
             let source = "* NEXT Example\nBody.\n"
@@ -170,27 +190,27 @@ final class OrgWorkflowOperationsTests: XCTestCase {
         XCTAssertEqual(targets.map(\.path), configured.sorted())
     }
 
-    func testSameFileRefileCombinesRemovalAndInsertionWithoutDroppingNeighbors() throws {
-        let source = document("agenda/actions.org", "* Inbox\n** TODO Move\nBody\n*** Child\nChild body\n* Destination\nExisting\n* Neighbor\nUntouched\n")
-        let target = try XCTUnwrap(OrgWorkflowOperations.refileTargets(in: [source]).first(where: { $0.title == "Destination" }))
-        let plan = try OrgWorkflowOperations.refile(source: source, headingStartByte: byteOffset(of: "** TODO Move", in: source.contents), destination: source, target: target)
-        XCTAssertEqual(plan.source, plan.destination)
-        XCTAssertEqual(plan.source.contents, "* Inbox\n* Destination\nExisting\n** TODO Move\nBody\n*** Child\nChild body\n* Neighbor\nUntouched\n")
-    }
-
-    func testSameFileRefileToEarlierHeadingWorks() throws {
-        let source = document("agenda/actions.org", "* Destination\nExisting\n* Middle\nKeep\n* TODO Move\nBody\n")
-        let target = try XCTUnwrap(OrgWorkflowOperations.refileTargets(in: [source]).first)
-        let plan = try OrgWorkflowOperations.refile(source: source, headingStartByte: byteOffset(of: "* TODO Move", in: source.contents), destination: source, target: target)
-        XCTAssertEqual(plan.source.contents, "* Destination\nExisting\n** TODO Move\nBody\n* Middle\nKeep\n")
-    }
-
-    func testSameFileRefileDirectlyAdjacentSubtreeUsesOneFinalSnapshot() throws {
-        let source = document("agenda/actions.org", "* Destination\nExisting\n* TODO Move\nBody\n")
-        let target = try XCTUnwrap(OrgWorkflowOperations.refileTargets(in: [source]).first)
-        let plan = try OrgWorkflowOperations.refile(source: source, headingStartByte: byteOffset(of: "* TODO Move", in: source.contents), destination: source, target: target)
-        XCTAssertEqual(plan.source.contents, "* Destination\nExisting\n** TODO Move\nBody\n")
-        XCTAssertEqual(plan.source, plan.destination)
+    func testSameFileRefilePreservesNeighborsInBothDirectionsAndWhenAdjacent() throws {
+        let cases = [
+            ("later target", "** TODO Move",
+             "* Inbox\n** TODO Move\nBody\n*** Child\nChild body\n* Destination\nExisting\n* Neighbor\nUntouched\n",
+             "* Inbox\n* Destination\nExisting\n** TODO Move\nBody\n*** Child\nChild body\n* Neighbor\nUntouched\n"),
+            ("earlier target", "* TODO Move",
+             "* Destination\nExisting\n* Middle\nKeep\n* TODO Move\nBody\n",
+             "* Destination\nExisting\n** TODO Move\nBody\n* Middle\nKeep\n"),
+            ("adjacent target", "* TODO Move",
+             "* Destination\nExisting\n* TODO Move\nBody\n",
+             "* Destination\nExisting\n** TODO Move\nBody\n")
+        ]
+        for (name, heading, contents, expected) in cases {
+            try XCTContext.runActivity(named: name) { _ in
+                let source = document("agenda/actions.org", contents)
+                let target = try XCTUnwrap(OrgWorkflowOperations.refileTargets(in: [source]).first { $0.title == "Destination" })
+                let plan = try OrgWorkflowOperations.refile(source: source, headingStartByte: byteOffset(of: heading, in: contents), destination: source, target: target)
+                XCTAssertEqual(plan.source, plan.destination)
+                XCTAssertEqual(plan.source.contents, expected)
+            }
+        }
     }
 
     func testRefileRejectsSelfDescendantAndStaleTarget() throws {

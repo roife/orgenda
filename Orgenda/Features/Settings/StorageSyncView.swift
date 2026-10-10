@@ -34,40 +34,19 @@ struct StorageSyncSummary: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 if let lastChecked {
-                    StorageSyncDetail(title: "Last checked",
-                                      value: lastChecked.formatted(date: .abbreviated, time: .shortened))
+                    LabeledContent("Last checked",
+                                   value: lastChecked.formatted(date: .abbreviated, time: .shortened))
                 }
-                StorageSyncDetail(title: "Org files", value: orgFileCount.formatted())
+                LabeledContent("Org files", value: orgFileCount.formatted())
                 if pendingUploadCount > 0 {
-                    StorageSyncDetail(title: "Pending uploads", value: pendingUploadCount.formatted())
+                    LabeledContent("Pending uploads", value: pendingUploadCount.formatted())
                 }
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 6)
-    }
-}
-
-private struct StorageSyncDetail: View {
-    let title: LocalizedStringKey
-    let value: String
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(title).fixedSize()
-                Spacer(minLength: 0)
-                Text(value).fixedSize()
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                Text(value)
-            }
             .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
+        .padding(.vertical, 6)
     }
 }
 

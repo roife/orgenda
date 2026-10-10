@@ -80,7 +80,8 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 ```sh
 xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -only-testing:OrgendaTests test CODE_SIGNING_ALLOWED=NO
+  -only-testing:OrgendaTests test CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM=''
 ```
 
 界面测试覆盖日期选择、日历切换、任务编辑、搜索、文件同步和导航：
@@ -88,15 +89,19 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 ```sh
 xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -only-testing:OrgendaUITests test CODE_SIGNING_ALLOWED=NO
+  -only-testing:OrgendaUITests test CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM=''
 ```
+
+模拟器测试使用临时签名，不需要发行证书。关闭签名后，增量构建的 XCTest runner 可能保留无效签名，导致测试在启动前退出；仅构建应用时仍可使用 `CODE_SIGNING_ALLOWED=NO`。
 
 iPad 专项回归覆盖旋转、不同窗口尺寸、完整月历显示、分栏文件编辑和搜索导航。尺寸用例在全屏模拟器中以 760×480 和 600×600 视口渲染真实界面：
 
 ```sh
 xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
   -destination 'platform=iOS Simulator,name=iPad Pro 11-inch (M5)' \
-  -only-testing:OrgendaUITests/IPadLayoutUITests test CODE_SIGNING_ALLOWED=NO
+  -only-testing:OrgendaUITests/IPadLayoutUITests test CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM=''
 ```
 
 解析器可以独立验证：
@@ -105,4 +110,4 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 swift test --package-path Packages/OrgTreeSitter
 ```
 
-真实数学语料审计需要显式启用和准备数据，默认会跳过；具体条件写在 `OrgendaTests/Integration/OrgMathCorpusAuditTests.swift` 中。日常界面调试可为运行方案添加 `--demo-workspace` 参数。
+日常界面调试可为运行方案添加 `--demo-workspace` 参数。

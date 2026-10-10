@@ -41,8 +41,7 @@ enum StorageKeychain {
                                         kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
         let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if status == errSecItemNotFound {
-            var item = query
-            attributes.forEach { item[$0.key] = $0.value }
+            let item = query.merging(attributes) { _, value in value }
             guard SecItemAdd(item as CFDictionary, nil) == errSecSuccess else { throw StorageError.authenticationRequired }
         } else if status != errSecSuccess { throw StorageError.authenticationRequired }
     }

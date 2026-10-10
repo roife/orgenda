@@ -184,7 +184,8 @@ struct WorkspaceConfiguration: Codable, Equatable, Sendable {
         try require((1...99).contains(files.refileMaxLevel), "files.refileMaxLevel: expected 1–99.")
         try require((0...1440).contains(reminders.advanceMinutes) && (1...1440).contains(reminders.repeatMinutes)
                     && (0...365).contains(reminders.deadlineWarningDays), "reminders: invalid interval.")
-        try require(logging.drawer.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }, "logging.drawer: invalid drawer name.")
+        try require((logging.drawer.isEmpty || OrgDrawerName.isSupported(logging.drawer))
+                    && !["END", "PROPERTIES"].contains(logging.drawer.uppercased()), "logging.drawer: invalid drawer name.")
         try unique(capture.templates.map(\.id), "capture.templates.id")
         try unique(capture.templates.map(\.key).filter { !$0.isEmpty }, "capture shortcuts")
         try require(capture.templates.contains { $0.id == capture.defaultTemplate }, "capture.defaultTemplate: missing template.")
@@ -280,9 +281,7 @@ struct ConfigurationDocument: Sendable {
     }
     private static func merge(_ old: Any, _ new: Any, preserveArrayMembers: Bool) -> Any {
         if let lhs = old as? [String: Any], let rhs = new as? [String: Any] {
-            return rhs.reduce(into: lhs) { result, pair in
-                result[pair.key] = lhs[pair.key].map { merge($0, pair.value, preserveArrayMembers: preserveArrayMembers) } ?? pair.value
-            }
+            return lhs.merging(rhs) { merge($0, $1, preserveArrayMembers: preserveArrayMembers) }
         }
         if preserveArrayMembers, let lhs = old as? [[String: Any]], let rhs = new as? [[String: Any]] {
             return rhs.map { item -> Any in

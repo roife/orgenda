@@ -33,6 +33,7 @@ enum OrgendaDatePresentation {
             .locale(locale)
             .month(month)
             .day()
+        style.calendar = calendar
         style.timeZone = calendar.timeZone
         if !calendar.isDate(date, equalTo: reference, toGranularity: .year) {
             style = style.year()
@@ -51,6 +52,7 @@ enum OrgendaDatePresentation {
             .weekday(.abbreviated)
             .month(.abbreviated)
             .day()
+        style.calendar = calendar
         style.timeZone = calendar.timeZone
         if !calendar.isDate(date, equalTo: reference, toGranularity: .year) {
             style = style.year()
@@ -79,6 +81,7 @@ enum OrgendaDatePresentation {
             ? relativeDate(date, relativeTo: reference, locale: locale, calendar: calendar)
             : self.date(date, relativeTo: reference, locale: locale, calendar: calendar)
         var timeStyle = Date.FormatStyle.dateTime.locale(locale).hour().minute()
+        timeStyle.calendar = calendar
         timeStyle.timeZone = calendar.timeZone
         let time = date.formatted(timeStyle)
         return "\(day) · \(time)"

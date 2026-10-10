@@ -18,34 +18,34 @@ struct StorageWebDAVView: View {
     var body: some View {
         Form {
             Section("Server") {
-                StorageFormRow(title: "Server Address") {
-                    TextField("https://dav.example.com", text: $serverURL)
+                LabeledContent("Server Address") {
+                    TextField("Server Address", text: $serverURL, prompt: Text("https://dav.example.com"))
                         .keyboardType(.URL)
                         .textContentType(.URL)
+                        .submitLabel(.next)
                         .focused($focusedField, equals: .server)
-                        .accessibilityLabel("Server Address")
                         .accessibilityIdentifier("storage.webDAV.server")
                 }
-                StorageFormRow(title: "Username") {
+                LabeledContent("Username") {
                     TextField("Username", text: $username)
                         .textContentType(.username)
+                        .submitLabel(.next)
                         .focused($focusedField, equals: .username)
-                        .accessibilityLabel("Username")
                         .accessibilityIdentifier("storage.webDAV.username")
                 }
-                StorageFormRow(title: "Password") {
+                LabeledContent("Password") {
                     SecureField("Password", text: $password)
                         .textContentType(.password)
+                        .submitLabel(.next)
                         .focused($focusedField, equals: .password)
-                        .accessibilityLabel("Password")
                         .accessibilityIdentifier("storage.webDAV.password")
                 }
             }
             Section {
-                StorageFormRow(title: "Remote Directory") {
-                    TextField("/Orgenda", text: $directory)
+                LabeledContent("Remote Directory") {
+                    TextField("Remote Directory", text: $directory, prompt: Text("/Orgenda"))
+                        .submitLabel(.go)
                         .focused($focusedField, equals: .directory)
-                        .accessibilityLabel("Remote Directory")
                         .accessibilityIdentifier("storage.webDAV.directory")
                 }
             } header: {
@@ -54,14 +54,13 @@ struct StorageWebDAVView: View {
             Section {
                 Button(action: connect) {
                     HStack {
-                        Spacer(minLength: 0)
-                        if isConnecting { ProgressView().tint(.white) }
-                        Text(LocalizedStringKey(isConnecting ? "Connecting…" : "Test & Connect")).fontWeight(.semibold)
-                        Spacer(minLength: 0)
+                        if isConnecting { ProgressView() }
+                        Text(LocalizedStringKey(isConnecting ? "Connecting…" : "Test & Connect"))
                     }
-                    .padding(.vertical, 8)
                 }
                 .buttonStyle(.borderedProminent)
+                .buttonSizing(.flexible)
+                .controlSize(.large)
                 .tint(OrgendaTheme.accent)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
@@ -157,28 +156,6 @@ struct StorageWebDAVView: View {
             isConnecting = false
             if connected { dismiss() }
             else { connectionError = store.fileSyncError }
-        }
-    }
-}
-
-private struct StorageFormRow<Content: View>: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    let title: LocalizedStringKey
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        if dynamicTypeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(title)
-                content
-            }
-            .padding(.vertical, 4)
-        } else {
-            HStack(spacing: 16) {
-                Text(title).fixedSize()
-                content.multilineTextAlignment(.trailing)
-            }
-            .frame(minHeight: 36)
         }
     }
 }

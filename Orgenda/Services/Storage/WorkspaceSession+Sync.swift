@@ -66,7 +66,7 @@ extension WorkspaceSession {
         var next = manifest
         next.lastSync = .now
         try commit(next)
-        if let conflict = manifest.conflicts.keys.sorted().first { throw StorageError.conflict(conflict) }
+        if let conflict = manifest.conflicts.keys.min() { throw StorageError.conflict(conflict) }
         // Cleanup cannot turn an acknowledged save into a reported failure.
         try? collectUnreferencedBlobsIfNeeded()
     }

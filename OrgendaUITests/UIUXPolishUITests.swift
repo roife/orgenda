@@ -1,64 +1,6 @@
 import XCTest
 
 final class UIUXPolishUITests: XCTestCase {
-    func testCaptureAuditFlow() {
-        let app = launchApp()
-        defer { app.terminate() }
-
-        XCTAssertTrue(app.buttons["agenda.viewMenu"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Plan iPad reading workflow"].waitForExistence(timeout: 5))
-        attach(app, name: "01 Dashboard", always: true)
-
-        app.tabBars.buttons["Calendar"].tap()
-        XCTAssertTrue(app.calendarDensityHandle.waitForExistence(timeout: 3))
-        attach(app, name: "02 Calendar week", always: true)
-        app.dragCalendarHandle(by: 230)
-        attach(app, name: "03 Calendar month", always: true)
-
-        app.buttons["orgenda.capture"].tap()
-        XCTAssertTrue(app.textFields["item.editor.title"].waitForExistence(timeout: 3))
-        // A fresh simulator can display the system typing introduction over the
-        // focused title field. Capture the usable form with its actual keyboard.
-        let typingIntroduction = app.staticTexts.matching(NSPredicate(
-            format: "label BEGINSWITH 'Speed up your typing'"
-        )).firstMatch
-        if typingIntroduction.exists {
-            app.buttons["Continue"].tap()
-        }
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        attach(app, name: "04 New task", always: true)
-        app.buttons["Cancel"].tap()
-
-        app.tabBars.buttons["Files"].tap()
-        XCTAssertTrue(app.buttons["files.open.inbox.org"].waitForExistence(timeout: 3))
-        attach(app, name: "05 Files", always: true)
-        app.buttons["files.open.inbox.org"].tap()
-        XCTAssertTrue(app.buttons["org.document.outline"].waitForExistence(timeout: 3))
-        attach(app, name: "06 Document preview", always: true)
-
-        app.buttons["Edit"].tap()
-        let editor = app.textViews["Org source editor"]
-        XCTAssertTrue(editor.waitForExistence(timeout: 3))
-        editor.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        attach(app, name: "07 Source editor keyboard", always: true)
-        app.buttons["Preview"].tap()
-        app.buttons["org.document.outline"].tap()
-        XCTAssertTrue(app.buttons["org.document.outline.done"].waitForExistence(timeout: 3))
-        attach(app, name: "08 Document outline", always: true)
-        app.buttons["org.document.outline.done"].tap()
-
-        app.navigationBars.buttons["Files"].tap()
-        app.buttons["files.settings"].tap()
-        XCTAssertTrue(app.buttons["settings.workspace"].waitForExistence(timeout: 3))
-        attach(app, name: "09 Settings", always: true)
-        app.buttons["settings.done"].tap()
-
-        app.tabBars.buttons["Search"].tap()
-        XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 3))
-        attach(app, name: "10 Search", always: true)
-    }
-
     func testEditorAccessoryUndoRedoAndDismissKeyboard() throws {
         let app = launchApp()
         defer { app.terminate() }

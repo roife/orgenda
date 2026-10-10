@@ -93,7 +93,11 @@ enum OrgInputCommands {
             if marker.hasPrefix("#+BEGIN_") { inBlock = true }
             if marker.hasPrefix("#+END_") { inBlock = false }
             if marker == ":END:" { inDrawer = false }
-            else if drawerExpression.firstMatch(in: marker, range: NSRange(marker.startIndex..., in: marker)) != nil { inDrawer = true }
+            else if drawerExpression.firstMatch(in: marker, range: NSRange(marker.startIndex..., in: marker)) != nil
+                || (marker.hasPrefix(":") && marker.hasSuffix(":")
+                    && OrgDrawerName.isSupported(String(marker.dropFirst().dropLast()))) {
+                inDrawer = true
+            }
         }
         guard !inBlock, !inDrawer,
               let item = listExpression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
@@ -108,7 +112,8 @@ enum OrgInputCommands {
         var bullet = nsLine.substring(with: item.range(at: 2))
         if let number = Int(bullet.dropLast()), number < Int.max { bullet = "\(number + 1)\(bullet.suffix(1))" }
         let checkbox = item.range(at: 4).location == NSNotFound ? "" : "[ ] "
-        let insertion = "\n" + indentation + bullet + " " + checkbox
+        let newline = source.contains("\r\n") ? "\r\n" : "\n"
+        let insertion = newline + indentation + bullet + " " + checkbox
         return OrgTextEdit(range: selection, replacement: insertion,
                            selection: NSRange(location: selection.location + insertion.utf16.count, length: 0))
     }

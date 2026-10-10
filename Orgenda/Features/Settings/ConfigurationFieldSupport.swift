@@ -112,34 +112,35 @@ struct ConfigurationIntegerField: View {
     @State private var text = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(LocalizedStringKey(title)).font(.subheadline).foregroundStyle(.secondary)
-            HStack {
+        Group {
+            LabeledContent(LocalizedStringKey(title)) {
                 TextField(LocalizedStringKey(title), text: Binding(get: { text }, set: { next in
                     text = next
                     value = Int(next) ?? Int.min
                 }))
                 .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
                 .foregroundStyle(.primary)
-                .accessibilityLabel(LocalizedStringKey(title))
                 .accessibilityIdentifier(identifier)
-                if !presets.isEmpty {
-                    Menu {
-                        ForEach(presets, id: \.self) { preset in
-                            Button { value = preset } label: { Text(preset, format: .number) }
-                        }
-                    } label: { Label("Common values", systemImage: "slider.horizontal.3") }
-                    .labelStyle(.iconOnly)
-                    .accessibilityLabel(Text("\(String(localized: "Common values")): \(String(localized: String.LocalizationValue(title)))"))
-                    .accessibilityIdentifier(identifier + ".presets")
+            }
+            .onAppear { text = value == Int.min ? "" : String(value) }
+            .onChange(of: value) { _, next in
+                if next != Int.min && Int(text) != next { text = String(next) }
+            }
+            if !presets.isEmpty {
+                Picker("Common values", selection: $value) {
+                    ForEach(presets, id: \.self) { preset in
+                        Text(preset, format: .number).tag(preset)
+                    }
+                    if !presets.contains(value) {
+                        Text(verbatim: text.isEmpty ? "—" : text).tag(value)
+                    }
                 }
+                .pickerStyle(.menu)
+                .accessibilityLabel(Text("\(String(localized: "Common values")): \(String(localized: String.LocalizationValue(title)))"))
+                .accessibilityIdentifier(identifier + ".presets")
             }
             if !range.contains(value) { ConfigurationFieldError(message: errorMessage) }
-        }
-        .padding(.vertical, 3)
-        .onAppear { text = value == Int.min ? "" : String(value) }
-        .onChange(of: value) { _, next in
-            if next != Int.min && Int(text) != next { text = String(next) }
         }
     }
 }

@@ -83,16 +83,14 @@ extension WorkspaceStore {
         items[itemIndex].source = source
         rebaseItemSources(in: original.source.file, through: edits, contents: contents)
         if logInsertionDelta != 0 {
-            let lineStarts = Self.lineStarts(in: contents)
-            for index in items.indices where items[index].source.file == original.source.file {
-                if items[index].source.startByte > items[itemIndex].source.startByte {
-                    items[index].source.startByte += logInsertionDelta
+            let headingStart = items[itemIndex].source.startByte
+            updateItemSources(in: original.source.file, contents: contents) { source in
+                if source.startByte > headingStart {
+                    source.startByte += logInsertionDelta
                 }
-                if items[index].source.endByte > items[itemIndex].source.startByte {
-                    items[index].source.endByte += logInsertionDelta
+                if source.endByte > headingStart {
+                    source.endByte += logInsertionDelta
                 }
-                items[index].source.startLine = Self.lineNumber(
-                    atByte: items[index].source.startByte, lineStarts: lineStarts)
             }
         }
         documents[documentIndex].contents = contents
@@ -147,9 +145,7 @@ extension WorkspaceStore {
         }
         if let repeatedDate, var repeated = items.first(where: { $0.id == updated.id }) {
             repeated.state = hasWorkspaceConfiguration ? workflow(for: updated.source.file).toggled(updated.state) : .todo
-            if repeated.scheduled != nil { repeated.scheduled = repeatedDate }
-            else if repeated.deadline != nil { repeated.deadline = repeatedDate }
-            else { repeated.eventDate = repeatedDate }
+            repeated.updateAgendaDate(to: repeatedDate)
             repeated.properties["LAST_REPEAT"] = "[\(Self.orgDateFormatter.string(from: .now))]"
             if !save(repeated) {
                 documents = beforeDocuments
@@ -176,9 +172,7 @@ extension WorkspaceStore {
             return
         }
         var updated = original
-        if updated.scheduled != nil { updated.scheduled = nextDate }
-        else if updated.deadline != nil { updated.deadline = nextDate }
-        else { updated.eventDate = nextDate }
+        updated.updateAgendaDate(to: nextDate)
         updated.properties["LAST_REPEAT"] = "[\(Self.orgDateFormatter.string(from: .now))]"
         guard let edits = OrgSourceMutation.itemEdits(replacing: original, with: updated,
                 heading: resolved.node, following: resolved.following) else {
@@ -271,11 +265,8 @@ extension WorkspaceStore {
         guard let move = OrgHeadingMove.plan(in: document, headingID: headingID,
                                              targetID: targetID, placement: placement),
               let contents = try? move.mutation.applied(to: documents[index].contents) else { return nil }
-        let lineStarts = Self.lineStarts(in: contents)
-        for index in items.indices where items[index].source.file == document.path {
-            items[index].source = move.relocatedSource(items[index].source)
-            items[index].source.startLine = Self.lineNumber(
-                atByte: items[index].source.startByte, lineStarts: lineStarts)
+        updateItemSources(in: document.path, contents: contents) { source in
+            source = move.relocatedSource(source)
         }
         documents[index].contents = contents
         scheduleWorkspaceRefresh(changedPaths: [document.path])
@@ -418,19 +409,26 @@ extension WorkspaceStore {
     }
 
     private func rebaseItemSources(in path: String, through edits: [OrgSourceMutation], contents: String) {
-        let lineStarts = Self.lineStarts(in: contents)
-        for index in items.indices where items[index].source.file == path {
+        updateItemSources(in: path, contents: contents) { source in
             for edit in edits {
                 let delta = edit.replacement.utf8.count - (edit.endByte - edit.startByte)
-                if items[index].source.startByte >= edit.endByte {
-                    items[index].source.startByte += delta
+                if source.startByte >= edit.endByte {
+                    source.startByte += delta
                 }
-                if items[index].source.endByte >= edit.endByte {
-                    items[index].source.endByte += delta
+                if source.endByte >= edit.endByte {
+                    source.endByte += delta
                 }
             }
-            items[index].source.startLine = Self.lineNumber(
-                atByte: items[index].source.startByte, lineStarts: lineStarts)
+        }
+    }
+
+    private func updateItemSources(in path: String, contents: String, update: (inout SourceLocation) -> Void) {
+        let lineStarts = Self.lineStarts(in: contents)
+        for index in items.indices where items[index].source.file == path {
+            var source = items[index].source
+            update(&source)
+            source.startLine = Self.lineNumber(atByte: source.startByte, lineStarts: lineStarts)
+            items[index].source = source
         }
     }
 
@@ -459,7 +457,7 @@ extension WorkspaceStore {
         }
         if !item.body.isEmpty { lines.append(item.body) }
         let newSource = lines.joined(separator: "\n")
-        let separator = documents[index].contents.isEmpty ? "" : (documents[index].contents.hasSuffix("\n\n") ? "" : "\n\n")
+        let separator = documents[index].contents.isEmpty || documents[index].contents.hasSuffix("\n\n") ? "" : "\n\n"
         let prefix = documents[index].contents + separator
         var appended = item
         appended.source = SourceLocation(

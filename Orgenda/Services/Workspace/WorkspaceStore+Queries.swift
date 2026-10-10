@@ -14,15 +14,12 @@ extension WorkspaceStore {
         let key = date.orgendaDayKey
         if let cached = itemsByDayCache[key] { return cached }
         let result = datedItems.compactMap { item in
-            let primary = item.scheduled ?? item.deadline ?? item.eventDate
             let dates = [item.scheduled, item.deadline, item.eventDate].compactMap { $0 }
             if dates.contains(where: { Calendar.autoupdatingCurrent.isDate($0, inSameDayAs: date) }) { return item }
-            if usesEmacsConfiguration || hasWorkspaceConfiguration, let base = primary, let repeater = item.recurrence.flatMap(OrgRepeater.init),
+            if usesEmacsConfiguration || hasWorkspaceConfiguration, let base = item.agendaDate, let repeater = item.recurrence.flatMap(OrgRepeater.init),
                let occurrence = repeater.occurrences(on: date, from: base).first {
                 var projected = item
-                if item.scheduled != nil { projected.scheduled = occurrence }
-                else if item.deadline != nil { projected.deadline = occurrence }
-                else { projected.eventDate = occurrence }
+                projected.updateAgendaDate(to: occurrence)
                 return projected
             }
             if let event = item.eventDate, item.durationMinutes >= 24 * 60 {
@@ -50,6 +47,9 @@ extension WorkspaceStore {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else { return [] }
         let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        func matches(_ text: String) -> Bool {
+            text.range(of: needle, options: options) != nil
+        }
         var results: [SearchResult] = []
 
         if scope == .all || scope == .tasks || scope == .calendar {
@@ -60,25 +60,23 @@ extension WorkspaceStore {
             default: searchableItems = items
             }
             results += searchableItems
-                .filter { $0.title.range(of: needle, options: options) != nil || $0.body.range(of: needle, options: options) != nil || $0.tags.contains(where: { $0.range(of: needle, options: options) != nil }) }
+                .filter { matches($0.title) || matches($0.body) || $0.tags.contains(where: matches) }
                 .map(SearchResult.item)
         }
         if scope == .all || scope == .journal {
             results += journalEntries
-                .filter { $0.title.range(of: needle, options: options) != nil || $0.body.range(of: needle, options: options) != nil }
+                .filter { matches($0.title) || matches($0.body) }
                 .map(SearchResult.journal)
         }
         if scope == .all || scope == .files {
             results += documents
                 .filter { $0.kind != .configuration }
-                .filter { $0.title.range(of: needle, options: options) != nil || $0.contents.range(of: needle, options: options) != nil }
+                .filter { matches($0.title) || matches($0.contents) }
                 .map(SearchResult.document)
         }
         if scope == .all || scope == .settings {
             results += SettingsDestination.allCases
-                .filter { destination in
-                    destination.searchTerms.contains { $0.range(of: needle, options: options) != nil }
-                }
+                .filter { $0.searchTerms.contains(where: matches) }
                 .map(SearchResult.setting)
         }
         return results

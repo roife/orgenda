@@ -111,14 +111,23 @@ final class CloudAuthorizationTests: XCTestCase {
             let query = URLComponents(url: request, resolvingAgainstBaseURL: false)!.queryItems!
             XCTAssertTrue(query.contains(.init(name: "code_challenge_method", value: "S256")))
             XCTAssertTrue(query.contains(.init(name: "state", value: "state")))
+            XCTAssertTrue(query.contains(.init(name: "response_type", value: "code")))
+            let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+            let vector = try config.authorizationRequest(state: "state", verifier: verifier)
+            XCTAssertTrue(URLComponents(url: vector, resolvingAgainstBaseURL: false)!.queryItems!
+                .contains(.init(name: "code_challenge", value: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")))
             switch provider {
             case .oneDrive: XCTAssertTrue(config.scopes.split(separator: " ").contains("offline_access"))
             case .googleDrive: XCTAssertTrue(query.contains(.init(name: "access_type", value: "offline")))
             case .dropbox: XCTAssertTrue(query.contains(.init(name: "token_access_type", value: "offline")))
             default: XCTFail("Unexpected provider")
             }
-            let tokenRequest = config.tokenRequest(["grant_type": "refresh_token", "refresh_token": "test"])
-            XCTAssertFalse(String(decoding: tokenRequest.httpBody!, as: UTF8.self).contains("client_secret"))
+            for parameters in [["grant_type": "refresh_token", "refresh_token": "test"],
+                               ["grant_type": "authorization_code", "code": "a+b&c", "code_verifier": verifier]] {
+                let body = String(decoding: config.tokenRequest(parameters).httpBody!, as: UTF8.self)
+                XCTAssertFalse(body.contains("client_secret"), provider.rawValue)
+                if parameters["code"] != nil { XCTAssertTrue(body.contains("code=a%2Bb%26c"), provider.rawValue) }
+            }
         }
     }
 }

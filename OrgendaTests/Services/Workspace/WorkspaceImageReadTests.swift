@@ -39,78 +39,39 @@ final class WorkspaceImageReadTests: XCTestCase {
         XCTAssertTrue(documents.isEmpty)
     }
 
-    func testNormalizesParentComponentsWithinWorkspace() async throws {
-        try fixture("images/photo.png")
-        let store = WorkspaceFileStore(rootURL: root)
-
-        let data = try await store.readImageData(path: "notes/../images/photo.png")
-
-        XCTAssertEqual(data, imageBytes)
-    }
-
-    func testReadsAbsolutePathWithinWorkspace() async throws {
+    func testReadsNormalizedAbsoluteAndAliasedWorkspacePaths() async throws {
         let image = try fixture("images/photo.png")
-
-        let data = try await WorkspaceFileStore(rootURL: root).readImageData(path: image.path)
-
-        XCTAssertEqual(data, imageBytes)
-    }
-
-    func testReadsAbsolutePathThroughSelectedRootAlias() async throws {
-        try fixture("images/photo.png")
         let alias = temporaryDirectory.appendingPathComponent("selected-folder")
         try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: root)
-        let store = WorkspaceFileStore(rootURL: alias)
-
-        let data = try await store.readImageData(path: alias.appendingPathComponent("images/photo.png").path)
-
-        XCTAssertEqual(data, imageBytes)
+        for (selectedRoot, path) in [
+            (root!, "notes/../images/photo.png"), (root!, image.path),
+            (alias, alias.appendingPathComponent("images/photo.png").path)
+        ] {
+            let data = try await WorkspaceFileStore(rootURL: selectedRoot).readImageData(path: path)
+            XCTAssertEqual(data, imageBytes, path)
+        }
     }
 
-    func testRejectsRelativeAndAbsolutePathsOutsideWorkspace() async throws {
+    func testRejectsEscapingSymlinksAndInvalidWorkspacePaths() async throws {
         let outside = temporaryDirectory.appendingPathComponent("outside.png")
         try imageBytes.write(to: outside)
         // A sibling sharing the workspace prefix is still outside the root.
         let prefixSibling = temporaryDirectory.appendingPathComponent("workspace-copy/photo.png")
         try FileManager.default.createDirectory(at: prefixSibling.deletingLastPathComponent(), withIntermediateDirectories: true)
         try imageBytes.write(to: prefixSibling)
+        let outsideFolder = temporaryDirectory.appendingPathComponent("outside")
+        try FileManager.default.createDirectory(at: outsideFolder, withIntermediateDirectories: true)
+        try imageBytes.write(to: outsideFolder.appendingPathComponent("photo.png"))
+        try FileManager.default.createSymbolicLink(at: root.appendingPathComponent("linked"), withDestinationURL: outsideFolder)
         let store = WorkspaceFileStore(rootURL: root)
-
-        for path in ["../outside.png", outside.path, prefixSibling.path, "images/../../outside.png"] {
+        for path in ["../outside.png", outside.path, prefixSibling.path, "images/../../outside.png",
+                     "linked/photo.png", root.appendingPathComponent("linked/photo.png").path,
+                     "", "images/\0photo.png"] {
             do {
                 _ = try await store.readImageData(path: path)
-                XCTFail("Read an image outside the selected folder: \(path)")
+                XCTFail("Accepted unsafe path: \(path.debugDescription)")
             } catch let failure as WorkspaceFileStore.Failure {
-                XCTAssertEqual(failure, .unsafePath(path))
-            }
-        }
-    }
-
-    func testRejectsSymlinkToOutsideWorkspace() async throws {
-        let outside = temporaryDirectory.appendingPathComponent("outside")
-        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
-        try imageBytes.write(to: outside.appendingPathComponent("photo.png"))
-        try FileManager.default.createSymbolicLink(at: root.appendingPathComponent("linked"), withDestinationURL: outside)
-        let store = WorkspaceFileStore(rootURL: root)
-
-        for path in ["linked/photo.png", root.appendingPathComponent("linked/photo.png").path] {
-            do {
-                _ = try await store.readImageData(path: path)
-                XCTFail("Read an image through an escaping symlink")
-            } catch let failure as WorkspaceFileStore.Failure {
-                XCTAssertEqual(failure, .unsafePath(path))
-            }
-        }
-    }
-
-    func testRejectsEmptyAndNullPaths() async throws {
-        let store = WorkspaceFileStore(rootURL: root)
-        for path in ["", "images/\0photo.png"] {
-            do {
-                _ = try await store.readImageData(path: path)
-                XCTFail("Accepted an invalid image path")
-            } catch let failure as WorkspaceFileStore.Failure {
-                XCTAssertEqual(failure, .unsafePath(path))
+                XCTAssertEqual(failure, .unsafePath(path), path.debugDescription)
             }
         }
     }

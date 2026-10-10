@@ -100,8 +100,17 @@ private struct ReminderTimingRow: View {
     let edit: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            heading
+        Group {
+            LabeledContent {
+                Button(kind.label(for: value), action: edit)
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel(kind.title)
+                    .accessibilityValue(kind.label(for: value))
+                    .accessibilityHint("Choose a custom value")
+                    .accessibilityIdentifier("settings.reminders.\(kind.id).custom")
+            } label: {
+                Label(kind.title, systemImage: kind.symbol)
+            }
 
             if dynamicTypeSize.isAccessibilitySize || !kind.presets.contains(value) {
                 presetPicker.pickerStyle(.menu)
@@ -124,57 +133,6 @@ private struct ReminderTimingRow: View {
         }
         .accessibilityLabel(Text(verbatim: "\(kind.title), \(String(localized: "Common values"))"))
         .accessibilityIdentifier("settings.reminders.\(kind.id).presets")
-    }
-
-    @ViewBuilder private var heading: some View {
-        if dynamicTypeSize.isAccessibilitySize {
-            stackedHeading
-        } else {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: 12) {
-                    title
-                    Spacer(minLength: 0)
-                    customValue.fixedSize()
-                }
-                stackedHeading
-            }
-        }
-    }
-
-    private var stackedHeading: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            title
-            customValue
-        }
-    }
-
-    private var title: some View {
-        Label(kind.title, systemImage: kind.symbol)
-            .font(.body.weight(.semibold))
-            .labelStyle(.titleAndIcon)
-            .foregroundStyle(.primary)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityAddTraits(.isHeader)
-    }
-
-    private var customValue: some View {
-        Button(action: edit) {
-            HStack(spacing: 6) {
-                Text(kind.label(for: value))
-                    .font(.system(.title3, design: .rounded, weight: .semibold))
-                    .monospacedDigit()
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2.weight(.semibold))
-            }
-            .foregroundStyle(OrgendaTheme.accentText)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(kind.title)
-        .accessibilityValue(kind.label(for: value))
-        .accessibilityHint("Choose a custom value")
-        .accessibilityIdentifier("settings.reminders.\(kind.id).custom")
     }
 }
 
@@ -221,10 +179,10 @@ struct ReminderTimingEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel", role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Apply") {
+                    Button("Apply", role: .confirm) {
                         guard let validValue else { return }
                         value = validValue
                         dismiss()

@@ -31,12 +31,12 @@ struct ConfigurationImportEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button("Cancel", role: .cancel) {
                         if source.isEmpty { dismiss() } else { showsDiscard = true }
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Import configuration") {
+                    Button("Import configuration", role: .confirm) {
                         do { try importConfiguration(source); dismiss() }
                         catch {
                             self.error = ConfigurationImportFailure.message(for: error)

@@ -1,7 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {},
+    "" : {
+
+    },
     " Choose a folder in Files to use iCloud Drive or another file provider. Cloud transfer is managed by the provider." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -19,6 +21,43 @@
         }
       }
     },
+    "@home" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "@home"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "@home"
+          }
+        }
+      }
+    },
+    "@work" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "@work"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "@work"
+          }
+        }
+      }
+    },
+    "/Orgenda" : {
+
+    },
     "%? — Cursor text\n%^{Title} — Ask for input\n%U — Date and time\n%t — Active date" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -32,6 +71,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%? — 游標處文字\n%^{Title} — 請求輸入\n%U — 日期和時間\n%t — 活動日期"
+          }
+        }
+      }
+    },
+    "%@ · Orgenda folder in the account you choose next" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 接下来选择的账号中的 Orgenda 文件夹"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 接下來選擇的帳號中的 Orgenda 檔案夾"
           }
         }
       }
@@ -172,19 +228,53 @@
         }
       }
     },
-    "%@ · Orgenda folder in the account you choose next" : {
+    "%@, skip missed dates" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ · 接下来选择的账号中的 Orgenda 文件夹"
+            "value" : "%@，跳过错过的日期"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ · 接下來選擇的帳號中的 Orgenda 檔案夾"
+            "value" : "%@，跳過錯過的日期"
+          }
+        }
+      }
+    },
+    "%@, Updating" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@，正在更新"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@，正在更新"
+          }
+        }
+      }
+    },
+    "%@: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：%@"
           }
         }
       }
@@ -212,57 +302,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@%2$@%3$@"
-          }
-        }
-      }
-    },
-    "%@, Updating" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@，正在更新"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@，正在更新"
-          }
-        }
-      }
-    },
-    "%@, skip missed dates" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@，跳过错过的日期"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@，跳過錯過的日期"
-          }
-        }
-      }
-    },
-    "%@: %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@：%@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@：%@"
           }
         }
       }
@@ -540,7 +579,6 @@
         }
       }
     },
-    "/Orgenda" : {},
     "1 template" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -592,23 +630,6 @@
         }
       }
     },
-    "28-day history" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最近 28 天的记录"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最近 28 天的記錄"
-          }
-        }
-      }
-    },
     "3. Import and validate" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -626,36 +647,19 @@
         }
       }
     },
-    "@home" : {
+    "28-day history" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "@home"
+            "value" : "最近 28 天的记录"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "@home"
-          }
-        }
-      }
-    },
-    "@work" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "@work"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "@work"
+            "value" : "最近 28 天的記錄"
           }
         }
       }
@@ -1201,23 +1205,6 @@
         }
       }
     },
-    "All Org files" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "所有 Org 文件"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "所有 Org 檔案"
-          }
-        }
-      }
-    },
     "All categories" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1248,6 +1235,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "所有更改已儲存到資料夾"
+          }
+        }
+      }
+    },
+    "All Org files" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有 Org 文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有 Org 檔案"
           }
         }
       }
@@ -1658,23 +1662,6 @@
         }
       }
     },
-    "At Storage Location" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "存储位置版本"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "儲存位置版本"
-          }
-        }
-      }
-    },
     "At start" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1688,6 +1675,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開始時"
+          }
+        }
+      }
+    },
+    "At Storage Location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储位置版本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "儲存位置版本"
           }
         }
       }
@@ -1811,23 +1815,6 @@
         }
       }
     },
-    "Browse Settings" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "浏览设置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "瀏覽設定"
-          }
-        }
-      }
-    },
     "Browse files" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1845,6 +1832,23 @@
         }
       }
     },
+    "Browse Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浏览设置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "瀏覽設定"
+          }
+        }
+      }
+    },
     "By default, each source file gets its own archive alongside it. For example, agenda/tasks.org archives to agenda/tasks.org_archive under Archived. An entry or file's ARCHIVE property can override this default." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1858,23 +1862,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "預設在每個來源檔案旁使用各自的封存檔案。例如，agenda/tasks.org 會封存至 agenda/tasks.org_archive 的 Archived 標題下。項目或檔案的 ARCHIVE 屬性可以覆寫此預設規則。"
-          }
-        }
-      }
-    },
-    "CANCELED" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已取消"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已取消"
           }
         }
       }
@@ -2015,6 +2002,23 @@
         }
       }
     },
+    "CANCELED" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消"
+          }
+        }
+      }
+    },
     "Capture" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2032,7 +2036,9 @@
         }
       }
     },
-    "Capture date" : {},
+    "Capture date" : {
+
+    },
     "Capture template" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2083,40 +2089,6 @@
         }
       }
     },
-    "Change Location" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更换位置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更換位置"
-          }
-        }
-      }
-    },
-    "Change Storage Location" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更换存储位置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更換儲存位置"
-          }
-        }
-      }
-    },
     "Change deadline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2147,6 +2119,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更改文件"
+          }
+        }
+      }
+    },
+    "Change Location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换位置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更換位置"
+          }
+        }
+      }
+    },
+    "Change Storage Location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换存储位置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更換儲存位置"
           }
         }
       }
@@ -2559,41 +2565,6 @@
         }
       }
     },
-    "Choose Folder" : {},
-    "Choose Folder…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择文件夹…"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "選擇資料夾…"
-          }
-        }
-      }
-    },
-    "Choose Storage Location" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择存储位置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "選擇儲存位置"
-          }
-        }
-      }
-    },
     "Choose a custom value" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2628,23 +2599,6 @@
         }
       }
     },
-    "Choose an Org file or enter a path ending in .org." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请选择 Org 文件，或输入以 .org 结尾的路径。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "請選擇 Org 檔案，或輸入以 .org 結尾的路徑。"
-          }
-        }
-      }
-    },
     "Choose an existing location or enter a new relative path. Paths start inside the workspace folder. Saving changes the defaults; it does not move existing files or retarget capture templates. These settings are shared with this workspace." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2658,6 +2612,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "選擇現有位置，或輸入相對於工作區資料夾的新路徑。儲存只更改預設位置，不會搬移現有檔案或修改擷取範本的目標。這些設定隨工作區共用。"
+          }
+        }
+      }
+    },
+    "Choose an Org file or enter a path ending in .org." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择 Org 文件，或输入以 .org 结尾的路径。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇 Org 檔案，或輸入以 .org 結尾的路徑。"
           }
         }
       }
@@ -2692,6 +2663,43 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "選擇現有位置"
+          }
+        }
+      }
+    },
+    "Choose Folder" : {
+
+    },
+    "Choose Folder…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择文件夹…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇資料夾…"
+          }
+        }
+      }
+    },
+    "Choose Storage Location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择存储位置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇儲存位置"
           }
         }
       }
@@ -2815,23 +2823,6 @@
         }
       }
     },
-    "Clear Search" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "清除搜索"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "清除搜尋"
-          }
-        }
-      }
-    },
     "Clear filters" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2845,6 +2836,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "清除篩選"
+          }
+        }
+      }
+    },
+    "Clear Search" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除搜索"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除搜尋"
           }
         }
       }
@@ -3018,7 +3026,9 @@
         }
       }
     },
-    "Columns" : {},
+    "Columns" : {
+
+    },
     "Comment" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3121,19 +3131,36 @@
         }
       }
     },
-    "Configuration JSON" : {
-      "extractionState" : "manual",
+    "config.json is created when you change a setting." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "配置 JSON"
+            "value" : "修改设置时会创建 config.json。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定 JSON"
+            "value" : "修改設定時會建立 config.json。"
+          }
+        }
+      }
+    },
+    "config.json, saving, presets and reset" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "config.json、保存、预设与重置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "config.json、儲存、預設與重設"
           }
         }
       }
@@ -3150,6 +3177,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設定檔"
+          }
+        }
+      }
+    },
+    "Configuration JSON" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置 JSON"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定 JSON"
           }
         }
       }
@@ -3222,40 +3266,6 @@
         }
       }
     },
-    "Connect WebDAV" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "连接 WebDAV"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "連接 WebDAV"
-          }
-        }
-      }
-    },
-    "Connect a WebDAV server or NAS using HTTPS. Your password is stored securely on this device." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用 HTTPS 连接 WebDAV 服务器或 NAS。密码会安全地保存在本机。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用 HTTPS 連接 WebDAV 伺服器或 NAS。密碼會安全地儲存在本機。"
-          }
-        }
-      }
-    },
     "Connect a folder to enable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3303,6 +3313,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "連接資料夾後即可使用提醒"
+          }
+        }
+      }
+    },
+    "Connect a WebDAV server or NAS using HTTPS. Your password is stored securely on this device." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 HTTPS 连接 WebDAV 服务器或 NAS。密码会安全地保存在本机。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 HTTPS 連接 WebDAV 伺服器或 NAS。密碼會安全地儲存在本機。"
           }
         }
       }
@@ -3443,6 +3470,23 @@
         }
       }
     },
+    "Connect WebDAV" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接 WebDAV"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連接 WebDAV"
+          }
+        }
+      }
+    },
     "Connect workspace" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3544,7 +3588,9 @@
         }
       }
     },
-    "Context link" : {},
+    "Context link" : {
+
+    },
     "Continue list" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3648,7 +3694,6 @@
       }
     },
     "Copy prompt" : {
-      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -3694,23 +3739,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法連接"
-          }
-        }
-      }
-    },
-    "Could Not Save Settings" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法保存设置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "無法儲存設定"
           }
         }
       }
@@ -3817,6 +3845,23 @@
         }
       }
     },
+    "Could Not Save Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存设置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法儲存設定"
+          }
+        }
+      }
+    },
     "Could not schedule reminders: %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3830,6 +3875,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法安排提醒：%@"
+          }
+        }
+      }
+    },
+    "Couldn't load image" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载图片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入圖片"
           }
         }
       }
@@ -3919,23 +3981,6 @@
         }
       }
     },
-    "Couldn't load image" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法加载图片"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "無法載入圖片"
-          }
-        }
-      }
-    },
     "Create a heading in Actions, Projects, Routines, or Someday to use it as a destination." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3953,7 +3998,9 @@
         }
       }
     },
-    "Create missing target headings" : {},
+    "Create missing target headings" : {
+
+    },
     "Cross" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3971,23 +4018,6 @@
         }
       }
     },
-    "Current Workspace" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前工作区"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "當前工作區"
-          }
-        }
-      }
-    },
     "Current location: %@\nNew location: %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4001,6 +4031,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "目前位置：%1$@\n新位置：%2$@"
+          }
+        }
+      }
+    },
+    "Current Workspace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前工作区"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "當前工作區"
           }
         }
       }
@@ -4052,23 +4099,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "青色"
-          }
-        }
-      }
-    },
-    "DONE" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已完成"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已完成"
           }
         }
       }
@@ -4260,7 +4290,9 @@
         }
       }
     },
-    "Deadlines · next %lld days" : {},
+    "Deadlines · next %lld days" : {
+
+    },
     "Deadlines · next 3 days" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4463,6 +4495,23 @@
         }
       }
     },
+    "Demo · session only" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演示 · 仅本次使用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演示 · 僅本次使用"
+          }
+        }
+      }
+    },
     "Demo changes last for this session." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4510,23 +4559,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "演示工作區 · 更改僅在本次使用期間保留"
-          }
-        }
-      }
-    },
-    "Demo · session only" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示 · 仅本次使用"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示 · 僅本次使用"
           }
         }
       }
@@ -4599,40 +4631,6 @@
         }
       }
     },
-    "Discard Changes" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "放弃更改"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "放棄更改"
-          }
-        }
-      }
-    },
-    "Discard Entry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "放弃记录"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "放棄記錄"
-          }
-        }
-      }
-    },
     "Discard changes" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4650,6 +4648,23 @@
         }
       }
     },
+    "Discard Changes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放弃更改"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放棄更改"
+          }
+        }
+      }
+    },
     "Discard changes?" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4663,6 +4678,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "放棄更改？"
+          }
+        }
+      }
+    },
+    "Discard Entry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放弃记录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放棄記錄"
           }
         }
       }
@@ -4853,6 +4885,23 @@
         }
       }
     },
+    "DONE" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已完成"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已完成"
+          }
+        }
+      }
+    },
     "Downloaded text files are available offline. Attachments download when you open them." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4955,6 +5004,40 @@
         }
       }
     },
+    "e.g. Inbox task" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：收件箱任务"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：收件匣任務"
+          }
+        }
+      }
+    },
+    "e.g. inbox.org" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：inbox.org"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：inbox.org"
+          }
+        }
+      }
+    },
     "Edit" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4972,7 +5055,9 @@
         }
       }
     },
-    "Edit %@" : {},
+    "Edit %@" : {
+
+    },
     "Edit %@ planning" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4990,7 +5075,7 @@
         }
       }
     },
-    "Edit Item" : {
+    "Edit item" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
@@ -5007,7 +5092,7 @@
         }
       }
     },
-    "Edit item" : {
+    "Edit Item" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
@@ -5262,23 +5347,6 @@
         }
       }
     },
-    "Enter a whole number from 0 to 1440." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请输入 0 到 1440 之间的整数。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "請輸入 0 到 1440 之間的整數。"
-          }
-        }
-      }
-    },
     "Enter a whole number from 0 to 365." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5296,19 +5364,19 @@
         }
       }
     },
-    "Enter a whole number from 1 to 1440." : {
+    "Enter a whole number from 0 to 1440." : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请输入 1 到 1440 之间的整数。"
+            "value" : "请输入 0 到 1440 之间的整数。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請輸入 1 到 1440 之間的整數。"
+            "value" : "請輸入 0 到 1440 之間的整數。"
           }
         }
       }
@@ -5330,19 +5398,19 @@
         }
       }
     },
-    "Enter an HTTPS server address without embedded credentials." : {
+    "Enter a whole number from 1 to 1440." : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请输入 HTTPS 服务器地址，不要在地址中包含登录信息。"
+            "value" : "请输入 1 到 1440 之间的整数。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請輸入 HTTPS 伺服器位址，不要在位址中包含登入資訊。"
+            "value" : "請輸入 1 到 1440 之間的整數。"
           }
         }
       }
@@ -5360,6 +5428,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "請輸入 /Orgenda 這樣的絕對目錄，路徑中不能包含 . 或 ..。"
+          }
+        }
+      }
+    },
+    "Enter an HTTPS server address without embedded credentials." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入 HTTPS 服务器地址，不要在地址中包含登录信息。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請輸入 HTTPS 伺服器位址，不要在位址中包含登入資訊。"
           }
         }
       }
@@ -6076,7 +6161,7 @@
         }
       }
     },
-    "Filter Outline" : {
+    "Filter outline" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
@@ -6093,7 +6178,7 @@
         }
       }
     },
-    "Filter outline" : {
+    "Filter Outline" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
@@ -6331,7 +6416,9 @@
         }
       }
     },
-    "Generated Org" : {},
+    "Generated Org" : {
+
+    },
     "Get notified before timed entries in your agenda." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6668,6 +6755,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "小時"
+          }
+        }
+      }
+    },
+    "https://dav.example.com" : {
+
+    },
+    "iCloud Drive folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Drive 文件夹"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Drive 資料夾"
           }
         }
       }
@@ -7096,23 +7203,6 @@
         }
       }
     },
-    "Journal Entry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "日记"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "日記"
-          }
-        }
-      }
-    },
     "Journal dates" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7148,6 +7238,23 @@
       }
     },
     "Journal entry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日记"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日記"
+          }
+        }
+      }
+    },
+    "Journal Entry" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
@@ -7249,7 +7356,7 @@
         }
       }
     },
-    "Keep Editing" : {
+    "Keep editing" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
@@ -7266,24 +7373,7 @@
         }
       }
     },
-    "Keep Writing" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "继续写作"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "繼續寫作"
-          }
-        }
-      }
-    },
-    "Keep editing" : {
+    "Keep Editing" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
@@ -7313,6 +7403,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "完成後保留原有計畫，並跳過錯過的日期。"
+          }
+        }
+      }
+    },
+    "Keep Writing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续写作"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繼續寫作"
           }
         }
       }
@@ -8099,23 +8206,6 @@
         }
       }
     },
-    "NEXT" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "下一步"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "下一步"
-          }
-        }
-      }
-    },
     "Name" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8167,40 +8257,6 @@
         }
       }
     },
-    "New Journal Entry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新建日记"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新建日記"
-          }
-        }
-      }
-    },
-    "New Password" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新密码"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新密碼"
-          }
-        }
-      }
-    },
     "New items and Org files" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8231,6 +8287,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新建日記"
+          }
+        }
+      }
+    },
+    "New Journal Entry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建日记"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建日記"
+          }
+        }
+      }
+    },
+    "New Password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新密码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新密碼"
           }
         }
       }
@@ -8316,6 +8406,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新範本"
+          }
+        }
+      }
+    },
+    "NEXT" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一步"
           }
         }
       }
@@ -8435,23 +8542,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "沒有衝突"
-          }
-        }
-      }
-    },
-    "No Org files in this workspace yet. Go back and enter a new file path." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此工作区尚无 Org 文件。请返回并输入新文件的路径。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此工作區尚無 Org 檔案。請返回並輸入新檔案的路徑。"
           }
         }
       }
@@ -8677,6 +8767,40 @@
         }
       }
     },
+    "No Org files" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有 Org 文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有 Org 檔案"
+          }
+        }
+      }
+    },
+    "No Org files in this workspace yet. Go back and enter a new file path." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此工作区尚无 Org 文件。请返回并输入新文件的路径。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此工作區尚無 Org 檔案。請返回並輸入新檔案的路徑。"
+          }
+        }
+      }
+    },
     "No refile destinations" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8898,23 +9022,6 @@
         }
       }
     },
-    "OK" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "好"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "好"
-          }
-        }
-      }
-    },
     "Occurrence completed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8966,6 +9073,23 @@
         }
       }
     },
+    "OK" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好"
+          }
+        }
+      }
+    },
     "On" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8979,40 +9103,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開啟"
-          }
-        }
-      }
-    },
-    "On My iPhone · Workspace" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "我的 iPhone · 工作区"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "我的 iPhone · 工作區"
-          }
-        }
-      }
-    },
-    "On This Device" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本机版本"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本機版本"
           }
         }
       }
@@ -9068,6 +9158,23 @@
         }
       }
     },
+    "On My iPhone · Workspace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的 iPhone · 工作区"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的 iPhone · 工作區"
+          }
+        }
+      }
+    },
     "On this device" : {
       "localizations" : {
         "zh-Hans" : {
@@ -9080,6 +9187,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此裝置"
+          }
+        }
+      }
+    },
+    "On This Device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本机版本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本機版本"
           }
         }
       }
@@ -9118,23 +9242,6 @@
         }
       }
     },
-    "Open Notification Settings" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开通知设置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開啟通知設定"
-          }
-        }
-      }
-    },
     "Open image. Pinch to zoom." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9165,6 +9272,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已超過計畫日期或截止日期的未完成條目會顯示在這裡。"
+          }
+        }
+      }
+    },
+    "Open Notification Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开通知设置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟通知設定"
           }
         }
       }
@@ -9203,23 +9327,6 @@
         }
       }
     },
-    "Opens Settings" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开设置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開啟設定"
-          }
-        }
-      }
-    },
     "Opens item details" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9233,6 +9340,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開啟條目詳情"
+          }
+        }
+      }
+    },
+    "Opens Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开设置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟設定"
           }
         }
       }
@@ -9288,40 +9412,6 @@
         }
       }
     },
-    "Org Preview" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Org 预览"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Org 預覽"
-          }
-        }
-      }
-    },
-    "Org Workspace" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Org 工作区"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Org 工作區"
-          }
-        }
-      }
-    },
     "Org files" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9335,6 +9425,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Org 檔案"
+          }
+        }
+      }
+    },
+    "Org Preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Org 预览"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Org 預覽"
           }
         }
       }
@@ -9458,6 +9565,23 @@
         }
       }
     },
+    "Org Workspace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Org 工作区"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Org 工作區"
+          }
+        }
+      }
+    },
     "Organization" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -9471,6 +9595,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "檔案組織"
+          }
+        }
+      }
+    },
+    "orgenda · Version %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "orgenda · 版本 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "orgenda · 版本 %@"
+          }
+        }
+      }
+    },
+    "orgenda Demo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "orgenda 演示"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "orgenda 演示"
           }
         }
       }
@@ -9628,7 +9786,9 @@
         }
       }
     },
-    "Paste clipboard content here" : {},
+    "Paste clipboard content here" : {
+
+    },
     "Paste configuration JSON" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10258,23 +10418,8 @@
         }
       }
     },
-    "Quick template selection" : {},
-    "Ready with %lld recovery tree(s)" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已就绪，包含 %lld 棵恢复语法树"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已就緒，包含 %lld 棵恢復語法樹"
-          }
-        }
-      }
+    "Quick template selection" : {
+
     },
     "Ready · %lld files · %lld nodes" : {
       "extractionState" : "manual",
@@ -10289,6 +10434,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已就緒 · %lld 個檔案 · %lld 個節點"
+          }
+        }
+      }
+    },
+    "Ready with %lld recovery tree(s)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已就绪，包含 %lld 棵恢复语法树"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已就緒，包含 %lld 棵恢復語法樹"
           }
         }
       }
@@ -11157,23 +11319,6 @@
         }
       }
     },
-    "SOMEDAY" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "将来"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "將來"
-          }
-        }
-      }
-    },
     "Safe synchronization requires strong ETags from this WebDAV server." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11395,8 +11540,12 @@
         }
       }
     },
-    "Saved on this device · Resolve sync conflict" : {},
-    "Saved on this device · Waiting to sync" : {},
+    "Saved on this device · Resolve sync conflict" : {
+
+    },
+    "Saved on this device · Waiting to sync" : {
+
+    },
     "Saved to folder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11533,6 +11682,23 @@
         }
       }
     },
+    "Scheduled · %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已安排 · %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已安排 · %@"
+          }
+        }
+      }
+    },
     "Scheduled date" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11597,23 +11763,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "計畫時間"
-          }
-        }
-      }
-    },
-    "Scheduled · %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已安排 · %@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已安排 · %@"
           }
         }
       }
@@ -11890,7 +12039,9 @@
         }
       }
     },
-    "Selected text" : {},
+    "Selected text" : {
+
+    },
     "Selections update your draft. Use Save on the settings page to apply them." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12316,6 +12467,23 @@
         }
       }
     },
+    "SOMEDAY" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将来"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將來"
+          }
+        }
+      }
+    },
     "Source" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12350,7 +12518,9 @@
         }
       }
     },
-    "Stacked" : {},
+    "Stacked" : {
+
+    },
     "Star" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12588,7 +12758,9 @@
         }
       }
     },
-    "Suggestions" : {},
+    "Suggestions" : {
+
+    },
     "Swipe up or down to change months" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12657,23 +12829,6 @@
         }
       }
     },
-    "Sync Status" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同步状态"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同步狀態"
-          }
-        }
-      }
-    },
     "Sync pending edits first, or keep a local copy before changing storage." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12687,6 +12842,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更換儲存位置前，請先同步待處理修改，或保留本機副本。"
+          }
+        }
+      }
+    },
+    "Sync Status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步状态"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步狀態"
           }
         }
       }
@@ -12759,40 +12931,6 @@
         }
       }
     },
-    "TODO" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "待办"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "待辦"
-          }
-        }
-      }
-    },
-    "TODO keywords and perspectives" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TODO 关键字和视图"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TODO 關鍵字和檢視"
-          }
-        }
-      }
-    },
     "Tags" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12827,23 +12965,8 @@
         }
       }
     },
-    "Tap to mark %@. Touch and hold to choose a status." : {},
-    "Tap to mark TODO. Touch and hold to choose a status." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "轻点标记为待办，长按选择状态。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "輕點標記為待辦，長按選擇狀態。"
-          }
-        }
-      }
+    "Tap to mark %@. Touch and hold to choose a status." : {
+
     },
     "Tap to mark done. Touch and hold to choose a status." : {
       "extractionState" : "stale",
@@ -12858,6 +12981,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "輕點標記為已完成，長按選擇狀態。"
+          }
+        }
+      }
+    },
+    "Tap to mark TODO. Touch and hold to choose a status." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点标记为待办，长按选择状态。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輕點標記為待辦，長按選擇狀態。"
           }
         }
       }
@@ -12981,23 +13121,6 @@
         }
       }
     },
-    "Tasks & Workflow" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "任务与工作流"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "任務與工作流程"
-          }
-        }
-      }
-    },
     "Tasks & capture" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13011,6 +13134,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "任務與擷取"
+          }
+        }
+      }
+    },
+    "Tasks & Workflow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "任务与工作流"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "任務與工作流程"
           }
         }
       }
@@ -13032,7 +13172,9 @@
         }
       }
     },
-    "Template" : {},
+    "Template" : {
+
+    },
     "Template details" : {
       "localizations" : {
         "zh-Hans" : {
@@ -13049,7 +13191,9 @@
         }
       }
     },
-    "Template preview" : {},
+    "Template preview" : {
+
+    },
     "Template source" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13151,7 +13295,9 @@
         }
       }
     },
-    "Text at cursor" : {},
+    "Text at cursor" : {
+
+    },
     "That keyword already exists." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13165,40 +13311,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此關鍵字已存在。"
-          }
-        }
-      }
-    },
-    "The Org structure is ambiguous. Check its drawers and blocks before trying again." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Org 结构不明确，请检查抽屉和文本块后再试。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Org 結構不明確，請檢查抽屜和文字塊後再試。"
-          }
-        }
-      }
-    },
-    "The WebDAV server address must not contain a query string." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WebDAV 服务器地址不能包含查询参数。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WebDAV 伺服器位址不能包含查詢參數。"
           }
         }
       }
@@ -13492,23 +13604,6 @@
         }
       }
     },
-    "The image URL is invalid or contains embedded credentials." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图片网址无效，或包含用户名及密码。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圖片網址無效，或包含使用者名稱及密碼。"
-          }
-        }
-      }
-    },
     "The image could not be found at this path." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13577,6 +13672,23 @@
         }
       }
     },
+    "The image server returned an invalid response." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片服务器返回了无效响应。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圖片伺服器傳回了無效回應。"
+          }
+        }
+      }
+    },
     "The image server returned HTTP %lld." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13594,19 +13706,19 @@
         }
       }
     },
-    "The image server returned an invalid response." : {
+    "The image URL is invalid or contains embedded credentials." : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "图片服务器返回了无效响应。"
+            "value" : "图片网址无效，或包含用户名及密码。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "圖片伺服器傳回了無效回應。"
+            "value" : "圖片網址無效，或包含使用者名稱及密碼。"
           }
         }
       }
@@ -13658,6 +13770,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法計算下一次日期，請檢查重複規則。"
+          }
+        }
+      }
+    },
+    "The Org structure is ambiguous. Check its drawers and blocks before trying again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Org 结构不明确，请检查抽屉和文本块后再试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Org 結構不明確，請檢查抽屜和文字塊後再試。"
           }
         }
       }
@@ -13883,23 +14012,6 @@
         }
       }
     },
-    "The storage service returned HTTP %lld. Try again later." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "存储服务返回了 HTTP %lld 错误，请稍后重试。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "儲存服務傳回了 HTTP %lld 錯誤，請稍後重試。"
-          }
-        }
-      }
-    },
     "The storage service returned an invalid response." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13913,6 +14025,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "儲存服務傳回了無效回應。"
+          }
+        }
+      }
+    },
+    "The storage service returned HTTP %lld. Try again later." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储服务返回了 HTTP %lld 错误，请稍后重试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "儲存服務傳回了 HTTP %lld 錯誤，請稍後重試。"
           }
         }
       }
@@ -13981,6 +14110,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "任務已移動或移除，請重新開啟後再安排日期。"
+          }
+        }
+      }
+    },
+    "The WebDAV server address must not contain a query string." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WebDAV 服务器地址不能包含查询参数。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WebDAV 伺服器位址不能包含查詢參數。"
           }
         }
       }
@@ -14100,74 +14246,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "主題、語言和字型"
-          }
-        }
-      }
-    },
-    "This WebDAV server did not return a strong ETag after saving." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 服务器在保存后未返回强 ETag。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 伺服器在儲存後未傳回強 ETag。"
-          }
-        }
-      }
-    },
-    "This WebDAV server does not enforce create-only writes." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 服务器不能保证新建文件时不覆盖现有文件。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 伺服器無法保證建立新檔案時不覆寫現有檔案。"
-          }
-        }
-      }
-    },
-    "This WebDAV server does not provide strong file ETags." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 服务器不提供文件强 ETag。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 伺服器不提供檔案強 ETag。"
-          }
-        }
-      }
-    },
-    "This WebDAV server does not reject conflicting changes." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 服务器不会拒绝有冲突的修改。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 伺服器不會拒絕有衝突的修改。"
           }
         }
       }
@@ -14393,6 +14471,74 @@
         }
       }
     },
+    "This WebDAV server did not return a strong ETag after saving." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 WebDAV 服务器在保存后未返回强 ETag。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 WebDAV 伺服器在儲存後未傳回強 ETag。"
+          }
+        }
+      }
+    },
+    "This WebDAV server does not enforce create-only writes." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 WebDAV 服务器不能保证新建文件时不覆盖现有文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 WebDAV 伺服器無法保證建立新檔案時不覆寫現有檔案。"
+          }
+        }
+      }
+    },
+    "This WebDAV server does not provide strong file ETags." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 WebDAV 服务器不提供文件强 ETag。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 WebDAV 伺服器不提供檔案強 ETag。"
+          }
+        }
+      }
+    },
+    "This WebDAV server does not reject conflicting changes." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 WebDAV 服务器不会拒绝有冲突的修改。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 WebDAV 伺服器不會拒絕有衝突的修改。"
+          }
+        }
+      }
+    },
     "This week" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14562,6 +14708,40 @@
         }
       }
     },
+    "TODO" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待办"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待辦"
+          }
+        }
+      }
+    },
+    "TODO keywords and perspectives" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TODO 关键字和视图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TODO 關鍵字和檢視"
+          }
+        }
+      }
+    },
     "Tomorrow" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14579,7 +14759,9 @@
         }
       }
     },
-    "Touch and hold to choose a status." : {},
+    "Touch and hold to choose a status." : {
+
+    },
     "Tree-sitter parser is warming up" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14597,7 +14779,6 @@
         }
       }
     },
-    "Try Again" : {},
     "Try a tag" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14614,6 +14795,9 @@
           }
         }
       }
+    },
+    "Try Again" : {
+
     },
     "Try template without saving" : {
       "localizations" : {
@@ -14661,40 +14845,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "輸入"
-          }
-        }
-      }
-    },
-    "URGENT" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "紧急"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "緊急"
-          }
-        }
-      }
-    },
-    "URL or Org link" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "网址或 Org 链接"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "網址或 Org 連結"
           }
         }
       }
@@ -14937,40 +15087,6 @@
         }
       }
     },
-    "Update Password" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新密码"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新密碼"
-          }
-        }
-      }
-    },
-    "Update WebDAV Password" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新 WebDAV 密码"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新 WebDAV 密碼"
-          }
-        }
-      }
-    },
     "Update actions" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15018,6 +15134,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更新預設任務操作？"
+          }
+        }
+      }
+    },
+    "Update Password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新密码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新密碼"
+          }
+        }
+      }
+    },
+    "Update WebDAV Password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密碼"
           }
         }
       }
@@ -15073,6 +15223,23 @@
         }
       }
     },
+    "URGENT" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紧急"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "緊急"
+          }
+        }
+      }
+    },
     "Urgent actions" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15086,6 +15253,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "緊急行動"
+          }
+        }
+      }
+    },
+    "URL or Org link" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网址或 Org 链接"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "網址或 Org 連結"
           }
         }
       }
@@ -15124,57 +15308,6 @@
         }
       }
     },
-    "Use Folder Versions…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用文件夹中的版本…"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用資料夾中的版本…"
-          }
-        }
-      }
-    },
-    "Use Storage Version" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用存储位置版本"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用儲存位置版本"
-          }
-        }
-      }
-    },
-    "Use This Device's Version" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用本机版本"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用本機版本"
-          }
-        }
-      }
-    },
     "Use a path inside this workspace. A new file is created when you capture; saving or previewing a template does not create it." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15209,6 +15342,23 @@
         }
       }
     },
+    "Use an archive beside each source file" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改为跟随源文件归档"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改為跟隨來源檔案封存"
+          }
+        }
+      }
+    },
     "Use an Orgenda configuration with version set to 1." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15226,19 +15376,19 @@
         }
       }
     },
-    "Use an archive beside each source file" : {
+    "Use Folder Versions…" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "改为跟随源文件归档"
+            "value" : "使用文件夹中的版本…"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "改為跟隨來源檔案封存"
+            "value" : "使用資料夾中的版本…"
           }
         }
       }
@@ -15294,6 +15444,23 @@
         }
       }
     },
+    "Use Storage Version" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用存储位置版本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用儲存位置版本"
+          }
+        }
+      }
+    },
     "Use storage version?" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15324,6 +15491,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "透過選單調整狀態順序，或將狀態移至另一組。"
+          }
+        }
+      }
+    },
+    "Use This Device's Version" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用本机版本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用本機版本"
           }
         }
       }
@@ -15363,6 +15547,7 @@
       }
     },
     "Using defaults" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -15497,7 +15682,9 @@
         }
       }
     },
-    "WebDAV" : {},
+    "WebDAV" : {
+
+    },
     "Week" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15596,6 +15783,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "工作專案"
+          }
+        }
+      }
+    },
+    "work, focus" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作, 专注"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作, 專注"
           }
         }
       }
@@ -15888,23 +16092,6 @@
         }
       }
     },
-    "Your Org workflow requires a note for this status change." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的 Org 工作流要求为此次状态更改添加备注。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的 Org 工作流程要求為此次狀態更改新增備註。"
-          }
-        }
-      }
-    },
     "Your changes are still available. Try saving again." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -16092,138 +16279,19 @@
         }
       }
     },
-    "config.json is created when you change a setting." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "修改设置时会创建 config.json。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "修改設定時會建立 config.json。"
-          }
-        }
-      }
-    },
-    "config.json, saving, presets and reset" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "config.json、保存、预设与重置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "config.json、儲存、預設與重設"
-          }
-        }
-      }
-    },
-    "e.g. Inbox task" : {
+    "Your Org workflow requires a note for this status change." : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "例如：收件箱任务"
+            "value" : "你的 Org 工作流要求为此次状态更改添加备注。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "例如：收件匣任務"
-          }
-        }
-      }
-    },
-    "e.g. inbox.org" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "例如：inbox.org"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "例如：inbox.org"
-          }
-        }
-      }
-    },
-    "https://dav.example.com" : {},
-    "iCloud Drive folder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud Drive 文件夹"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud Drive 資料夾"
-          }
-        }
-      }
-    },
-    "orgenda Demo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "orgenda 演示"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "orgenda 演示"
-          }
-        }
-      }
-    },
-    "orgenda · Version %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "orgenda · 版本 %@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "orgenda · 版本 %@"
-          }
-        }
-      }
-    },
-    "work, focus" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作, 专注"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作, 專注"
+            "value" : "你的 Org 工作流程要求為此次狀態更改新增備註。"
           }
         }
       }

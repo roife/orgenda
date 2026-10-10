@@ -52,6 +52,30 @@ final class MotionPolicyTests: XCTestCase {
         }
     }
 
+    func testDatePresentationUsesTheSuppliedCalendarWithADifferentLocale() throws {
+        let date = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-20T00:30:00Z"))
+        var calendar = Calendar(identifier: .buddhist)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
+        let reference = try XCTUnwrap(calendar.date(byAdding: .year, value: 1, to: date))
+        let locale = Locale(identifier: "en_US")
+
+        let day = OrgendaDatePresentation.date(
+            date, relativeTo: reference, locale: locale, calendar: calendar
+        )
+        let weekday = OrgendaDatePresentation.weekdayDate(
+            date, relativeTo: reference, locale: locale, calendar: calendar
+        )
+        let dateTime = OrgendaDatePresentation.dateTime(
+            date, relativeTo: reference, usesRelativeDay: false, locale: locale, calendar: calendar
+        )
+
+        for label in [day, weekday, dateTime] {
+            XCTAssertTrue(label.contains("2569"), label)
+            XCTAssertFalse(label.contains("2026"), label)
+            XCTAssertTrue(label.contains("19"), label)
+        }
+    }
+
     func testContextualDatePresentationUsesNearbyDayNames() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Taipei"))

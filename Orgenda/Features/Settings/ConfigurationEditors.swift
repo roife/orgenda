@@ -101,12 +101,12 @@ struct ConfigurationKeywordEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: cancel)
+                    Button("Cancel", role: .cancel, action: cancel)
                         .disabled(isSaving)
                         .accessibilityIdentifier("configuration.cancelKeyword")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? String(localized: "Saving…") : String(localized: "Save")) {
+                    Button(isSaving ? String(localized: "Saving…") : String(localized: "Save"), role: .confirm) {
                         Task { await confirm() }
                     }
                         .disabled(isSaving || resolvedToken.isEmpty)
@@ -286,12 +286,12 @@ struct ConfigurationTemplateEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: cancel)
+                    Button("Cancel", role: .cancel, action: cancel)
                         .disabled(isSaving)
                         .accessibilityIdentifier("configuration.cancelTemplate")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? String(localized: "Saving…") : String(localized: "Save")) {
+                    Button(isSaving ? String(localized: "Saving…") : String(localized: "Save"), role: .confirm) {
                         Task { await confirm() }
                     }
                     .disabled(isSaving)
@@ -440,12 +440,11 @@ struct ConfigurationTemplateEditor: View {
 
     private func labeledField(_ title: LocalizedStringKey, text: Binding<String>,
                               placeholder: LocalizedStringKey) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.subheadline).foregroundStyle(.secondary)
-            TextField("", text: text, prompt: Text(placeholder), axis: .vertical)
+        LabeledContent(title) {
+            TextField(title, text: text, prompt: Text(placeholder), axis: .vertical)
                 .foregroundStyle(.primary)
-                .accessibilityLabel(title)
-        }.padding(.vertical, 3)
+                .multilineTextAlignment(.trailing)
+        }
     }
 }
 
@@ -483,20 +482,21 @@ private struct ConfigurationTemplateFilePicker: View {
 
     var body: some View {
         List(selection: selectedPath) {
-            if documents.isEmpty {
-                Text("No Org files in this workspace yet. Go back and enter a new file path.")
-                    .foregroundStyle(.secondary)
-                    .selectionDisabled()
-            } else if filteredDocuments.isEmpty {
-                Text("No matching files")
-                    .foregroundStyle(.secondary)
-                    .selectionDisabled()
-            }
             ForEach(filteredDocuments) { document in
                 Label(document.path, systemImage: "doc.text")
                     .foregroundStyle(.primary)
                     .tag(document.path)
                     .accessibilityIdentifier("configuration.template.file." + document.path)
+            }
+        }
+        .overlay {
+            if documents.isEmpty {
+                ContentUnavailableView("No Org files", systemImage: "doc.text", description:
+                    Text("No Org files in this workspace yet. Go back and enter a new file path."))
+                    .orgendaEmptyState()
+            } else if filteredDocuments.isEmpty {
+                ContentUnavailableView.search(text: search)
+                    .orgendaEmptyState()
             }
         }
         .navigationTitle("Choose workspace file")

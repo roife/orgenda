@@ -281,22 +281,22 @@ struct ConfigurationSettingsView: View {
             ForEach(tokens, id: \.self) { token in
                 Button { keywordEditor = .init(token: token, terminal: terminal) } label: {
                     let state = draft.workflow.state(token) ?? OrgWorkflowState(token: token, terminal: terminal)
-                    HStack(spacing: 12) {
-                        Image(systemName: state.symbol)
-                            .foregroundStyle(OrgendaTheme.workflowColor(state))
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(state.title).foregroundStyle(.primary)
-                            if state.title != token { Text(verbatim: token).font(.caption.monospaced()).foregroundStyle(.secondary) }
-                        }
-                        Spacer()
+                    LabeledContent {
                         if let key = draft.workflow.keywords[token]?.key, !key.isEmpty {
                             Text(verbatim: key).font(.body.monospaced()).foregroundStyle(.secondary)
                         }
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold)).foregroundStyle(.tertiary).accessibilityHidden(true)
+                    } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(state.title).foregroundStyle(.primary)
+                                if state.title != token { Text(verbatim: token).font(.caption.monospaced()).foregroundStyle(.secondary) }
+                            }
+                        } icon: {
+                            Image(systemName: state.symbol)
+                                .foregroundStyle(OrgendaTheme.workflowColor(state))
+                        }
                     }
-                    .contentShape(Rectangle())
+                    .labelStyle(.titleAndIcon)
                 }
                 .accessibilityIdentifier("configuration.keyword.\(token)")
                 .contextMenu {
@@ -341,43 +341,21 @@ struct ConfigurationSettingsView: View {
 
     private func defaultStatePicker(_ title: String, keyPath: WritableKeyPath<WorkspaceConfiguration.Sequence, String>,
                                     terminal: Bool) -> some View {
-        let token = defaultSequence[keyPath: keyPath]
-        let state = draft.workflow.state(token) ?? OrgWorkflowState(token: token, terminal: terminal)
-        // A menu label keeps explicit spacing; Picker compacts its selected-value label.
-        return Menu {
-            Picker(LocalizedStringKey(title), selection: Binding(get: { defaultSequence[keyPath: keyPath] },
-                                         set: { value in editSequence { $0[keyPath: keyPath] = value } })) {
-                ForEach(terminal ? defaultSequence.terminal : defaultSequence.process, id: \.self) { token in
-                    let state = draft.workflow.state(token) ?? OrgWorkflowState(token: token, terminal: terminal)
-                    Label {
-                        Text(stateLabel(token))
-                    } icon: {
-                        Image(systemName: state.symbol)
-                            .foregroundStyle(OrgendaTheme.workflowColor(state))
-                    }
-                    .tag(token)
-                }
-            }
-            .pickerStyle(.inline)
-        } label: {
-            HStack {
-                Text(LocalizedStringKey(title))
-                    .foregroundStyle(Color.primary)
-                Spacer()
-                HStack(spacing: 8) {
-                    Image(systemName: state.symbol)
-                        .accessibilityHidden(true)
+        Picker(LocalizedStringKey(title), selection: Binding(get: { defaultSequence[keyPath: keyPath] },
+                                     set: { value in editSequence { $0[keyPath: keyPath] = value } })) {
+            ForEach(terminal ? defaultSequence.terminal : defaultSequence.process, id: \.self) { token in
+                let state = draft.workflow.state(token) ?? OrgWorkflowState(token: token, terminal: terminal)
+                Label {
                     Text(stateLabel(token))
+                } icon: {
+                    Image(systemName: state.symbol)
+                        .foregroundStyle(OrgendaTheme.workflowColor(state))
                 }
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption.weight(.semibold))
-                    .accessibilityHidden(true)
+                .tag(token)
             }
-            .contentShape(Rectangle())
         }
-        .menuIndicator(.hidden)
-        .accessibilityLabel(LocalizedStringKey(title))
-        .accessibilityValue(stateLabel(token))
+        .pickerStyle(.menu)
+        .accessibilityValue(stateLabel(defaultSequence[keyPath: keyPath]))
     }
 
     private func editSequence(_ edit: (inout WorkspaceConfiguration.Sequence) -> Void) {
@@ -412,20 +390,22 @@ struct ConfigurationSettingsView: View {
             Section("Templates") {
                 ForEach(draft.capture.templates) { template in
                     Button { templateEditor = template } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "doc.text").foregroundStyle(OrgendaTheme.accentText)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(template.name).foregroundStyle(.primary)
-                                Text(template.target.path).font(.caption).foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                            Spacer()
+                        LabeledContent {
                             if !template.key.isEmpty {
                                 Text(verbatim: template.key).font(.caption.monospaced()).foregroundStyle(.secondary)
                             }
-                            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(template.name).foregroundStyle(.primary)
+                                    Text(template.target.path).font(.caption).foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                            } icon: {
+                                Image(systemName: "doc.text").foregroundStyle(OrgendaTheme.accentText)
+                            }
                         }
-                        .contentShape(Rectangle())
+                        .labelStyle(.titleAndIcon)
                     }
                     .accessibilityIdentifier("configuration.template.\(template.id)")
                 }
@@ -489,11 +469,12 @@ struct ConfigurationSettingsView: View {
 
     private func text(_ title: String, _ path: WritableKeyPath<WorkspaceConfiguration, String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(LocalizedStringKey(title)).font(.subheadline)
-            TextField(LocalizedStringKey(title), text: binding(path), axis: .vertical)
-                .foregroundStyle(.primary)
-                .textInputAutocapitalization(.never).autocorrectionDisabled()
-                .accessibilityLabel(LocalizedStringKey(title))
+            LabeledContent(LocalizedStringKey(title)) {
+                TextField(LocalizedStringKey(title), text: binding(path), axis: .vertical)
+                    .foregroundStyle(.primary)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .multilineTextAlignment(.trailing)
+            }
             if path == \.logging.drawer && !draft.logging.drawer.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) {
                 Text("Use letters, numbers or underscores for the history drawer.")
                     .font(.footnote).foregroundStyle(.red)

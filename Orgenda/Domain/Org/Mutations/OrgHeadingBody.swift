@@ -1,5 +1,13 @@
 import Foundation
 
+/// Drawer scanning and configuration use Character semantics so composed
+/// letters and numeric graphemes retain their exact source spelling.
+enum OrgDrawerName {
+    static func isSupported(_ name: String) -> Bool {
+        !name.isEmpty && name.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+    }
+}
+
 /// Shared by indexing and source edits so editing notes never consumes drawer
 /// metadata or logs. Containers come directly from the tree-sitter grammar.
 enum OrgHeadingBody {

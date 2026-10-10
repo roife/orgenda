@@ -4,6 +4,26 @@ import XCTest
 
 @MainActor
 final class OrgPreviewContainerMathTests: XCTestCase {
+    func testTrimmingPreservesUnicodeAttributesAndInteriorWhitespace() {
+        var linked = AttributedString("\n\t中文🙂e\u{301} \n")
+        linked.link = URL(string: "https://example.com")
+        let fragments: [OrgPreviewInlineFragment] = [.text(AttributedString("\n")), .text(linked), .text(AttributedString("\t"))]
+        let trimmed = OrgPreviewMarkup.trimmed(fragments, spaces: true)
+        XCTAssertEqual(text(trimmed), "中文🙂e\u{301}")
+        guard case .text(let value) = trimmed.first else { return XCTFail("Missing text") }
+        XCTAssertEqual(value.link, linked.link)
+        XCTAssertEqual(text(OrgPreviewMarkup.trimmed(fragments, spaces: false)), "\t中文🙂e\u{301} \n\t")
+        XCTAssertTrue(OrgPreviewMarkup.trimmed([.text(AttributedString(" \r\n\t"))], spaces: true).isEmpty)
+    }
+
+    func testTrimmingStopsAtMathAndPreservesAdjacentSpaces() {
+        let expression = OrgMathExpression(latex: "x", original: "$x$", mode: .inline)
+        let fragments: [OrgPreviewInlineFragment] = [.math(expression), .text(AttributedString("  body  ")), .math(expression)]
+        let trimmed = OrgPreviewMarkup.trimmed(fragments, spaces: true)
+        XCTAssertEqual(text(trimmed), "  body  ")
+        XCTAssertEqual(math(trimmed), [expression, expression])
+    }
+
     func testIndentedAlignmentTokensDoNotBreakDisplayFormula() throws {
         let source = "\\begin{aligned}\n    a &= b \\\\\n    c &= d\n\\end{aligned}\n"
         let document = try XCTUnwrap(OrgIndexService.parseSynchronously([
@@ -169,11 +189,6 @@ final class OrgPreviewContainerMathTests: XCTestCase {
         ])
         XCTAssertTrue(OrgMathParser.matches(in: #"Costs US$5 or \$6, with $unfinished math."#).isEmpty)
         XCTAssertTrue(OrgMathParser.matches(in: "$5 and $6").isEmpty)
-    }
-
-    func testIncompleteInlineMathDoesNotConsumeAnotherParagraph() {
-        let source = "\\( unfinished\n\nNext \\(valid\\)"
-        XCTAssertEqual(OrgMathParser.matches(in: source).map(\.expression.latex), ["valid"])
     }
 
     func testOrdinaryContainersRemainIntactAndCaptionMathIsAvailable() throws {

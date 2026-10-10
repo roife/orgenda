@@ -70,14 +70,13 @@ struct StorageConflictView: View {
                         resolve(.keepBoth, expectedConflict: conflict)
                     } label: {
                         HStack {
-                            Spacer(minLength: 0)
-                            if isResolving { ProgressView().tint(.white) }
-                            Text("Keep Both").fontWeight(.semibold)
-                            Spacer(minLength: 0)
+                            if isResolving { ProgressView() }
+                            Text("Keep Both")
                         }
-                        .padding(.vertical, 8)
                     }
                     .buttonStyle(.borderedProminent)
+                    .buttonSizing(.flexible)
+                    .controlSize(.large)
                     .tint(OrgendaTheme.accent)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())

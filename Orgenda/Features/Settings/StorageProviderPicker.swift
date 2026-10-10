@@ -58,7 +58,7 @@ struct StorageProviderPicker: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel", role: .cancel) { dismiss() }
                         .disabled(connectingProvider != nil || store.isSynchronizing)
                         .accessibilityIdentifier("storage.cancel")
                 }
@@ -103,16 +103,9 @@ struct StorageProviderPicker: View {
                 providerRow(provider)
                 if connectingProvider == provider {
                     ProgressView().accessibilityLabel("Connecting…")
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .accessibilityHidden(true)
                 }
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
         .accessibilityIdentifier("storage.provider.\(provider.rawValue)")
     }
 

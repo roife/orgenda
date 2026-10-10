@@ -312,53 +312,37 @@ enum OrgPreviewMarkup {
         return result
     }
 
-    private static func trimmed(_ value: AttributedString, spaces: Bool) -> AttributedString {
-        var result = value
-        func trim(_ character: Character) -> Bool { spaces ? character.isWhitespace : character.isNewline }
-        while let first = result.characters.first, trim(first) {
-            result.removeSubrange(result.startIndex..<result.characters.index(after: result.startIndex))
-        }
-        while let last = result.characters.last, trim(last) {
-            result.removeSubrange(result.characters.index(before: result.endIndex)..<result.endIndex)
-        }
-        return result
+    private static func trimmed(
+        _ value: AttributedString, spaces: Bool, leading: Bool = true, trailing: Bool = true
+    ) -> AttributedString {
+        let characters = value.characters
+        func keep(_ character: Character) -> Bool { !(spaces ? character.isWhitespace : character.isNewline) }
+        let start = leading ? characters.firstIndex(where: keep) ?? value.endIndex : value.startIndex
+        let end = trailing ? characters.lastIndex(where: keep).map { characters.index(after: $0) } ?? start : value.endIndex
+        return AttributedString(value[start..<end])
     }
 
     static func trimmed(
         _ fragments: [OrgPreviewInlineFragment],
         spaces: Bool
     ) -> [OrgPreviewInlineFragment] {
-        var result = fragments
-        func shouldTrim(_ character: Character) -> Bool {
-            spaces ? character.isWhitespace : character.isNewline
-        }
-
-        while let first = result.first {
-            guard case .text(var value) = first else { break }
-            while let character = value.characters.first, shouldTrim(character) {
-                value.removeSubrange(value.startIndex..<value.characters.index(after: value.startIndex))
-            }
-            if value.characters.isEmpty {
-                result.removeFirst()
-            } else {
-                result[0] = .text(value)
+        var result = fragments[...]
+        while let first = result.first, case .text(let value) = first {
+            let trimmed = trimmed(value, spaces: spaces, trailing: false)
+            if !trimmed.characters.isEmpty {
+                result[result.startIndex] = .text(trimmed)
                 break
             }
+            result.removeFirst()
         }
-
-        while let last = result.last {
-            guard case .text(var value) = last else { break }
-            while let character = value.characters.last, shouldTrim(character) {
-                value.removeSubrange(value.characters.index(before: value.endIndex)..<value.endIndex)
-            }
-            if value.characters.isEmpty {
-                result.removeLast()
-            } else {
-                result[result.count - 1] = .text(value)
+        while let last = result.last, case .text(let value) = last {
+            let trimmed = trimmed(value, spaces: spaces, leading: false)
+            if !trimmed.characters.isEmpty {
+                result[result.index(before: result.endIndex)] = .text(trimmed)
                 break
             }
+            result.removeLast()
         }
-        return result
+        return Array(result)
     }
-
 }

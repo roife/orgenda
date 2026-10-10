@@ -220,11 +220,50 @@ final class WorkspaceSyncUITests: XCTestCase {
     func testChangingStorageWithPendingEditsRequiresKeepingCopies() {
         let app = openWorkspaceSettings(extraArguments: ["--storage-sync-fixture"])
         defer { app.terminate() }
+        let conflict = app.buttons["workspace.resolveConflict"]
+        XCTAssertTrue(conflict.waitForExistence(timeout: 3))
+        let connection = app.descendants(matching: .any).matching(identifier: "workspace.connection").firstMatch
+        XCTAssertTrue(connection.exists)
+        let originalConnection = connection.label
+
         app.buttons["workspace.chooseFolder"].tap()
-        XCTAssertTrue(app.buttons["Keep Copies and Continue"].waitForExistence(timeout: 3))
-        dismissConfirmation(in: app, navigationTitle: "Workspace & Sync")
-        XCTAssertTrue(app.navigationBars["Workspace & Sync"].exists)
+        let oneDrive = app.buttons["storage.provider.oneDrive"]
+        XCTAssertTrue(oneDrive.waitForExistence(timeout: 3))
+        oneDrive.tap()
+        let keepCopies = app.buttons["Keep Copies and Change Location"]
+        XCTAssertTrue(keepCopies.waitForExistence(timeout: 3))
+        let explanation = app.staticTexts.matching(NSPredicate(
+            format: "label CONTAINS %@ AND label CONTAINS %@",
+            "Current location: WebDAV", "New location: OneDrive"
+        )).firstMatch
+        XCTAssertTrue(explanation.exists)
+        XCTAssertTrue(explanation.label.contains("Existing files stay where they are and will not be moved or copied."))
+        XCTAssertTrue(explanation.label.contains("Unsynced edits will be kept in orgenda → Unsaved Edits"))
+        XCTAssertTrue(explanation.label.contains("They will not be uploaded to the new location."))
+
+        // Cancel the confirmation without dismissing the provider picker below it.
+        let cancel = app.buttons.matching(NSPredicate(
+            format: "label == 'Cancel' AND identifier != 'storage.cancel'"
+        )).firstMatch
+        if cancel.exists {
+            cancel.tap()
+        } else {
+            // The native popover can cover the navigation bar. Dismiss it
+            // from the exposed area below its actual bounds instead.
+            let popover = app.popovers.firstMatch
+            XCTAssertTrue(popover.exists)
+            XCTAssertLessThan(popover.frame.maxY, app.frame.maxY)
+            let point = CGVector(dx: app.frame.midX,
+                                 dy: (popover.frame.maxY + app.frame.maxY) / 2)
+            app.coordinate(withNormalizedOffset: .zero).withOffset(point).tap()
+        }
+        XCTAssertTrue(keepCopies.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(oneDrive.isHittable)
+        app.buttons["storage.cancel"].tap()
+        XCTAssertTrue(app.navigationBars["Workspace & Sync"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["storage.provider.webDAV"].exists)
+        XCTAssertTrue(conflict.exists, "Canceling must keep the unresolved workspace conflict.")
+        XCTAssertEqual(connection.label, originalConnection, "Canceling must keep the current storage connection.")
     }
 
     private func openWorkspaceSettings(extraArguments: [String] = []) -> XCUIApplication {

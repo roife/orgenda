@@ -116,23 +116,16 @@ final class OrgSyntaxHighlighterTests: XCTestCase {
     func testByteRangeConversionRejectsInvalidBoundariesAndBounds() {
         let source = "A你🙂B"
 
-        XCTAssertEqual(
-            OrgSyntaxHighlighter.utf16Range(startByte: 0, endByte: 9, in: source),
-            NSRange(location: 0, length: 5)
-        )
-        XCTAssertEqual(
-            OrgSyntaxHighlighter.utf16Range(startByte: 1, endByte: 4, in: source),
-            NSRange(location: 1, length: 1)
-        )
-        XCTAssertEqual(
-            OrgSyntaxHighlighter.utf16Range(startByte: 4, endByte: 8, in: source),
-            NSRange(location: 2, length: 2)
-        )
-        XCTAssertNil(OrgSyntaxHighlighter.utf16Range(startByte: 2, endByte: 4, in: source))
-        XCTAssertNil(OrgSyntaxHighlighter.utf16Range(startByte: -1, endByte: 1, in: source))
-        XCTAssertNil(OrgSyntaxHighlighter.utf16Range(startByte: 4, endByte: 10, in: source))
-        XCTAssertNil(OrgSyntaxHighlighter.utf16Range(startByte: 4, endByte: 4, in: source))
-        XCTAssertNil(OrgSyntaxHighlighter.utf16Range(startByte: 8, endByte: 4, in: source))
+        let cases: [(Int, Int, NSRange?)] = [
+            (0, 9, NSRange(location: 0, length: 5)),
+            (1, 4, NSRange(location: 1, length: 1)),
+            (4, 8, NSRange(location: 2, length: 2)),
+            (2, 4, nil), (-1, 1, nil), (4, 10, nil), (4, 4, nil), (8, 4, nil)
+        ]
+        for (start, end, expected) in cases {
+            XCTAssertEqual(OrgSyntaxHighlighter.utf16Range(startByte: start, endByte: end, in: source),
+                           expected, "UTF-8 range \(start)..<\(end)")
+        }
     }
 
     func testEmptyDocumentProducesNoSpans() async throws {

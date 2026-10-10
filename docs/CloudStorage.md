@@ -78,7 +78,8 @@ python3 -m unittest discover -s Scripts -p 'test_*.py'
 xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:OrgendaTests/CloudAuthorizationTests \
-  -only-testing:OrgendaTests/CloudBackendTests test CODE_SIGNING_ALLOWED=NO
+  -only-testing:OrgendaTests/CloudBackendTests test CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM=''
 ```
 
 每家使用专用测试工作区完成真实验收：

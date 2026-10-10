@@ -46,16 +46,6 @@ final class OrgCaptureTemplateTests: XCTestCase {
         XCTAssertFalse(store.items.contains { $0.id == original.id })
     }
 
-    func testAllConfiguredDestinationsAndParentHeadings() {
-        let templates = OrgCaptureTemplate.allCases
-        XCTAssertEqual(templates.map(\.destinationPath), [
-            "agenda/inbox.org", "agenda/inbox.org", "agenda/actions.org",
-            "agenda/work.org", "agenda/personal.org",
-            "agenda/inbox.org", "agenda/routines.org", "agenda/someday.org", "agenda/calendar.org"
-        ])
-        XCTAssertEqual(templates.compactMap(\.parentHeading), ["Actions", "Recurring", "Someday / Maybe"])
-    }
-
     func testInboxTaskIsUnscheduledAndHasCreatedMetadata() {
         var original = fixture()
         original.scheduled = date

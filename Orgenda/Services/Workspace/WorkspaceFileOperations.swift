@@ -119,13 +119,7 @@ extension WorkspaceStore {
                     throw WorkspaceFileActionError.changed
                 }
                 var next = self.documents + restored
-                var parent = (entry.originalPath as NSString).deletingLastPathComponent
-                while !parent.isEmpty {
-                    if !next.contains(where: { $0.path == parent }) {
-                        next.append(WorkspaceDocument(path: parent, title: (parent as NSString).lastPathComponent, contents: "", kind: .folder))
-                    }
-                    parent = (parent as NSString).deletingLastPathComponent
-                }
+                self.keepDemoParentFolders(of: entry.originalPath, in: &next)
                 self.acceptFileActionDocuments(next)
                 self.recentlyDeleted.removeAll { $0.id == entry.id }
                 self.fileUndo = nil

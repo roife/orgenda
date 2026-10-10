@@ -87,7 +87,7 @@ private struct StorageWebDAVCredentialsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }.disabled(isReconnecting)
+                    Button("Cancel", role: .cancel) { dismiss() }.disabled(isReconnecting)
                 }
             }
         }

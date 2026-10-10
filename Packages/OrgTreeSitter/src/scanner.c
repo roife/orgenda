@@ -204,7 +204,7 @@ bool tree_sitter_org_external_scanner_scan(
 ) {
   (void)payload;
 
-  if (valid_symbols[END_OF_FILE] && lexer->lookahead == 0) {
+  if (valid_symbols[END_OF_FILE] && lexer->eof(lexer)) {
     lexer->mark_end(lexer);
     lexer->result_symbol = END_OF_FILE;
     return true;
@@ -234,11 +234,9 @@ bool tree_sitter_org_external_scanner_scan(
       lexer->advance(lexer, false);
     }
 
-    bool has_boundary = lexer->lookahead == ' ' || lexer->lookahead == '\t' ||
-                        lexer->lookahead == '\r' || lexer->lookahead == '\n' ||
-                        lexer->lookahead == 0;
+    bool has_boundary = horizontal_space(lexer->lookahead) || line_end(lexer);
     if (length <= sizeof(word) && has_boundary && is_todo_keyword(word, length)) {
-      while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      while (horizontal_space(lexer->lookahead)) {
         lexer->advance(lexer, false);
       }
       lexer->mark_end(lexer);

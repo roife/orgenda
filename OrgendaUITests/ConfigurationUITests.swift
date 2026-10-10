@@ -583,6 +583,15 @@ final class ConfigurationUITests: XCTestCase {
         let app = launchConfigurationFixture(extraArguments: ["--native-selection-fixture"])
         defer { app.terminate() }
         reveal("settings.files", in: app).tap()
+        let inboxPicker = reveal("configuration.files.inbox.choose", in: app)
+        XCTAssertEqual(inboxPicker.value as? String, "inbox.org")
+        inboxPicker.tap()
+        let workFile = app.buttons["projects/work.org"]
+        XCTAssertTrue(workFile.waitForExistence(timeout: 3))
+        workFile.tap()
+        XCTAssertEqual(app.textFields["configuration.files.inbox"].value as? String, "projects/work.org")
+        XCTAssertEqual(inboxPicker.value as? String, "projects/work.org")
+        screenshot("Native default location selection", app: app)
         reveal("configuration.agenda.sources", in: app).tap()
         let prefix = "configuration.agenda.sources"
         func pathRow(_ path: String) -> XCUIElement {
@@ -601,6 +610,8 @@ final class ConfigurationUITests: XCTestCase {
         reveal("settings.configuration", in: app).tap()
         reveal("configuration.showJSON", in: app).tap()
         let configuration = try configurationJSON(in: app)
+        let files = try XCTUnwrap(configuration["files"] as? [String: Any])
+        XCTAssertEqual(files["inbox"] as? String, "projects/work.org")
         let agenda = try XCTUnwrap(configuration["agenda"] as? [String: Any])
         XCTAssertEqual(agenda["sources"] as? [String], ["offline/planned.org", "inbox.org", "later.org"],
                        "Native selection must preserve retained order, unloaded paths, and newly entered paths.")
@@ -708,9 +719,16 @@ final class ConfigurationUITests: XCTestCase {
 
     @discardableResult
     private func revealElement(_ element: XCUIElement, in app: XCUIApplication) -> XCUIElement {
-        for _ in 0..<8 where !element.isHittable { app.swipeUp() }
-        for _ in 0..<8 where !element.isHittable { app.swipeDown() }
-        XCTAssertTrue(element.isHittable, element.debugDescription)
+        // A native picker can be hittable while only its label is visible.
+        // Keep the tap center on screen before interacting with the control.
+        func canTap() -> Bool {
+            guard element.isHittable else { return false }
+            let frame = element.frame
+            return app.frame.contains(CGPoint(x: frame.midX, y: frame.midY))
+        }
+        for _ in 0..<8 where !canTap() { app.swipeUp() }
+        for _ in 0..<8 where !canTap() { app.swipeDown() }
+        XCTAssertTrue(canTap(), element.debugDescription)
         return element
     }
 

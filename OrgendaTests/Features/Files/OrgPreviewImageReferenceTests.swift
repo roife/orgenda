@@ -218,14 +218,15 @@ final class OrgPreviewImageReferenceTests: XCTestCase {
     }
 
     func testAttachmentDIRPreservesLiteralPercentAndAbsolutePaths() throws {
-        let literal = try parse("* Heading\n:PROPERTIES:\n:DIR: assets%20raw\n:END:\n[[attachment:a%20b.png]]\n")
-        XCTAssertEqual(try candidates(in: literal), [["notes/assets%20raw/a b.png"]])
-        let absolute = try parse("* Heading\n:PROPERTIES:\n:DIR: /workspace/图片\n:END:\n[[attachment:a.png]]\n")
-        XCTAssertEqual(try candidates(in: absolute), [["/workspace/图片/a.png"]])
-        let fileURL = try parse("* Heading\n:PROPERTIES:\n:DIR: file:///workspace/image%20files\n:END:\n[[attachment:a.png]]\n")
-        XCTAssertEqual(try candidates(in: fileURL), [["/workspace/image files/a.png"]])
-        let root = try parse("* Heading\n:PROPERTIES:\n:DIR: /\n:END:\n[[attachment:a.png]]\n")
-        XCTAssertEqual(try candidates(in: root), [["/a.png"]])
+        for (directory, name, expected) in [
+            ("assets%20raw", "a%20b.png", "notes/assets%20raw/a b.png"),
+            ("/workspace/图片", "a.png", "/workspace/图片/a.png"),
+            ("file:///workspace/image%20files", "a.png", "/workspace/image files/a.png"),
+            ("/", "a.png", "/a.png")
+        ] {
+            let document = try parse("* Heading\n:PROPERTIES:\n:DIR: \(directory)\n:END:\n[[attachment:\(name)]]\n")
+            XCTAssertEqual(try candidates(in: document), [[expected]], directory)
+        }
     }
 
     func testAttachmentWithoutPropertiesExplainsMissingLocation() throws {

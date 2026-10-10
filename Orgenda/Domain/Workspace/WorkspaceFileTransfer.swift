@@ -22,7 +22,7 @@ struct WorkspaceFileTransfer: Codable, Transferable, Identifiable {
 
     static func matches(_ lhs: [WorkspaceDocument], _ rhs: [WorkspaceDocument]) -> Bool {
         let a = lhs.sorted { $0.path < $1.path }, b = rhs.sorted { $0.path < $1.path }
-        return a.count == b.count && zip(a, b).allSatisfy {
+        return a.elementsEqual(b) {
             $0.path == $1.path && $0.kind == $1.kind && $0.contents.utf8.elementsEqual($1.contents.utf8)
         }
     }

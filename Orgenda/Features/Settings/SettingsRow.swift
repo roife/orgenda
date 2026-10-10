@@ -7,15 +7,11 @@ struct SettingsRow: View {
     let title: String
     var subtitle: String = ""
     var subtitleIcon: String? = nil
-    var isSelected: Bool? = nil
     var iconAsset: String? = nil
 
     var body: some View {
         Label {
-            HStack {
-                text
-                selectionIndicator
-            }
+            text
         } icon: {
             rowIcon
         }
@@ -57,15 +53,5 @@ struct SettingsRow: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    @ViewBuilder private var selectionIndicator: some View {
-        if let isSelected {
-            Image(systemName: "checkmark")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(OrgendaTheme.accentText)
-                .opacity(isSelected ? 1 : 0)
-                .accessibilityHidden(true)
-        }
     }
 }

@@ -73,16 +73,17 @@ enum OrgWorkflowOperations {
         }
         var entries: [String] = []
         let stamp = timestamp(now, includesTime: true)
+        let escapedNote = cleanNote.components(separatedBy: .newlines).map {
+            // An indented :END: still closes an Org drawer. Escape that
+            // literal note line so the next edit sees the same logbook.
+            let text = $0.trimmingCharacters(in: .whitespaces)
+            return "  " + (text.uppercased() == ":END:" ? "," + $0 : $0)
+        }.joined(separator: "\n")
         if original.state != item.state,
            item.state.enterLog != .none || original.state.leaveLog != .none || doneLog != .none {
             var entry = "- State \"\(item.state.rawValue)\" from \"\(original.state.rawValue)\" \(stamp)"
             if !cleanNote.isEmpty {
-                entry += " \\\\\n" + cleanNote.components(separatedBy: .newlines).map {
-                    // An indented :END: still closes an Org drawer. Escape that
-                    // literal note line so the next edit sees the same logbook.
-                    let text = $0.trimmingCharacters(in: .whitespaces)
-                    return "  " + (text.uppercased() == ":END:" ? "," + $0 : $0)
-                }.joined(separator: "\n")
+                entry += " \\\\\n" + escapedNote
             }
             entries.append(entry)
         }
@@ -106,17 +107,13 @@ enum OrgWorkflowOperations {
             case (.deadline, false): action = "New deadline from"
             default: action = "Removed deadline, was"
             }
-            let escaped = cleanNote.components(separatedBy: .newlines).map {
-                let line = $0.trimmingCharacters(in: .whitespaces)
-                return "  " + (line.uppercased() == ":END:" ? "," + $0 : $0)
-            }.joined(separator: "\n")
-            entries.append("- \(action) \"\(oldStamp)\" on \(stamp)" + (dateNote && !cleanNote.isEmpty ? " \\\\\n" + escaped : ""))
+            entries.append("- \(action) \"\(oldStamp)\" on \(stamp)" + (dateNote && !cleanNote.isEmpty ? " \\\\\n" + escapedNote : ""))
         }
         guard !entries.isEmpty else { return source }
         let structure = try Structure(source)
         let heading = try structure.heading(at: headingStartByte)
         let sectionEnd = structure.sectionEnd(of: heading)
-        let drawers = structure.drawers.filter { $0.start > heading.start && $0.start < sectionEnd && $0.name == logging.drawer }
+        let drawers = structure.drawers.filter { $0.start > heading.start && $0.start < sectionEnd && $0.name == logging.drawer.uppercased() }
         guard drawers.count <= 1 else { throw Failure.ambiguousStructure }
         let newline = structure.newline
         let body = entries.joined(separator: "\n").replacingOccurrences(of: "\n", with: newline) + newline
@@ -343,7 +340,7 @@ enum OrgWorkflowOperations {
             #"^(\*+)[ \t]+\S.*$"#,
             #"^\s*#\+END_([A-Z0-9_-]+)\s*$"#,
             #"^\s*#\+BEGIN_([A-Z0-9_-]+)(?:\s|$)"#,
-            #"^\s*:([A-Z][A-Z0-9_-]*):\s*$"#,
+            #"^\s*:([^:\r\n]+):\s*$"#,
             #"^(\*+)[ \t]+\S"#,
         ] + OrgPlanningKeyword.allCases.map {
             "\\b\($0.rawValue):[ \\t]*(<[^>\\r\\n]+>|\\[[^\\]\\r\\n]+\\])"
@@ -432,7 +429,8 @@ enum OrgWorkflowOperations {
                     block = (name.uppercased(), line.start)
                 } else if matches(dynamicBlockBeginExpression, in: line.text) {
                     block = (":", line.start)
-                } else if let name = capture(#"^\s*:([A-Z][A-Z0-9_-]*):\s*$"#, in: line.text) {
+                } else if let name = capture(#"^\s*:([^:\r\n]+):\s*$"#, in: line.text),
+                          OrgDrawerName.isSupported(name) {
                     guard name.uppercased() != "END" else { throw Failure.ambiguousStructure }
                     drawer = (name.uppercased(), line.start, line.end)
                 } else if let marker = capture(#"^(\*+)[ \t]+\S"#, in: line.text) {

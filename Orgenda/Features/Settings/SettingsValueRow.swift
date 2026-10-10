@@ -1,28 +1,18 @@
 import SwiftUI
 
-/// Keep long paths, localized values, and accessibility text readable without
-/// squeezing either side of a settings row.
+/// A system information row that allows long values to wrap.
 struct SettingsValueRow: View {
     let title: String
     let value: String
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
-                Text(title).fixedSize()
-                Spacer(minLength: 0)
-                Text(value)
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                Text(value)
-                    .foregroundStyle(.secondary)
-            }
-            .fixedSize(horizontal: false, vertical: true)
+        LabeledContent {
+            Text(value)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+        } label: {
+            Text(title)
         }
-        .frame(minHeight: 44)
         .accessibilityElement(children: .combine)
     }
 }

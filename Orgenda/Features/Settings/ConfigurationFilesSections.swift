@@ -81,8 +81,9 @@ struct ConfigurationFilesSections: View {
             }
             if let destination = ConfigurationSettingsPreview.archive(rule: draft.files.archive, sourcePath: archiveExample) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Archive file").font(.subheadline).foregroundStyle(.secondary)
-                    Text(verbatim: destination.path).foregroundStyle(.primary).textSelection(.enabled)
+                    LabeledContent("Archive file") {
+                        Text(verbatim: destination.path).textSelection(.enabled)
+                    }
                     if let heading = destination.outline {
                         Text("Under heading: \(heading)").font(.footnote).foregroundStyle(.secondary)
                     } else {
@@ -92,10 +93,10 @@ struct ConfigurationFilesSections: View {
                 .accessibilityIdentifier("configuration.archive.preview")
             }
             DisclosureGroup("Advanced archive rule") {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Archive rule").font(.subheadline).foregroundStyle(.secondary)
+                LabeledContent("Archive rule") {
                     TextField("Archive rule", text: $draft.files.archive, axis: .vertical)
                         .foregroundStyle(.primary).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .multilineTextAlignment(.trailing)
                         .accessibilityIdentifier("configuration.files.archive")
                 }
             }
@@ -117,27 +118,32 @@ private struct ConfigurationPathField: View {
     let identifier: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(LocalizedStringKey(title)).font(.subheadline).foregroundStyle(.secondary)
-            TextField(LocalizedStringKey(title), text: $path, axis: .vertical)
-                .foregroundStyle(.primary)
-                .textInputAutocapitalization(.never).autocorrectionDisabled()
-                .accessibilityLabel(LocalizedStringKey(title))
-                .accessibilityIdentifier(identifier)
+        Group {
+            LabeledContent(LocalizedStringKey(title)) {
+                TextField(LocalizedStringKey(title), text: $path, axis: .vertical)
+                    .foregroundStyle(.primary)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .multilineTextAlignment(.trailing)
+                    .accessibilityIdentifier(identifier)
+            }
             if !choices.isEmpty {
-                Menu("Choose existing location", systemImage: "folder") {
+                Picker("Choose existing location", selection: $path) {
                     ForEach(choices, id: \.self) { choice in
-                        Button { path = choice } label: { Text(verbatim: choice) }
+                        Text(verbatim: choice).tag(choice)
+                    }
+                    if !choices.contains(path) {
+                        Text(verbatim: path.isEmpty ? "—" : path).tag(path)
                     }
                 }
-                .font(.subheadline)
+                .pickerStyle(.menu)
+                .accessibilityLabel(Text("\(String(localized: "Choose existing location")): \(String(localized: String.LocalizationValue(title)))"))
+                .accessibilityValue(Text(verbatim: path))
                 .accessibilityIdentifier(identifier + ".choose")
             }
             if let message = ConfigurationSettingsFieldValidation.pathMessage(path, requiresOrgFile: requiresOrgFile) {
                 ConfigurationFieldError(message: message)
             }
         }
-        .padding(.vertical, 3)
     }
 }
 
@@ -156,9 +162,10 @@ private struct ConfigurationPathSelectionRow: View {
                                            emptyTitle: emptyTitle, identifier: identifier, requiresOrgFile: requiresOrgFile)
         } label: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(LocalizedStringKey(title)).foregroundStyle(.primary)
-                if paths.isEmpty { Text(LocalizedStringKey(emptyTitle)).font(.subheadline).foregroundStyle(.secondary) }
-                else { Text(paths.joined(separator: ", ")).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
+                LabeledContent(LocalizedStringKey(title)) {
+                    if paths.isEmpty { Text(LocalizedStringKey(emptyTitle)) }
+                    else { Text(paths.joined(separator: ", ")).lineLimit(2) }
+                }
                 if let message = paths.compactMap({ ConfigurationSettingsFieldValidation.pathMessage($0) }).first {
                     ConfigurationFieldError(message: message)
                 }

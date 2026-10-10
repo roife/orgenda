@@ -134,6 +134,29 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
         XCTAssertNil(OrgInputCommands.newline(source: "* Heading", selection: NSRange(location: 9, length: 0)))
     }
 
+    func testReturnPreservesCRLFWhileContinuingUnicodeChecklist() throws {
+        let source = "#+TITLE: Notes\r\n- [X] 中文🙂\r\n- Next item"
+        let location = "#+TITLE: Notes\r\n- [X] 中文🙂".utf16.count
+        let edit = try XCTUnwrap(OrgInputCommands.newline(
+            source: source, selection: NSRange(location: location, length: 0)))
+        XCTAssertEqual(edit.replacement, "\r\n- [ ] ")
+        XCTAssertEqual(edit.selection, NSRange(location: location + edit.replacement.utf16.count, length: 0))
+        XCTAssertEqual((source as NSString).replacingCharacters(in: edit.range, with: edit.replacement),
+                       "#+TITLE: Notes\r\n- [X] 中文🙂\r\n- [ ] \r\n- Next item")
+    }
+
+    func testReturnLeavesConfiguredAndLegacyDrawerContentsLiteral() throws {
+        for name in ["工作記錄", "custom-name", "cafe\u{301}", "हिन्दी", "Ⓐ", "1️⃣", "LEGACY@#%"] {
+            let source = ":\(name):\r\n- history entry"
+            XCTAssertNil(OrgInputCommands.newline(source: source,
+                selection: NSRange(location: source.utf16.count, length: 0)), name)
+        }
+        let source = ":工作記錄:\n- history entry\n:END:\n- next item"
+        let edit = try XCTUnwrap(OrgInputCommands.newline(source: source,
+            selection: NSRange(location: source.utf16.count, length: 0)))
+        XCTAssertEqual(edit.replacement, "\n- ")
+    }
+
     func testPreviewEditsAndNativeTypingShareUndoAcrossModes() throws {
         var source = "* TODO 中文🙂\n"
         let original = source

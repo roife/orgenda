@@ -159,9 +159,9 @@ extension WorkspaceStore {
                     || $0.tags.contains(where: { ["note", "event", "project", "habit"].contains($0) })
             }
         let nextItems = merging(headings, into: items, refreshedPaths: refreshedPaths)
-        let allDocuments = Array(nextDocuments.values)
+        let allDocuments = nextDocuments.values
         let nodeCount = allDocuments.reduce(0) { $0 + $1.nodeCount }
-        let errorCount = allDocuments.filter(\.hasError).count
+        let errorCount = allDocuments.lazy.filter(\.hasError).count
         let status = errorCount == 0
             ? String(localized: "Ready · \(allDocuments.count) files · \(nodeCount) nodes")
             : String(localized: "Ready with \(errorCount) recovery tree(s)")
@@ -204,55 +204,32 @@ extension WorkspaceStore {
                     && titlesByFile[heading.source.file]?.contains(currentItems[$0].title) == false
             }
 
-            if let position {
-                let index = candidates[position]
+            let index = position.map { candidates[$0] }
+            let previous = index.map { currentItems[$0] }
+            let id: UUID
+            if let position, let previous {
                 candidatesByFile[heading.source.file]?.remove(at: position)
-                matchedIDs.insert(currentItems[index].id)
-                updatedItems[index].title = heading.title
-                updatedItems[index].state = heading.state ?? updatedItems[index].state
-                updatedItems[index].hasWorkflowState = heading.state != nil
-                updatedItems[index].kind = heading.tags.contains("event") ? .event
-                    : (heading.tags.contains("note") ? .note : heading.kind)
-                updatedItems[index].priority = heading.priority
-                updatedItems[index].tags = heading.tags
-                updatedItems[index].scheduled = heading.scheduled
-                updatedItems[index].deadline = heading.deadline
-                updatedItems[index].closed = heading.closed
-                updatedItems[index].eventDate = heading.eventDate
-                updatedItems[index].properties = heading.properties
-                updatedItems[index].durationMinutes = heading.durationMinutes
-                updatedItems[index].hasTime = heading.hasTime
-                updatedItems[index].recurrence = heading.recurrence
-                updatedItems[index].body = heading.body
-                updatedItems[index].source = heading.source
+                matchedIDs.insert(previous.id)
+                id = previous.id
             } else {
                 let candidateID = Self.parserItemID(for: heading)
-                let newID = existingIDs.contains(candidateID) ? UUID() : candidateID
-                existingIDs.insert(newID)
-                updatedItems.append(
-                    OrgItem(
-                        id: newID,
-                        title: heading.title,
-                        state: heading.state ?? .todo,
-                        kind: heading.tags.contains("event") ? .event
-                            : (heading.tags.contains("note") ? .note : heading.kind),
-                        priority: heading.priority,
-                        tags: heading.tags,
-                        scheduled: heading.scheduled,
-                        deadline: heading.deadline,
-                        closed: heading.closed,
-                        eventDate: heading.eventDate,
-                        hasTime: heading.hasTime,
-                        durationMinutes: heading.durationMinutes,
-                        recurrence: heading.recurrence,
-                        body: heading.body,
-                        source: heading.source,
-                        habitHistory: [],
-                        properties: heading.properties,
-                        hasWorkflowState: heading.state != nil
-                    )
-                )
+                id = existingIDs.contains(candidateID) ? UUID() : candidateID
+                existingIDs.insert(id)
             }
+            let item = OrgItem(
+                id: id, title: heading.title, state: heading.state ?? previous?.state ?? .todo,
+                kind: heading.tags.contains("event") ? .event
+                    : (heading.tags.contains("note") ? .note : heading.kind),
+                priority: heading.priority, tags: heading.tags,
+                scheduled: heading.scheduled, deadline: heading.deadline, closed: heading.closed,
+                eventDate: heading.eventDate, hasTime: heading.hasTime,
+                durationMinutes: heading.durationMinutes, recurrence: heading.recurrence,
+                body: heading.body, source: heading.source,
+                habitHistory: previous?.habitHistory ?? [], properties: heading.properties,
+                hasWorkflowState: heading.state != nil
+            )
+            if let index { updatedItems[index] = item }
+            else { updatedItems.append(item) }
         }
 
         let oldIDs = Set(currentItems.map(\.id))

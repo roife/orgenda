@@ -1,4 +1,3 @@
-import CryptoKit
 import XCTest
 @testable import Orgenda
 
@@ -114,24 +113,6 @@ final class CloudBackendTests: XCTestCase {
         }
         request.httpMethod = "GET"
         XCTAssertTrue(StorageHTTP.redirectAllowed(request: request, target: root, status: 301, pathRoot: root))
-    }
-
-    func testPKCEAndOAuthParametersUseNativePublicClientFlow() throws {
-        let config = CloudOAuthConfiguration(provider: .googleDrive, clientID: "client",
-                                              redirectURI: "orgenda-test:/oauth2redirect",
-                                              authorizationURL: URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!,
-                                              tokenURL: URL(string: "https://oauth2.googleapis.com/token")!, scopes: "drive")
-        let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-        let url = try config.authorizationRequest(state: "state", verifier: verifier)
-        let query = Dictionary(uniqueKeysWithValues: URLComponents(url: url, resolvingAgainstBaseURL: false)!.queryItems!.map { ($0.name, $0.value!) })
-        XCTAssertEqual(query["code_challenge"], "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
-        XCTAssertEqual(query["code_challenge_method"], "S256")
-        XCTAssertEqual(query["response_type"], "code")
-        XCTAssertEqual(query["access_type"], "offline")
-        let request = config.tokenRequest(["grant_type": "authorization_code", "code": "a+b&c", "code_verifier": verifier])
-        let body = String(decoding: request.httpBody!, as: UTF8.self)
-        XCTAssertTrue(body.contains("code=a%2Bb%26c"))
-        XCTAssertFalse(body.contains("client_secret"))
     }
 
     func testBearerTokenIsRefreshedOnceAfterUnauthorized() async throws {

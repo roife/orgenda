@@ -22,6 +22,14 @@ struct OrgItem: Identifiable, Hashable, Codable, Sendable {
     var hasWorkflowState = true
 
     var agendaDate: Date? { scheduled ?? deadline ?? eventDate }
+
+    /// Update the primary date while preserving any secondary planning dates.
+    mutating func updateAgendaDate(to date: Date) {
+        if scheduled != nil { scheduled = date }
+        else if deadline != nil { deadline = date }
+        else { eventDate = date }
+    }
+
     var appointmentWarningMinutes: Int? {
         guard let value = properties["APPT_WARNTIME"], let minutes = Int(value), minutes >= 0 else {
             return nil

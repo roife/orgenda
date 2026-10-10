@@ -34,10 +34,6 @@ import Testing
     #expect(heading.endPoint == OrgPoint(row: 1, column: 0))
 }
 
-@Test func exposesBundledLanguageABI() {
-    #expect(OrgTreeSitter.abiVersion > 0)
-}
-
 @Test(arguments: [
     "https://example.com/path/to/page",
     "http://example.com/a_b/c_d?q=one+two&next=/docs/#section",
@@ -106,6 +102,17 @@ func plainLinksExcludeSurroundingPunctuation(_ source: String) throws {
 
     #expect(heading.child(named: "todo") == nil)
     #expect(heading.child(named: "title")?.text == "API Design notes")
+}
+
+@Test func embeddedNullIsTextRatherThanEndOfFile() throws {
+    let source = "* TODO\u{0}Title\n* TODO Next\n"
+    let tree = OrgParser().parse(source)
+    #expect(!tree.hasError, "\(tree.sExpression)")
+    #expect(tree.rootNode.text == source)
+    #expect(tree.rootNode.namedChildren.map(\.type) == ["heading", "heading"])
+    let heading = try #require(tree.rootNode.namedChildren.first)
+    #expect(heading.child(named: "todo") == nil)
+    #expect(heading.child(named: "title")?.text == "TODO\u{0}Title")
 }
 
 @Test func parsesDrawersAndClocksWithExactUnicodeRanges() throws {

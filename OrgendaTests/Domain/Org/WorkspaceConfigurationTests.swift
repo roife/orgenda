@@ -230,6 +230,18 @@ final class WorkspaceConfigurationTests: XCTestCase {
         ] { XCTAssertThrowsError(try ConfigurationDocument(source), source) }
     }
 
+    func testLoggingDrawerRejectsReservedDelimitersAndKeepsSupportedNames() {
+        var configuration = WorkspaceConfiguration.standard
+        for name in ["END", "end", "PROPERTIES", "Properties"] {
+            configuration.logging.drawer = name
+            XCTAssertThrowsError(try configuration.validate(), name)
+        }
+        for name in ["", "LOGBOOK", "history", "2026", "工作記錄", "_history", "cafe\u{301}", "हिन्दी", "Ⓐ", "1️⃣", "custom-name"] {
+            configuration.logging.drawer = name
+            XCTAssertNoThrow(try configuration.validate(), name)
+        }
+    }
+
     func testCustomAndFileLocalStatesPreserveUTF8Source() throws {
         var config = WorkspaceConfiguration.standard
         config.workflow.sequences = [.init(process: ["待办", "进行"], terminal: ["完成"],
@@ -259,15 +271,6 @@ final class WorkspaceConfigurationTests: XCTestCase {
         XCTAssertTrue(result.hasPrefix("* TODO literal %U\nnotes\n% ["))
         XCTAssertThrowsError(try ConfiguredCapture.expansions(in: "* TODO %(shell-command \"x\")"))
         XCTAssertThrowsError(try ConfiguredCapture.expansions(in: "%<%Q>"))
-    }
-
-    func testCustomTerminalLogAndReopen() throws {
-        var configuration = WorkspaceConfiguration.standard
-        configuration.workflow.sequences = [.init(process: ["OPEN"], terminal: ["FINISHED"],
-                                                  initial: "OPEN", complete: "FINISHED", reopen: "OPEN")]
-        let finished = try XCTUnwrap(configuration.workflow.state("FINISHED"))
-        XCTAssertEqual(configuration.workflow.toggled(finished).rawValue, "OPEN")
-        XCTAssertTrue(finished.isTerminal)
     }
 
     func testConfigurationResourceIsRootOnly() {

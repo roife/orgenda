@@ -16,10 +16,7 @@ struct DocumentOutlineNode: Identifiable {
     static func tree(from nodes: [ParsedOrgNode], items: [OrgItem] = []) -> [DocumentOutlineNode] {
         // The index only stores headings that carry a workflow state, a planning
         // date, or a tagged kind. Plain headings simply have nothing to filter on.
-        var indexed: [Int: OrgItem] = [:]
-        for item in items where indexed[item.source.startByte] == nil {
-            indexed[item.source.startByte] = item
-        }
+        let indexed = Dictionary(items.lazy.map { ($0.source.startByte, $0) }, uniquingKeysWith: { first, _ in first })
 
         let headings = nodes.filter { $0.type == "heading" }
         var index = 0

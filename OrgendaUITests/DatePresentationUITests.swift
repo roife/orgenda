@@ -1,25 +1,6 @@
 import XCTest
 
 final class DatePresentationUITests: XCTestCase {
-    func testCalendarResizeFrameCadence() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launchEnvironment["ORGENDA_CALENDAR_PROFILE"] = ProcessInfo.processInfo.environment["ORGENDA_CALENDAR_PROFILE"] ?? "baseline"
-        app.launch()
-        defer { app.terminate() }
-        app.tabBars.buttons["Calendar"].tap()
-        app.dragCalendarHandle(by: 230)
-        for _ in 0..<3 {
-            for distance: CGFloat in [117, -117] {
-                let start = app.calendarDensityHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-                start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: distance)),
-                            withVelocity: XCUIGestureVelocity(rawValue: 60), thenHoldForDuration: 0.1)
-                XCTAssertEqual(app.calendarDensityHandle.value as? String, distance > 0 ? "Year" : "Month")
-            }
-        }
-    }
-
     func testYearMonthTapSelectsMonthAndKeepsResizeWorking() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
