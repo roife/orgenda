@@ -35,6 +35,7 @@ struct ConfigurationSettingsView: View {
 
     private enum ExitDestination { case back, workspace, reload }
     private var changed: Bool { draft != baseline || importedDocument != nil }
+    private var needsExitProtection: Bool { !ready || changed || saving || leaving }
     private var configurationWarnings: [String] { (importedDocument ?? store.configurationDocument).warnings }
 
     private struct KeywordEditorDestination: Identifiable {
@@ -100,13 +101,17 @@ struct ConfigurationSettingsView: View {
         .sheet(item: $reminderEditor) { kind in
             ReminderTimingEditor(kind: kind, value: binding(kind.configurationPath))
         }
-        .navigationBarBackButtonHidden()
-        .interactiveDismissDisabled(changed || saving || leaving)
+        // Keep the system back button and interactive pop whenever there is
+        // no draft to protect. Hiding it also disables the native edge swipe.
+        .navigationBarBackButtonHidden(needsExitProtection)
+        .interactiveDismissDisabled(needsExitProtection)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("Back", systemImage: "chevron.left") { requestExit(.back) }
-                    .disabled(!ready || leaving)
-                    .accessibilityIdentifier("configuration.back")
+            if needsExitProtection {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Back", systemImage: "chevron.left") { requestExit(.back) }
+                        .disabled(!ready || leaving)
+                        .accessibilityIdentifier("configuration.back")
+                }
             }
         }
         .alert(LocalizedStringKey(pendingPreset == "classic" ? "Replace task states?" : "Replace workspace configuration?"),

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SearchView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let store: WorkspaceStore
     @Binding var query: String
     var focusRequest: UUID? = nil
@@ -32,9 +33,10 @@ struct SearchView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(uiColor: .systemBackground))
                 .navigationTitle("Search")
-                // Search has its own scope header. Keep navigation chrome from
-                // collapsing separately while the search field gains focus.
-                .toolbar(.hidden, for: .navigationBar)
+                // Regular-width search lives in the navigation bar; hiding it
+                // also removes the iPad search field. Compact layouts use the
+                // search tab and keep the scope header stable during focus.
+                .toolbar(horizontalSizeClass == .compact ? .hidden : .visible, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) { scopeBar }
                 .sheet(item: $presentation) { destination in
                     switch destination {
@@ -47,7 +49,11 @@ struct SearchView: View {
                 }
                 .sensoryFeedback(.selection, trigger: scope)
         }
-        .searchable(text: $query, prompt: "Search orgenda")
+        .searchable(
+            text: $query,
+            placement: horizontalSizeClass == .compact ? .automatic : .navigationBarDrawer(displayMode: .always),
+            prompt: "Search orgenda"
+        )
         .searchFocused($isSearchFocused)
         .task(id: focusRequest) {
             if focusRequest != nil { isSearchFocused = true }

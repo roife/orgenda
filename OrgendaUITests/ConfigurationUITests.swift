@@ -44,7 +44,7 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertTrue(app.switches["settings.reminders.enabled"].waitForExistence(timeout: 3))
         screenshot("Reminder settings", app: app)
         XCTAssertFalse(app.buttons["settings.done"].exists)
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         app.buttons["settings.done"].tap()
         XCTAssertTrue(app.buttons["files.settings"].waitForExistence(timeout: 3))
         app.buttons["files.settings"].tap()
@@ -87,7 +87,7 @@ final class ConfigurationUITests: XCTestCase {
         reorderState("CANCELED", before: "DONE", in: app)
         XCTAssertFalse(app.alerts.firstMatch.exists)
         // Reenter without any save action to prove reordering persists automatically.
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.workflow", in: app).tap()
         XCTAssertLessThan(app.buttons["configuration.keyword.WAIT"].frame.minY,
                           app.buttons["configuration.keyword.TODO"].frame.minY)
@@ -99,7 +99,7 @@ final class ConfigurationUITests: XCTestCase {
         screenshot("State appearance", app: app)
         app.buttons["configuration.keyword.done"].tap()
         XCTAssertTrue(app.navigationBars["Workflow"].waitForExistence(timeout: 3))
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
         reveal("settings.configuration", in: app).tap()
         XCTAssertTrue(app.navigationBars["Configuration file"].waitForExistence(timeout: 3))
@@ -124,7 +124,7 @@ final class ConfigurationUITests: XCTestCase {
 
         addState("WAIT", terminal: false, displayName: "Waiting", key: "w",
                  icon: "hourglass", color: "amber", app: app)
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.workflow", in: app).tap()
         app.buttons["configuration.keyword.WAIT"].tap()
         let displayName = app.textFields["configuration.keyword.label"]
@@ -146,7 +146,7 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertGreaterThan(app.buttons["configuration.keyword.WAIT"].frame.minY,
                              app.buttons["configuration.keyword.DONE"].frame.minY)
         XCTAssertFalse(app.alerts.firstMatch.exists)
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.workflow", in: app).tap()
         XCTAssertGreaterThan(app.buttons["configuration.keyword.WAIT"].frame.minY,
                              app.buttons["configuration.keyword.DONE"].frame.minY,
@@ -170,7 +170,7 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertTrue(app.alerts["Discard changes?"].waitForExistence(timeout: 3))
         app.alerts.buttons["Discard Changes"].tap()
 
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.workflow", in: app).tap()
         XCTAssertFalse(app.buttons["configuration.keyword.WAIT"].exists,
                        "Removing a state must persist after reopening Workflow.")
@@ -208,7 +208,7 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Workflow"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["configuration.addProcess"].exists)
         XCTAssertFalse(app.buttons["settings.done"].exists)
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
         app.buttons["settings.done"].tap()
         XCTAssertTrue(result.waitForExistence(timeout: 3))
@@ -243,13 +243,13 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Agenda sources"].exists)
         XCTAssertTrue(app.staticTexts["Default locations"].exists)
         screenshot("Files and agenda combined", app: app)
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         XCTAssertTrue(app.navigationBars["Settings"].exists)
         reveal("settings.reminders", in: app).tap()
         XCTAssertTrue(app.switches["settings.reminders.enabled"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Workspace timing"].exists)
         screenshot("Unified reminders", app: app)
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.configuration", in: app).tap()
         XCTAssertTrue(app.navigationBars["Configuration file"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.staticTexts["configuration.json"].exists, "JSON starts collapsed.")
@@ -269,7 +269,7 @@ final class ConfigurationUITests: XCTestCase {
         let workflow = try XCTUnwrap(applied["workflow"] as? [String: Any])
         let sequences = try XCTUnwrap(workflow["sequences"] as? [[String: Any]])
         XCTAssertTrue((sequences.first?["process"] as? [String])?.contains("NEXT") == true)
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.configuration", in: app).tap()
         reveal("configuration.showJSON", in: app).tap()
         XCTAssertEqual(try canonicalJSON(applied), try canonicalJSON(configurationJSON(in: app)),
@@ -320,7 +320,7 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertEqual(repeatInterval.value as? String, "5 min",
                        "Cancel must discard the invalid repeat-interval draft.")
 
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.configuration", in: app).tap()
         reveal("configuration.showJSON", in: app).tap()
         let json = app.staticTexts["configuration.json"]
@@ -334,7 +334,7 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 5), .completed,
                        "The configuration must save the custom advance notice and retain the canceled repeat interval.")
 
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.reminders", in: app).tap()
         XCTAssertEqual(reveal("settings.reminders.advance.custom", in: app).value as? String, "37 min")
         XCTAssertEqual(reveal("settings.reminders.repeatInterval.custom", in: app).value as? String, "5 min")
@@ -366,7 +366,7 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Appearance"].exists)
         screenshot("Chinese state editor", app: app)
         app.buttons["configuration.cancelKeyword"].tap()
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.workspace", in: app).tap()
         reveal("workspace.chooseFolder", in: app).tap()
         XCTAssertTrue(app.navigationBars["选择存储位置"].waitForExistence(timeout: 3))
@@ -375,6 +375,27 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Keep your Org files in sync across devices."].exists)
         screenshot("Chinese storage picker without removed subtitle", app: app)
         app.buttons["storage.cancel"].tap()
+    }
+
+    func testSettingsDetailPagesSupportEdgeSwipeBack() {
+        continueAfterFailure = false
+        let app = launchConfigurationFixture()
+        defer { app.terminate() }
+
+        for (destination, title) in [
+            ("workspace", "Workspace & Sync"),
+            ("workflow", "Workflow"),
+            ("capture", "Capture templates"),
+            ("files", "Files & agenda"),
+            ("reminders", "Reminders"),
+            ("configuration", "Configuration file")
+        ] {
+            reveal("settings.\(destination)", in: app).tap()
+            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 3))
+            swipeBack(from: title, in: app)
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3),
+                          "\(title) must support the native edge swipe back to Settings.")
+        }
     }
 
     func testSettingsDraftSurvivesValidationAndProtectsNavigation() {
@@ -395,12 +416,16 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [saveAlert], timeout: 1), .completed,
                        "Typing invalid input must not interrupt editing with a save alert.")
         XCTAssertEqual(inbox.value as? String, "/outside.org", "Validation errors must retain the exact draft.")
-        app.buttons["configuration.back"].tap()
+        swipeBack(from: "Files & agenda", in: app)
+        XCTAssertTrue(app.navigationBars["Files & agenda"].exists,
+                      "An edge swipe must not discard an invalid draft.")
+        XCTAssertEqual(inbox.value as? String, "/outside.org")
+        returnToSettings(in: app)
         XCTAssertTrue(app.buttons["Keep editing"].waitForExistence(timeout: 3))
         app.buttons["Keep editing"].tap()
         XCTAssertTrue(app.navigationBars["Files & agenda"].exists)
         XCTAssertEqual(inbox.value as? String, "/outside.org")
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         XCTAssertTrue(app.buttons["Discard changes"].waitForExistence(timeout: 3))
         app.buttons["Discard changes"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
@@ -411,7 +436,9 @@ final class ConfigurationUITests: XCTestCase {
         revealElement(inbox, in: app)
         XCTAssertEqual(inbox.value as? String, "inbox.org", "Discard must leave the saved configuration untouched.")
         replaceText(in: inbox, with: "custom/inbox.org", app: app)
-        app.buttons["configuration.back"].tap()
+        XCTAssertTrue(app.buttons["configuration.back"].waitForNonExistence(timeout: 5),
+                      "Autosave must restore native back navigation after correcting the draft.")
+        swipeBack(from: "Files & agenda", in: app)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.alerts.firstMatch.exists, "Valid changes must save without asking for an explicit save.")
         reveal("settings.files", in: app).tap()
@@ -531,7 +558,7 @@ final class ConfigurationUITests: XCTestCase {
         reveal(prefix + ".addPath", in: app).tap()
         XCTAssertTrue(pathRow("later.org").waitForExistence(timeout: 3))
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.configuration", in: app).tap()
         reveal("configuration.showJSON", in: app).tap()
         let configuration = try configurationJSON(in: app)
@@ -568,7 +595,7 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertEqual(editableField("File path", in: app).value as? String, "projects/work.org")
         app.buttons["configuration.template.done"].tap()
         XCTAssertTrue(app.navigationBars["Capture templates"].waitForExistence(timeout: 5))
-        app.buttons["configuration.back"].tap()
+        returnToSettings(in: app)
         reveal("settings.configuration", in: app).tap()
         reveal("configuration.showJSON", in: app).tap()
         let configuration = try configurationJSON(in: app)
@@ -585,11 +612,31 @@ final class ConfigurationUITests: XCTestCase {
                                "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "Light"]
         app.launchArguments += extraArguments
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Files"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["Files"].tap()
+        app.selectRootTab("Files")
         app.buttons["files.settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
         return app
+    }
+
+    private func swipeBack(from title: String, in app: XCUIApplication) {
+        // A settings sheet has its own leading edge on iPad, inset from the screen.
+        let navigationBar = app.navigationBars[title]
+        let start = navigationBar.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 1))
+            .withOffset(CGVector(dx: 2, dy: 80))
+        let end = start.withOffset(CGVector(dx: navigationBar.frame.width * 0.8, dy: 0))
+        start.press(forDuration: 0.05, thenDragTo: end)
+    }
+
+    private func returnToSettings(in app: XCUIApplication) {
+        // Saved pages use the system back button; pending drafts use the save guard.
+        let candidates = app.navigationBars.buttons.matching(NSPredicate(
+            format: "identifier == 'configuration.back' OR identifier == 'BackButton' OR label == 'Settings' OR label == '设置'"
+        ))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            candidates.allElementsBoundByIndex.contains { $0.isHittable && $0.isEnabled }
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 3), .completed)
+        candidates.allElementsBoundByIndex.first { $0.isHittable && $0.isEnabled }?.tap()
     }
 
     private func nativeReorderHandle(for token: String, in app: XCUIApplication) -> XCUIElement {
