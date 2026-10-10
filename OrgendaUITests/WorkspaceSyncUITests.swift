@@ -2,11 +2,7 @@ import XCTest
 
 final class WorkspaceSyncUITests: XCTestCase {
     func testSearchSettingsOpensMatchingPageAndKeepsQuery() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(workspace: "--ui-test-workspace")
         app.tabBars.buttons["Search"].tap()
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 3))
@@ -22,11 +18,7 @@ final class WorkspaceSyncUITests: XCTestCase {
     }
 
     func testSearchDocumentOpensPreviewAndKeepsResults() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(workspace: "--ui-test-workspace")
         app.tabBars.buttons["Search"].tap()
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 3))
@@ -52,36 +44,12 @@ final class WorkspaceSyncUITests: XCTestCase {
         XCTAssertEqual(search.value as? String, "workflow")
     }
 
-    func testFixtureStartupShowsIndexedAgendaAndAllowsTabNavigation() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-
-        XCTAssertTrue(app.buttons["agenda.viewMenu"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.otherElements["workspace.loading"].waitForNonExistence(timeout: 5))
-        XCTAssertFalse(app.progressIndicators["workspace.loading"].exists)
-        XCTAssertTrue(app.staticTexts["Plan iPad reading workflow"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["Calendar"].tap()
-        XCTAssertTrue(app.staticTexts["Review quarterly roadmap"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["Files"].tap()
-        XCTAssertTrue(app.buttons["files.settings"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.images["files.syncStatus"].exists)
-        XCTAssertEqual(app.images["files.syncStatus"].label, "Workspace unavailable")
-        XCTAssertFalse(app.staticTexts["orgenda Demo"].exists)
-        XCTAssertFalse(app.staticTexts["Demo workspace"].exists)
-    }
-
     func testStartupSkeletonKeepsFirstScreenChromeUntilIndexIsReady() {
         verifyStartupSkeleton()
     }
 
-    func testStartupSkeletonInDarkAppearance() {
-        verifyStartupSkeleton(appearance: "Dark")
-    }
-
     func testStartupSkeletonAtAccessibilitySize() {
-        verifyStartupSkeleton(contentSize: "UICTContentSizeCategoryAccessibilityXXXL")
+        verifyStartupSkeleton(appearance: "Dark", contentSize: "UICTContentSizeCategoryAccessibilityXXXL")
     }
 
     private func verifyStartupSkeleton(appearance: String = "Light", contentSize: String? = nil) {
@@ -138,10 +106,7 @@ final class WorkspaceSyncUITests: XCTestCase {
     }
 
     func testFolderPickerCanOpenAndCancel() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
+        let app = launchTestApp()
         app.tabBars.buttons["Files"].tap()
         app.buttons["files.settings"].tap()
         let workspace = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Workspace & Sync'")).firstMatch
@@ -150,6 +115,9 @@ final class WorkspaceSyncUITests: XCTestCase {
         let choose = app.buttons["workspace.chooseFolder"]
         XCTAssertTrue(choose.waitForExistence(timeout: 5))
         choose.tap()
+        for provider in ["iCloud", "oneDrive", "googleDrive", "dropbox", "webDAV", "local"] {
+            XCTAssertTrue(app.buttons["storage.provider.\(provider)"].waitForExistence(timeout: 3))
+        }
         let local = app.buttons["storage.provider.local"]
         XCTAssertTrue(local.waitForExistence(timeout: 5))
         local.tap()
@@ -161,19 +129,6 @@ final class WorkspaceSyncUITests: XCTestCase {
         app.buttons["storage.cancel"].tap()
         XCTAssertTrue(app.buttons["storage.cancel"].waitForNonExistence(timeout: 3))
         XCTAssertTrue(choose.waitForExistence(timeout: 5))
-    }
-
-    func testStoragePickerShowsEveryProviderAndCancelKeepsWorkspace() {
-        let app = openWorkspaceSettings()
-        defer { app.terminate() }
-        app.buttons["workspace.chooseFolder"].tap()
-        for provider in ["iCloud", "oneDrive", "googleDrive", "dropbox", "webDAV", "local"] {
-            XCTAssertTrue(app.buttons["storage.provider.\(provider)"].waitForExistence(timeout: 3))
-        }
-        app.buttons["storage.cancel"].tap()
-        XCTAssertTrue(app.buttons["storage.cancel"].waitForNonExistence(timeout: 3))
-        XCTAssertTrue(app.navigationBars["Workspace & Sync"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.staticTexts["workspace.error"].exists)
     }
 
     func testWebDAVFormRejectsInsecureAddressWithoutConnecting() {

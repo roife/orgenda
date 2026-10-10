@@ -183,13 +183,6 @@ final class OrgWorkflowOperationsTests: XCTestCase {
         XCTAssertEqual(targets.map(\.outline), ["First", "First/Second", "First/Second/Third"])
     }
 
-    func testRefileTargetsUseWorkAndPersonalAndExcludeFormerProjectFilenames() {
-        let configured = ["agenda/actions.org", "agenda/work.org", "agenda/personal.org", "agenda/routines.org", "agenda/someday.org"]
-        let oldPaths = ["agenda/projects-work.org", "agenda/projects-personal.org"]
-        let targets = OrgWorkflowOperations.refileTargets(in: (configured + oldPaths).map { document($0, "* Destination\n") })
-        XCTAssertEqual(targets.map(\.path), configured.sorted())
-    }
-
     func testSameFileRefilePreservesNeighborsInBothDirectionsAndWhenAdjacent() throws {
         let cases = [
             ("later target", "** TODO Move",

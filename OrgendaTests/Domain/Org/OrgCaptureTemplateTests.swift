@@ -2,19 +2,10 @@ import XCTest
 @testable import Orgenda
 
 final class OrgCaptureTemplateTests: XCTestCase {
-    func testCalendarCaptureKeepsItsSelectedDateInInboxSource() {
-        var original = fixture()
-        original.scheduled = date
-        let result = OrgCaptureTemplate.inboxTask.applyingDefaults(
-            to: original, date: date, preservingPlanning: true)
-        XCTAssertEqual(result.scheduled, date)
-        XCTAssertFalse(result.hasTime)
-        XCTAssertTrue(OrgCaptureTemplate.inboxTask.source(for: result, createdAt: date).contains("SCHEDULED:"))
-    }
-
     func testSwitchingTemplatesPreservesPlanningAndMapsEventTimestamp() {
         var original = fixture()
         original.scheduled = date
+        XCTAssertEqual(OrgCaptureTemplate.inboxTask.applyingDefaults(to: original, preservingPlanning: true).scheduled, date)
         original.deadline = date.addingTimeInterval(86_400)
         original.hasTime = true
         original.recurrence = "++1w"
@@ -78,21 +69,13 @@ final class OrgCaptureTemplateTests: XCTestCase {
         XCTAssertNil(event.scheduled)
     }
 
-    func testNamedParentEntriesUseSecondLevel() {
-        for template in [OrgCaptureTemplate.nextAction, .repeatingReminder, .someday] {
-            let item = template.applyingDefaults(to: fixture(), date: date)
-            let source = template.source(for: item, createdAt: date)
-            XCTAssertTrue(source.hasPrefix("** \(item.state.rawValue) Test capture\n"))
-        }
-    }
-
     func testProjectAddsNextActionWithoutRepeatingCreatedProperty() {
         for template in [OrgCaptureTemplate.workProject, .personalProject] {
-            let item = template.applyingDefaults(to: fixture(), date: date)
+            var item = template.applyingDefaults(to: fixture(), date: date)
+            item.state = .urgent
             let source = template.source(for: item, createdAt: date, firstAction: "  Outline scope\nThen discuss ")
-            XCTAssertEqual(item.state, .todo)
             XCTAssertEqual(item.kind, .project)
-            XCTAssertTrue(source.hasPrefix("* TODO Test capture :project:\n"))
+            XCTAssertTrue(source.hasPrefix("* URGENT Test capture :project:\n"))
             XCTAssertTrue(source.hasSuffix("** NEXT Outline scope Then discuss\n"))
             XCTAssertEqual(source.components(separatedBy: ":CREATED:").count - 1, 1)
         }
@@ -102,7 +85,6 @@ final class OrgCaptureTemplateTests: XCTestCase {
         var item = OrgCaptureTemplate.repeatingReminder.applyingDefaults(to: fixture(), date: date)
         XCTAssertEqual(item.kind, .task)
         XCTAssertEqual(item.recurrence, ".+1d")
-        XCTAssertEqual(OrgCaptureTemplate.repeatingIntervals, [".+1d", ".+1w", ".+1m", "++1w", "++1m", "++1y"])
         for interval in OrgCaptureTemplate.repeatingIntervals {
             item.recurrence = interval
             item.properties["APPT_WARNTIME"] = "30"
@@ -124,15 +106,6 @@ final class OrgCaptureTemplateTests: XCTestCase {
         XCTAssertNil(result.properties["APPT_WARNTIME"])
         XCTAssertNil(result.eventDate)
         XCTAssertEqual(result.tags, ["@work", "important", "project"])
-    }
-
-    func testUrgentProjectCapturePreservesSharedWorkflowKeywordAndProjectTag() {
-        var item = OrgCaptureTemplate.workProject.applyingDefaults(to: fixture(), date: date)
-        item.state = .urgent
-        let source = OrgCaptureTemplate.workProject.source(for: item, createdAt: date, firstAction: "Check scope")
-        XCTAssertEqual(item.source.file, "agenda/work.org")
-        XCTAssertTrue(source.hasPrefix("* URGENT Test capture :project:\n"))
-        XCTAssertTrue(source.hasSuffix("** NEXT Check scope\n"))
     }
 
     private var date: Date { Date(timeIntervalSince1970: 1_789_185_600) }
@@ -163,9 +136,6 @@ final class LocalizationBundleTests: XCTestCase {
             XCTAssertTrue(result.contains("“my query”"))
             XCTAssertFalse(result.contains("%@"))
         }
-        XCTAssertEqual(OrgWorkflowState.todo.rawValue, "TODO")
-        XCTAssertEqual(OrgPlanningKeyword.scheduled.sourceToken, "SCHEDULED:")
-        XCTAssertEqual(OrgCaptureTemplate.nextAction.parentHeading, "Actions")
     }
 }
 

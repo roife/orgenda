@@ -109,21 +109,9 @@ extension WorkspaceStore {
             }
             let session = try WorkspaceSession(connection: connection, cacheDirectory: storageCacheDirectory,
                                                folder: WorkspaceFileStore(rootURL: url))
-            try await session.synchronize()
-            let snapshot = try await session.snapshot()
-            let replacement = try await prepareStorageReplacement(preservePending: preservePending)
-            try Task.checkCancellation()
-            try validateStorageReplacement(replacement)
-            let previous = storageConnection
-            if remember {
-                defaults.set(try JSONEncoder().encode(connection), forKey: Self.storageConnectionKey)
-            }
-            connectionDefaults = defaults
-            activateSession(session, connection: connection, snapshot: snapshot, folderURL: access ? url : nil)
-            if let retiredSession = replacement.retiredSession {
-                do { try await retiredSession.retireAfterArchiving() }
-                catch { reportStorageError(error) }
-            }
+            let previous = try await replaceStorageSession(session, connection: connection,
+                folderURL: access ? url : nil, defaults: defaults, remember: remember,
+                preservePending: preservePending)
             if let previous, previous.id != connection.id, previous.provider.isRemote {
                 try? CloudConnectionFactory.removeCredentials(for: previous)
             }
@@ -190,18 +178,8 @@ extension WorkspaceStore {
             prepared = candidate
             let session = try WorkspaceSession(connection: candidate.connection, cacheDirectory: storageCacheDirectory,
                                                remote: candidate.backend)
-            try await session.synchronize()
-            let snapshot = try await session.snapshot()
-            let replacement = try await prepareStorageReplacement(preservePending: preservePending)
-            try Task.checkCancellation()
-            try validateStorageReplacement(replacement)
-            let previous = storageConnection
-            connectionDefaults.set(try JSONEncoder().encode(candidate.connection), forKey: Self.storageConnectionKey)
-            activateSession(session, connection: candidate.connection, snapshot: snapshot, folderURL: nil)
-            if let retiredSession = replacement.retiredSession {
-                do { try await retiredSession.retireAfterArchiving() }
-                catch { reportStorageError(error) }
-            }
+            let previous = try await replaceStorageSession(session, connection: candidate.connection,
+                                                           preservePending: preservePending)
             if let previous, previous.credentialKey != candidate.connection.credentialKey {
                 try? CloudConnectionFactory.removeCredentials(for: previous)
             }
@@ -227,6 +205,31 @@ extension WorkspaceStore {
         connectionDefaults.removeObject(forKey: Self.storageConnectionKey)
         if let previous { try? CloudConnectionFactory.removeCredentials(for: previous) }
         return true
+    }
+
+    /// Both folder and cloud connections validate and preserve the old workspace
+    /// before making the new session active. Credential cleanup stays with the caller.
+    private func replaceStorageSession(
+        _ session: WorkspaceSession, connection: StorageConnection, folderURL: URL? = nil,
+        defaults: UserDefaults? = nil, remember: Bool = true, preservePending: Bool
+    ) async throws -> StorageConnection? {
+        try await session.synchronize()
+        let snapshot = try await session.snapshot()
+        let replacement = try await prepareStorageReplacement(preservePending: preservePending)
+        try Task.checkCancellation()
+        try validateStorageReplacement(replacement)
+        let previous = storageConnection
+        let defaults = defaults ?? connectionDefaults
+        if remember {
+            defaults.set(try JSONEncoder().encode(connection), forKey: Self.storageConnectionKey)
+        }
+        connectionDefaults = defaults
+        activateSession(session, connection: connection, snapshot: snapshot, folderURL: folderURL)
+        if let retiredSession = replacement.retiredSession {
+            do { try await retiredSession.retireAfterArchiving() }
+            catch { reportStorageError(error) }
+        }
+        return previous
     }
 
     private func prepareStorageReplacement(preservePending: Bool) async throws -> StorageReplacement {

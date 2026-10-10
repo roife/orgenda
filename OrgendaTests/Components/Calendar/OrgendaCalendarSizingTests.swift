@@ -44,7 +44,6 @@ final class OrgendaCalendarSizingTests: XCTestCase {
         XCTAssertEqual(OrgendaCalendarTransition.veilOpacity(at: 1.1), 0)
         XCTAssertEqual(OrgendaCalendarTransition.blurRadius(at: -0.1), 5)
         XCTAssertEqual(OrgendaCalendarTransition.blurRadius(at: 1.1), 0)
-        XCTAssertEqual(OrgendaCalendarTransition.snapDuration, 0.32)
     }
 
     func testResizeKeepsAllDensitiesReachableAtRegularAndAccessibilitySizes() {

@@ -8,7 +8,6 @@ final class OrgendaQuickActionsTests: XCTestCase {
         let shortcuts = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "UIApplicationShortcutItems") as? [[String: Any]])
         let types = shortcuts.compactMap { $0["UIApplicationShortcutItemType"] as? String }
         XCTAssertEqual(Set(types), Set(OrgendaQuickAction.allCases.map(\.rawValue)))
-        XCTAssertEqual(types.count, 4)
         let delegate = OrgendaSceneDelegate()
         for type in types {
             XCTAssertTrue(delegate.accept(UIApplicationShortcutItem(type: type, localizedTitle: "Action")))

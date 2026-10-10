@@ -68,14 +68,18 @@ final class WorkspaceSessionTests: XCTestCase {
         let backend = SessionFakeBackend(["inbox.org": "* Original\n"])
         let first = try session(backend)
         try await first.synchronize()
+        let original = try await first.snapshot()
         await backend.setOffline(true)
         try await first.write(path: "inbox.org", contents: "* Offline edit\n", expectedContents: "* Original\n")
+        let committed = try await first.snapshot()
+        XCTAssertGreaterThan(committed.revision, original.revision)
         do { try await first.synchronize(); XCTFail("Offline sync must fail") }
         catch { XCTAssertEqual(error as? StorageError, .offline) }
         let reopened = try session(backend)
         let saved = try await reopened.snapshot()
         XCTAssertEqual(saved.documents.first?.contents, "* Offline edit\n")
         XCTAssertEqual(saved.pendingPaths, ["inbox.org"])
+        XCTAssertEqual(saved.revision, committed.revision)
         let manifestURL = cache.appendingPathComponent(connection.id.uuidString).appendingPathComponent("manifest.json")
         let manifest = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any])
         XCTAssertEqual((manifest["commitSequence"] as? NSNumber)?.uint64Value, saved.revision)
@@ -87,6 +91,7 @@ final class WorkspaceSessionTests: XCTestCase {
         let final = try await reopened.snapshot()
         XCTAssertEqual(remoteText, "* Offline edit\n")
         XCTAssertTrue(final.pendingPaths.isEmpty)
+        XCTAssertGreaterThan(final.revision, saved.revision)
     }
 
     func testExternalChangePreservesBothVersionsAndResolvesUsingLatestRemote() async throws {
@@ -531,22 +536,6 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertEqual(explicitRestoration, "* Retained draft\n")
     }
 
-    func testSnapshotRevisionIncreasesAcrossCommitsAndRestart() async throws {
-        let backend = SessionFakeBackend(["inbox.org": "* A\n"])
-        let workspace = try session(backend)
-        try await workspace.synchronize()
-        let original = try await workspace.snapshot()
-        try await workspace.write(path: "inbox.org", contents: "* B\n", expectedContents: "* A\n")
-        let committed = try await workspace.snapshot()
-        XCTAssertGreaterThan(committed.revision, original.revision)
-        let reopened = try session(backend)
-        let restored = try await reopened.snapshot()
-        XCTAssertEqual(restored.revision, committed.revision)
-        try await reopened.synchronize()
-        let synchronized = try await reopened.snapshot()
-        XCTAssertGreaterThan(synchronized.revision, restored.revision)
-        XCTAssertEqual(synchronized.documents.first?.contents, "* B\n")
-    }
 }
 
 private actor SessionFakeBackend: RemoteWorkspaceBackend {

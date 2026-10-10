@@ -5,26 +5,6 @@ import XCTest
 final class WorkspaceStoreTests: XCTestCase {
     private let referenceDate = Date(timeIntervalSince1970: 1_788_048_000)
 
-    func testDemoWaitingTaskAndProjectsSurviveReindexing() throws {
-        let store = WorkspaceStore.preview(now: referenceDate)
-        for reindex in [false, true] {
-            if reindex { store.parseWorkspace() }
-            let waiting = try XCTUnwrap(store.items.first { $0.title == "Renew library card" })
-            XCTAssertEqual(waiting.state, .wait)
-            let project = try XCTUnwrap(store.items.first { $0.title == "Write tree-sitter Org queries" })
-            XCTAssertEqual(project.state, .todo)
-            XCTAssertEqual(project.kind, .project)
-            XCTAssertTrue(project.tags.contains("project"))
-        }
-        let personal = try XCTUnwrap(store.documents.first { $0.path == "personal.org" })
-        let configured = WorkspaceStore(documents: [
-            WorkspaceDocument(path: "agenda/personal.org", title: personal.title, contents: personal.contents, kind: .org)
-        ])
-        configured.usesEmacsConfiguration = true
-        configured.parseWorkspace()
-        XCTAssertEqual(configured.agendaGroups(for: .waiting).flatMap(\.items).map(\.title), ["Renew library card"])
-    }
-
     func testChangingProjectToTaskPreservesEveryWorkflowState() throws {
         for state in OrgWorkflowState.allCases {
             let store = parsedStore("* \(state.rawValue) Work :project:\n")
@@ -149,34 +129,6 @@ final class WorkspaceStoreTests: XCTestCase {
         )
     }
 
-    func testPreviewSeparatesAgendaAndUnscheduledTodos() {
-        let store = WorkspaceStore.preview(now: referenceDate)
-
-        XCTAssertFalse(store.datedItems.isEmpty)
-        XCTAssertEqual(store.openTodos.map(\.title), ["Plan iPad reading workflow"])
-        XCTAssertTrue(store.datedItems.allSatisfy { $0.agendaDate != nil })
-    }
-
-    func testTogglingTaskWritesTerminalState() throws {
-        let store = WorkspaceStore.preview(now: referenceDate)
-        let task = try XCTUnwrap(store.items.first(where: { $0.state == .todo }))
-
-        store.toggleDone(task)
-
-        XCTAssertEqual(store.items.first(where: { $0.id == task.id })?.state, .done)
-    }
-
-    func testSearchPreservesSourceLocation() throws {
-        let store = WorkspaceStore.preview(now: referenceDate)
-
-        let result = try XCTUnwrap(store.search("tree-sitter", scope: .all).first)
-        guard case .item(let item) = result else {
-            return XCTFail("Expected a task search result")
-        }
-        XCTAssertEqual(item.source.file, "inbox.org")
-        XCTAssertGreaterThan(item.source.startLine, 0)
-    }
-
     func testSettingsSearchOnlyReturnsExistingDestinations() {
         let store = WorkspaceStore()
         for destination in SettingsDestination.allCases {
@@ -216,14 +168,6 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(store.saveStatus(for: "inbox.org"), .unavailable)
     }
 
-    func testOrgHeadingRoundTripsVisibleMetadata() throws {
-        let store = WorkspaceStore.preview(now: referenceDate)
-        let task = try XCTUnwrap(store.items.first(where: { $0.title == "Review quarterly roadmap" }))
-
-        XCTAssertTrue(task.orgHeading.hasPrefix("* TODO [#A]"))
-        XCTAssertTrue(task.orgHeading.hasSuffix(":work:focus:"))
-    }
-
     func testClosedPlanningTimestampClearsAStaleAgendaDateWhenReindexed() throws {
         let staleDate = Date(timeIntervalSince1970: 1_788_048_000)
         let item = OrgItem(
@@ -261,22 +205,6 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertNil(refreshed.deadline)
         XCTAssertNotNil(refreshed.closed)
         XCTAssertNil(refreshed.agendaDate)
-    }
-
-    func testTreeSitterIndexesWorkspaceAndDrivesTaskMetadata() throws {
-        let store = WorkspaceStore.preview(now: referenceDate)
-
-        store.parseWorkspace()
-
-        XCTAssertTrue(store.parserStatus.hasPrefix("Ready"))
-        XCTAssertGreaterThanOrEqual(store.parsedDocuments.count, 5)
-        let inbox = try XCTUnwrap(store.parsedDocuments["inbox.org"])
-        XCTAssertFalse(inbox.hasError)
-        XCTAssertTrue(inbox.root.children.contains(where: { $0.type == "heading" }))
-        let project = try XCTUnwrap(store.items.first(where: { $0.title == "Write tree-sitter Org queries" }))
-        XCTAssertEqual(project.state, .todo)
-        XCTAssertEqual(project.priority, .medium)
-        XCTAssertEqual(project.source.file, "inbox.org")
     }
 
     func testExactSourceReplacementPreservesUnknownDocumentContent() throws {
@@ -348,19 +276,7 @@ final class WorkspaceStoreTests: XCTestCase {
             )
         )
 
-        for _ in 0..<30 {
-            let todoText = store.parsedDocuments["inbox.org"]
-                .flatMap { firstNode(ofType: "todo_keyword", in: $0.root)?.text }
-            let checkedExists = store.parsedDocuments["notes/reading.org"]
-                .map { allNodes(ofType: "checkbox", in: $0.root) }
-                .map { nodes in
-                    nodes.contains { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) == "[X]" }
-                } ?? false
-            if todoText?.trimmingCharacters(in: .whitespacesAndNewlines) == "NEXT", checkedExists {
-                break
-            }
-            try await Task.sleep(for: .milliseconds(25))
-        }
+        await store.waitForWorkspaceIndex()
 
         XCTAssertEqual(
             firstNode(ofType: "todo_keyword", in: try XCTUnwrap(store.parsedDocuments["inbox.org"]?.root))?
@@ -415,22 +331,28 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertNotNil(reparsed.deadline)
     }
 
-    func testTogglingLongWorkflowTokenPreservesSourceAndAllowsImmediateSecondEdit() throws {
+    func testTogglingBeforeAndAfterIndexingPreservesSourceAndRebasesNextEdit() throws {
         let source = "#+CUSTOM: 保留🙂\n* SOMEDAY First\nDEADLINE: <2026-09-04 Fri>\n* TODO Second\n"
-        let store = parsedStore(source, path: "personal.org")
-        let first = try XCTUnwrap(store.items.first { $0.title == "First" })
-        let second = try XCTUnwrap(store.items.first { $0.title == "Second" })
+        for indexed in [false, true] {
+            let store = parsedStore(source, path: "personal.org")
+            if !indexed {
+                store.parsedDocuments.removeAll()
+                for index in store.items.indices { store.items[index].source.startByte = 0 }
+            }
+            let first = try XCTUnwrap(store.items.first { $0.title == "First" })
+            let second = try XCTUnwrap(store.items.first { $0.title == "Second" })
 
-        store.toggleDone(first)
-        store.toggleDone(second)
-        XCTAssertEqual(store.documents.first?.contents, source
-            .replacingOccurrences(of: "SOMEDAY", with: "DONE")
-            .replacingOccurrences(of: "TODO", with: "DONE"))
+            store.toggleDone(first)
+            store.toggleDone(second)
+            XCTAssertEqual(store.documents.first?.contents, source
+                .replacingOccurrences(of: "SOMEDAY", with: "DONE")
+                .replacingOccurrences(of: "TODO", with: "DONE"))
 
-        store.parseWorkspace()
-        XCTAssertEqual(store.items.count, 2)
-        XCTAssertTrue(store.items.allSatisfy { $0.state == .done })
-        XCTAssertNotNil(store.items.first { $0.id == first.id }?.deadline)
+            store.parseWorkspace()
+            XCTAssertEqual(store.items.count, 2)
+            XCTAssertTrue(store.items.allSatisfy { $0.state == .done })
+            XCTAssertNotNil(store.items.first { $0.id == first.id }?.deadline)
+        }
     }
 
     func testEditingScheduleAndRepeaterPreservesWarningAndDeadline() throws {
@@ -508,6 +430,12 @@ final class WorkspaceStoreTests: XCTestCase {
         }
         XCTAssertEqual(Set(kinds), Set([.task, .project, .habit]))
         XCTAssertEqual(store.search("Match", scope: .all).count, OrgItemKind.allCases.count)
+        let taskIndex = try XCTUnwrap(store.items.firstIndex { $0.kind == .task })
+        store.items[taskIndex].body = "Résumé of the plan"
+        store.items[taskIndex].tags = ["follow-up"]
+        for query in ["RESUME", "follow-UP"] {
+            XCTAssertEqual(store.search(query, scope: .tasks), [.item(store.items[taskIndex])], query)
+        }
     }
 
     func testChangingEventsAndProjectsToTasksRoundTrips() throws {

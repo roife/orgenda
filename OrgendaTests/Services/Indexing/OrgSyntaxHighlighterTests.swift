@@ -62,7 +62,7 @@ final class OrgSyntaxHighlighterTests: XCTestCase {
         let source = """
         #+TITLE: 示例文档
         # 一条中文注释
-        * TODO [#A] 完成 *重点* /斜体/ _下划线_ +删除+ ~代码~ =原样= :work:ios:
+        * TODO [#A] 你好🙂 cafe\u{301} *重点* /斜体/ _下划线_ +删除+ ~代码~ =原样= :work:ios:
         SCHEDULED: <2026-09-01 Tue 09:30> DEADLINE: [2026-09-02 Wed]
         :PROPERTIES:
         :ID: 中文-001
@@ -86,31 +86,14 @@ final class OrgSyntaxHighlighterTests: XCTestCase {
         let kinds = Set(spans.map(\.kind))
 
         XCTAssertEqual(kinds, Set(OrgHighlightKind.allCases))
+        for span in spans {
+            XCTAssertGreaterThan(span.range.length, 0)
+            XCTAssertNotNil(Range(span.range, in: source), "Invalid UTF-16 range for \(span.kind)")
+        }
         XCTAssertEqual(text(of: .todo, in: spans, source: source)?.trimmingCharacters(in: .whitespaces), "TODO")
         XCTAssertEqual(text(of: .priority, in: spans, source: source)?.trimmingCharacters(in: .whitespaces), "[#A]")
         XCTAssertEqual(text(of: .link, in: spans, source: source), "[[https://example.com][说明]]")
         XCTAssertEqual(text(of: .checkbox, in: spans, source: source)?.trimmingCharacters(in: .whitespaces), "[ ]")
-    }
-
-    func testUTF8TreeSitterOffsetsBecomeValidUTF16Ranges() async throws {
-        // The link begins after CJK, a supplementary-plane emoji, and a
-        // decomposed grapheme (`e` + combining acute). Its tree-sitter byte
-        // offset therefore differs substantially from its UTF-16 location.
-        let source = "* TODO 你好🙂 cafe\u{301} [[id:東京][链接]] :zh:\n"
-        let highlighter = try XCTUnwrap(OrgSyntaxHighlighter())
-
-        let spans = await highlighter.highlights(in: source)
-        let utf16Length = (source as NSString).length
-
-        XCTAssertFalse(spans.isEmpty)
-        for span in spans {
-            XCTAssertGreaterThan(span.range.length, 0)
-            XCTAssertLessThanOrEqual(NSMaxRange(span.range), utf16Length)
-            XCTAssertNotNil(Range(span.range, in: source), "Invalid UTF-16 range for \(span.kind)")
-        }
-
-        XCTAssertEqual(text(of: .link, in: spans, source: source), "[[id:東京][链接]]")
-        XCTAssertTrue(text(of: .heading, in: spans, source: source, longest: true)?.contains("你好🙂") == true)
     }
 
     func testByteRangeConversionRejectsInvalidBoundariesAndBounds() {
@@ -139,12 +122,9 @@ final class OrgSyntaxHighlighterTests: XCTestCase {
     private func text(
         of kind: OrgHighlightKind,
         in spans: [OrgHighlightSpan],
-        source: String,
-        longest: Bool = false
+        source: String
     ) -> String? {
-        let matches = spans.filter { $0.kind == kind }
-        let span = longest ? matches.max(by: { $0.range.length < $1.range.length }) : matches.first
-        guard let span else { return nil }
+        guard let span = spans.first(where: { $0.kind == kind }) else { return nil }
         return (source as NSString).substring(with: span.range)
     }
 }

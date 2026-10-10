@@ -18,15 +18,6 @@ final class CloudAuthorizationTests: XCTestCase {
         ]
     }
 
-    func testAllProvidersLoadCompleteNativeConfiguration() throws {
-        for provider in providers {
-            let configuration = try CloudOAuthConfiguration.configured(provider, info: configuredInfo)
-            XCTAssertEqual(configuration.provider, provider)
-            XCTAssertEqual(configuration.authorizationURL.scheme, "https")
-            XCTAssertEqual(configuration.tokenURL.scheme, "https")
-        }
-    }
-
     func testMissingConfigurationAndUnregisteredCallbackSchemesAreRejected() {
         for provider in providers {
             XCTAssertThrowsError(try CloudOAuthConfiguration.configured(provider, info: [:]))
@@ -107,15 +98,16 @@ final class CloudAuthorizationTests: XCTestCase {
     func testEveryProviderRequestsPKCEAndOfflineAccessWithoutClientSecret() throws {
         for provider in providers {
             let config = try CloudOAuthConfiguration.configured(provider, info: configuredInfo)
-            let request = try config.authorizationRequest(state: "state", verifier: "verifier")
+            XCTAssertEqual(config.provider, provider)
+            XCTAssertEqual(config.authorizationURL.scheme, "https")
+            XCTAssertEqual(config.tokenURL.scheme, "https")
+            let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+            let request = try config.authorizationRequest(state: "state", verifier: verifier)
             let query = URLComponents(url: request, resolvingAgainstBaseURL: false)!.queryItems!
             XCTAssertTrue(query.contains(.init(name: "code_challenge_method", value: "S256")))
             XCTAssertTrue(query.contains(.init(name: "state", value: "state")))
             XCTAssertTrue(query.contains(.init(name: "response_type", value: "code")))
-            let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-            let vector = try config.authorizationRequest(state: "state", verifier: verifier)
-            XCTAssertTrue(URLComponents(url: vector, resolvingAgainstBaseURL: false)!.queryItems!
-                .contains(.init(name: "code_challenge", value: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")))
+            XCTAssertTrue(query.contains(.init(name: "code_challenge", value: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")))
             switch provider {
             case .oneDrive: XCTAssertTrue(config.scopes.split(separator: " ").contains("offline_access"))
             case .googleDrive: XCTAssertTrue(query.contains(.init(name: "access_type", value: "offline")))

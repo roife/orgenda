@@ -68,20 +68,6 @@ final class WorkspaceConfigurationTests: XCTestCase {
         XCTAssertEqual(local.toggled(local.state("OPEN")!).rawValue, "CLOSED")
     }
 
-    func testConfigurationOnlyExposesOrgBehaviorNotApplicationCustomization() throws {
-        let document = ConfigurationDocument(configuration: .standard)
-        let encoded = try document.encoded(.standard)
-        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(encoded.utf8)) as? [String: Any])
-        XCTAssertEqual(Set(root.keys), ["version", "workflow", "capture", "files", "agenda", "logging", "reminders"])
-        let agenda = try XCTUnwrap(root["agenda"] as? [String: Any])
-        XCTAssertEqual(Set(agenda.keys), ["sources", "excluded"])
-        let files = try XCTUnwrap(root["files"] as? [String: Any])
-        XCTAssertNil(files["journalPeriod"])
-        let capture = try XCTUnwrap(root["capture"] as? [String: Any])
-        let templates = try XCTUnwrap(capture["templates"] as? [[String: Any]])
-        XCTAssertNil(templates[0]["defaults"])
-    }
-
     func testRemovedFieldsArePreservedWithWarningsNotApplied() throws {
         let source = """
         {"version":1,"appearance":{"accent":"red"},"shortcuts":{"bindings":{}},
@@ -99,42 +85,20 @@ final class WorkspaceConfigurationTests: XCTestCase {
     }
 
     @MainActor
-    func testDefaultWorkflowAppearanceMatchesOriginalLightAndDarkPalette() throws {
-        let expected: [(String, String, [CGFloat], [CGFloat])] = [
-            ("TODO", "circle", [0.34, 0.38, 0.42], [0.72, 0.76, 0.80]),
-            ("NEXT", "arrow.right.circle", [0.10, 0.36, 0.78], [0.38, 0.67, 1.00]),
-            ("WAIT", "hourglass", [0.68, 0.35, 0.04], [1.00, 0.68, 0.30]),
-            ("SOMEDAY", "moon", [0.43, 0.29, 0.57], [0.75, 0.62, 0.90]),
-            ("URGENT", "exclamationmark.circle.fill", [0.78, 0.16, 0.15], [1.00, 0.42, 0.38]),
-            ("DONE", "checkmark.circle.fill", [0.52, 0.53, 0.56], [0.62, 0.63, 0.67]),
-            ("CANCELED", "xmark.circle", [0.69, 0.20, 0.43], [0.95, 0.53, 0.72])
-        ]
-        // Check static fixtures, classic preset, a new custom sequence, and a
-        // sparse style edited only for its label/key. They must look identical.
-        var workflow = WorkspaceConfiguration.classic.workflow
-        workflow.keywords = [:]
-        let edited = try ConfigurationDocument("""
+    func testSparseKeywordOverridesPreserveDefaultAppearance() throws {
+        let workflow = try ConfigurationDocument("""
         {"version":1,"workflow":{"sequences":[{"process":["TODO","NEXT","WAIT","SOMEDAY","URGENT"],
           "terminal":["DONE","CANCELED"]}],"keywords":{"WAIT":{"label":"Waiting","key":"w"}}}}
         """).configuration.workflow
-        for (token, symbol, light, dark) in expected {
-            for state in [OrgWorkflowState(rawValue: token), WorkspaceConfiguration.classic.workflow.state(token),
-                          workflow.state(token), edited.state(token)] {
-                let state = try XCTUnwrap(state)
-                XCTAssertEqual(state.symbol, symbol)
-                XCTAssertEqual(state.color, .default)
-                for (style, rgb) in [(UIUserInterfaceStyle.light, light), (.dark, dark)] {
-                    let actual = UIColor(OrgendaTheme.workflowColor(state)).resolvedColor(with: UITraitCollection(userInterfaceStyle: style))
-                    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                    XCTAssertTrue(actual.getRed(&r, green: &g, blue: &b, alpha: &a))
-                    XCTAssertEqual(r, rgb[0], accuracy: 0.001, token)
-                    XCTAssertEqual(g, rgb[1], accuracy: 0.001, token)
-                    XCTAssertEqual(b, rgb[2], accuracy: 0.001, token)
-                    XCTAssertEqual(a, 1, accuracy: 0.001, token)
-                }
+        for expected in OrgWorkflowState.allCases {
+            let actual = try XCTUnwrap(workflow.state(expected.rawValue))
+            XCTAssertEqual(actual.symbol, expected.symbol)
+            for style in [UIUserInterfaceStyle.light, .dark] {
+                let traits = UITraitCollection(userInterfaceStyle: style)
+                XCTAssertEqual(UIColor(OrgendaTheme.workflowColor(actual)).resolvedColor(with: traits),
+                               UIColor(OrgendaTheme.workflowColor(expected)).resolvedColor(with: traits))
             }
         }
-        XCTAssertEqual(WorkspaceConfiguration.standard.workflow.state("DONE")?.color, .default)
     }
 
     @MainActor

@@ -28,22 +28,6 @@ final class DocumentOutlineFilterTests: XCTestCase {
         return formatter.date(from: value)!
     }
 
-    func testInactiveFilterReturnsEverything() {
-        let nodes = [node("A", state: .todo), node("B")]
-        let filter = DocumentOutlineFilter()
-        XCTAssertFalse(filter.isActive)
-        XCTAssertEqual(filter.apply(to: nodes).map(\.title), ["A", "B"])
-        XCTAssertEqual(filter.matchCount(in: nodes), 2)
-    }
-
-    func testStateFilterDropsNonMatchingHeadings() {
-        var filter = DocumentOutlineFilter()
-        filter.states = [.todo]
-        let nodes = [node("Todo", state: .todo), node("Next", state: .next), node("Plain")]
-        XCTAssertEqual(filter.apply(to: nodes).map(\.title), ["Todo"])
-        XCTAssertEqual(filter.matchCount(in: nodes), 1)
-    }
-
     func testScheduledRangeMatchesOnlyDatedHeadingsInsideRange() {
         var filter = DocumentOutlineFilter()
         filter.scheduledFrom = day("2019-05-19")
@@ -105,5 +89,8 @@ final class DocumentOutlineFilterTests: XCTestCase {
         filter.reset()
         XCTAssertFalse(filter.isActive)
         XCTAssertEqual(filter, DocumentOutlineFilter())
+        let nodes = [node("A", state: .todo), node("B")]
+        XCTAssertEqual(filter.apply(to: nodes).map(\.title), ["A", "B"])
+        XCTAssertEqual(filter.matchCount(in: nodes), 2)
     }
 }

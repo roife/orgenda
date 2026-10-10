@@ -123,19 +123,6 @@ final class OrgSourceMutationTests: XCTestCase {
         return (parsed, item)
     }
 
-    func testPlanningDraftAtomicallyChangesKeywordAndDateWithoutLosingSourceDetails() throws {
-        var draft = try XCTUnwrap(
-            OrgPlanningEntryDraft(source: "SCHEDULED:\t<2026-08-31 Mon 09:30 +1d>  ")
-        )
-        draft.keyword = .deadline
-        draft.timestamps[0].date = try date(year: 2026, month: 9, day: 2, hour: 9, minute: 30)
-
-        XCTAssertEqual(
-            draft.source,
-            "DEADLINE:\t<2026-09-02 Wed 09:30 +1d>  "
-        )
-    }
-
     func testPlainYearlyTimestampCanBeEditedWithoutAddingPlanningKeyword() throws {
         let source = "<2019-05-20 Mon +1y>"
         var draft = try XCTUnwrap(OrgPlanningEntryDraft(timestampSource: source))
@@ -148,15 +135,26 @@ final class OrgSourceMutationTests: XCTestCase {
         XCTAssertNil(OrgPlanningEntryDraft(timestampSource: "Text <2019-05-20 Mon +1y>"))
     }
 
-    func testPlanningDraftRejectsDatesAndTimesThatWouldBeNormalized() {
+    func testPlanningAndIndexingRejectDatesAndTimesThatWouldBeNormalized() throws {
+        func indexedDate(_ timestamp: String) throws -> Date? {
+            let document = WorkspaceDocument(path: "dates.org", title: "Dates",
+                contents: "* TODO Date probe\nSCHEDULED: \(timestamp)\n", kind: .org)
+            let heading = try XCTUnwrap(OrgIndexService.parseSynchronously([document]).first?.headings.first)
+            return heading.scheduled
+        }
+
         for timestamp in ["<2026-02-30 Mon 09:00>", "<2026-13-01 Thu>", "<2026-09-00 Tue>",
+                          "<2025-02-29 Sat>", "<2026-09-19 Sat 24:00>",
                           "<2026-09-19 Sat 25:00>", "<2026-09-19 Sat 09:61>"] {
             XCTAssertNil(OrgPlanningEntryDraft(timestampSource: timestamp), timestamp)
             XCTAssertNil(OrgPlanningEntryDraft(source: "SCHEDULED: " + timestamp), timestamp)
             XCTAssertNil(OrgPlanningEntryDraft(timestampSource: "<2026-09-19 Sat>--" + timestamp), timestamp)
+            XCTAssertNil(try indexedDate(timestamp), timestamp)
         }
         for timestamp in ["<2024-02-29 Thu>", "[2026-09-19 Sat 00:00]", "<2026-09-19 Sat 23:59 +1d>"] {
-            XCTAssertEqual(OrgPlanningEntryDraft(timestampSource: timestamp)?.source, timestamp)
+            let draft = try XCTUnwrap(OrgPlanningEntryDraft(timestampSource: timestamp))
+            XCTAssertEqual(draft.source, timestamp)
+            XCTAssertEqual(try indexedDate(timestamp), draft.timestamps[0].date, timestamp)
         }
     }
 
@@ -279,21 +277,6 @@ final class OrgSourceMutationTests: XCTestCase {
         )
     }
 
-    func testWorkflowToggleUsesUTF8OffsetsAfterCJKAndEmojiAndPreservesWhitespace() throws {
-        let source = "#+未知: 保留🙂\n* TODO \t写 parser\n"
-        let token = "TODO \t"
-        let range = try byteRange(of: token, in: source)
-
-        let next = try OrgSourceMutation.workflowToggle(
-            in: source,
-            startByte: range.start,
-            endByte: range.end
-        ).applied(to: source)
-
-        XCTAssertEqual(next, "#+未知: 保留🙂\n* DONE \t写 parser\n")
-        XCTAssertEqual(next.utf8.count, source.utf8.count)
-    }
-
     func testWorkflowToggleCompletesOpenStatesAndReopensTerminalStates() throws {
         let expected = [
             "TODO": "DONE", "NEXT": "DONE", "WAIT": "DONE", "SOMEDAY": "DONE",
@@ -301,7 +284,7 @@ final class OrgSourceMutationTests: XCTestCase {
         ]
 
         for (current, next) in expected {
-            let source = "* \(current) \t标题\n"
+            let source = "#+未知: 保留🙂\n* \(current) \t标题\n"
             let range = try byteRange(of: "\(current) \t", in: source)
             let updated = try OrgSourceMutation.workflowToggle(
                 in: source,
@@ -309,7 +292,7 @@ final class OrgSourceMutationTests: XCTestCase {
                 endByte: range.end
             ).applied(to: source)
 
-            XCTAssertEqual(updated, "* \(next) \t标题\n", current)
+            XCTAssertEqual(updated, "#+未知: 保留🙂\n* \(next) \t标题\n", current)
         }
     }
 
@@ -329,53 +312,17 @@ final class OrgSourceMutationTests: XCTestCase {
     }
 
     func testRejectsNegativeUnorderedOutOfBoundsAndMidScalarRanges() {
-        let source = "A你🙂B"
-
-        XCTAssertThrowsError(
-            try OrgSourceMutation(startByte: -1, endByte: 1, replacement: "").applied(to: source)
-        ) { error in
-            XCTAssertEqual(
-                error as? OrgSourceMutationError,
-                .negativeByteOffset(startByte: -1, endByte: 1)
-            )
-        }
-
-        XCTAssertThrowsError(
-            try OrgSourceMutation(startByte: 4, endByte: 1, replacement: "").applied(to: source)
-        ) { error in
-            XCTAssertEqual(
-                error as? OrgSourceMutationError,
-                .unorderedByteRange(startByte: 4, endByte: 1)
-            )
-        }
-
-        XCTAssertThrowsError(
-            try OrgSourceMutation(startByte: 0, endByte: 10, replacement: "").applied(to: source)
-        ) { error in
-            XCTAssertEqual(
-                error as? OrgSourceMutationError,
-                .byteRangeOutOfBounds(startByte: 0, endByte: 10, sourceUTF8Count: 9)
-            )
-        }
-
-        // `你` occupies bytes 1..<4; byte 2 is in the middle of its scalar.
-        XCTAssertThrowsError(
-            try OrgSourceMutation(startByte: 2, endByte: 4, replacement: "文").applied(to: source)
-        ) { error in
-            XCTAssertEqual(
-                error as? OrgSourceMutationError,
-                .invalidStringBoundary(byteOffset: 2)
-            )
-        }
-
-        // `🙂` occupies bytes 4..<8; byte 7 is in the middle of its scalar.
-        XCTAssertThrowsError(
-            try OrgSourceMutation(startByte: 4, endByte: 7, replacement: "😀").applied(to: source)
-        ) { error in
-            XCTAssertEqual(
-                error as? OrgSourceMutationError,
-                .invalidStringBoundary(byteOffset: 7)
-            )
+        let cases: [(Int, Int, OrgSourceMutationError)] = [
+            (-1, 1, .negativeByteOffset(startByte: -1, endByte: 1)),
+            (4, 1, .unorderedByteRange(startByte: 4, endByte: 1)),
+            (0, 10, .byteRangeOutOfBounds(startByte: 0, endByte: 10, sourceUTF8Count: 9)),
+            (2, 4, .invalidStringBoundary(byteOffset: 2)),
+            (4, 7, .invalidStringBoundary(byteOffset: 7))
+        ]
+        for (start, end, expected) in cases {
+            XCTAssertThrowsError(try OrgSourceMutation(startByte: start, endByte: end, replacement: "文").applied(to: "A你🙂B")) {
+                XCTAssertEqual($0 as? OrgSourceMutationError, expected)
+            }
         }
     }
 
@@ -397,35 +344,6 @@ final class OrgSourceMutationTests: XCTestCase {
         XCTAssertEqual(Array(next.utf8.suffix(suffix.utf8.count)), Array(suffix.utf8))
     }
 
-    func testMultipleEqualLengthPatchesKeepOriginalTreeSitterOffsetsStable() throws {
-        let original = "说明🙂\n* TODO 第一项\n* NEXT 第二项\n- [ ] 清单\n"
-        let todoRange = try byteRange(of: "TODO", in: original)
-        let nextRange = try byteRange(of: "NEXT", in: original)
-        let checkboxRange = try byteRange(of: "[ ]", in: original)
-
-        // Every mutation replaces its node with the same UTF-8 byte length, so
-        // all three ranges captured from the original parse remain valid.
-        var source = original
-        source = try OrgSourceMutation.workflowToggle(
-            in: source,
-            startByte: todoRange.start,
-            endByte: todoRange.end
-        ).applied(to: source)
-        source = try OrgSourceMutation.workflowToggle(
-            in: source,
-            startByte: nextRange.start,
-            endByte: nextRange.end
-        ).applied(to: source)
-        source = try OrgSourceMutation.checkboxToggle(
-            in: source,
-            startByte: checkboxRange.start,
-            endByte: checkboxRange.end
-        ).applied(to: source)
-
-        XCTAssertEqual(source, "说明🙂\n* DONE 第一项\n* DONE 第二项\n- [X] 清单\n")
-        XCTAssertEqual(source.utf8.count, original.utf8.count)
-    }
-
     func testUnsupportedSemanticTokenReturnsExplicitErrorWithoutChangingSource() throws {
         let source = "前缀🙂\n* WAITING 保持\n后缀🧷\n"
         let range = try byteRange(of: "WAITING ", in: source)
@@ -442,7 +360,6 @@ final class OrgSourceMutationTests: XCTestCase {
                 .unsupportedWorkflowToken("WAITING")
             )
         }
-        XCTAssertEqual(source, "前缀🙂\n* WAITING 保持\n后缀🧷\n")
     }
 
     private func toggledCheckbox(in source: String, token: String) throws -> String {
@@ -464,27 +381,9 @@ final class OrgSourceMutationTests: XCTestCase {
         return (start, start + length)
     }
 
-    private func date(
-        year: Int,
-        month: Int,
-        day: Int,
-        hour: Int = 0,
-        minute: Int = 0
-    ) throws -> Date {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .autoupdatingCurrent
-        return try XCTUnwrap(
-            calendar.date(
-                from: DateComponents(
-                    timeZone: .autoupdatingCurrent,
-                    year: year,
-                    month: month,
-                    day: day,
-                    hour: hour,
-                    minute: minute
-                )
-            )
-        )
+    private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) throws -> Date {
+        try XCTUnwrap(Calendar(identifier: .gregorian).date(from:
+            DateComponents(year: year, month: month, day: day, hour: hour, minute: minute)))
     }
 }
 
@@ -853,7 +752,6 @@ final class OrgPreviewPresentationTests: XCTestCase {
                     let a = luminance(foreground, traits), b = luminance(background, traits)
                     let ratio = (max(a, b) + 0.05) / (min(a, b) + 0.05)
                     XCTAssertGreaterThanOrEqual(ratio, 4.5)
-                    print("Preview contrast style=\(style.rawValue): \(ratio)")
                 }
             }
         }

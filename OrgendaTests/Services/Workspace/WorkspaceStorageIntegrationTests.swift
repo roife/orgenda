@@ -66,6 +66,33 @@ final class WorkspaceStorageIntegrationTests: XCTestCase {
         XCTAssertNotNil(store.fileSyncError)
     }
 
+    func testFolderReplacementRespectsRememberPreferenceAndPublishesNewIndex() async throws {
+        for remember in [false, true] {
+            let environment = try makeEnvironment()
+            let store = makeStore(environment.cache)
+            await store.connectFolder(environment.folder, defaults: environment.defaults)
+            let previousID = store.workspaceFileSessionID
+            let previousDescriptor = environment.defaults.data(forKey: WorkspaceStore.storageConnectionKey)
+            let nextFolder = environment.cache.appendingPathComponent("Other")
+            try FileManager.default.createDirectory(at: nextFolder, withIntermediateDirectories: true)
+            try "* TODO Replacement task\n".write(to: nextFolder.appendingPathComponent("inbox.org"),
+                                                  atomically: true, encoding: .utf8)
+
+            await store.connectFolder(nextFolder, remember: remember, defaults: environment.defaults)
+
+            XCTAssertNotEqual(store.workspaceFileSessionID, previousID)
+            XCTAssertEqual(store.storageConnection?.rootID, nextFolder.path)
+            XCTAssertEqual(store.items.map(\.title), ["Replacement task"])
+            XCTAssertNil(store.fileSyncError)
+            let descriptor = try XCTUnwrap(environment.defaults.data(forKey: WorkspaceStore.storageConnectionKey))
+            if remember {
+                XCTAssertEqual(try JSONDecoder().decode(StorageConnection.self, from: descriptor), store.storageConnection)
+            } else {
+                XCTAssertEqual(descriptor, previousDescriptor)
+            }
+        }
+    }
+
     func testChangingLocationRequiresPreservingConflictAndDoesNotUploadItToNewFolder() async throws {
         let environment = try makeEnvironment()
         let file = environment.folder.appendingPathComponent("inbox.org")

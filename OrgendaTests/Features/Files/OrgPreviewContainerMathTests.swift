@@ -24,6 +24,45 @@ final class OrgPreviewContainerMathTests: XCTestCase {
         XCTAssertEqual(math(trimmed), [expression, expression])
     }
 
+    func testEmphasisFragmentsKeepTextStylesOnBothSidesOfMath() throws {
+        for (marker, type) in [("*", "bold"), ("/", "italic"), ("_", "underline"), ("+", "strikethrough")] {
+            let source = "Text \(marker)before \\(x\\) 中文🙂after\(marker)\n"
+            let paragraph = try XCTUnwrap(try nodes(source).first)
+            let node = try XCTUnwrap(paragraph.child(ofType: type), type)
+            let fragments = OrgPreviewMarkup.fragments(node)
+            XCTAssertEqual(text(fragments), "before  中文🙂after", type)
+            XCTAssertEqual(math(fragments).map(\.latex), ["x"], type)
+            for case .text(let value) in fragments {
+                switch type {
+                case "bold": XCTAssertEqual(value.inlinePresentationIntent, .stronglyEmphasized)
+                case "italic": XCTAssertEqual(value.inlinePresentationIntent, .emphasized)
+                case "underline": XCTAssertEqual(value.underlineStyle, .single)
+                default: XCTAssertEqual(value.strikethroughStyle, .single)
+                }
+            }
+        }
+    }
+
+    func testLinkLabelsKeepMathAndOnlyLinkSupportedSchemes() throws {
+        for target in ["https://example.com", "custom:notes"] {
+            let paragraph = try XCTUnwrap(try nodes("[[\(target)][前 \\(x\\) 后]]\n").first)
+            let fragments = OrgPreviewMarkup.fragments(paragraph)
+            XCTAssertEqual(text(fragments), "前  后")
+            XCTAssertEqual(math(fragments).map(\.latex), ["x"])
+            for case .text(let value) in fragments where !value.characters.isEmpty {
+                if target.hasPrefix("https:") {
+                    XCTAssertEqual(value.link, URL(string: target))
+                    XCTAssertEqual(value.underlineStyle, .single)
+                    XCTAssertEqual(value.foregroundColor, OrgendaTheme.accentText)
+                } else {
+                    XCTAssertNil(value.link)
+                    XCTAssertNil(value.underlineStyle)
+                    XCTAssertNil(value.foregroundColor)
+                }
+            }
+        }
+    }
+
     func testIndentedAlignmentTokensDoNotBreakDisplayFormula() throws {
         let source = "\\begin{aligned}\n    a &= b \\\\\n    c &= d\n\\end{aligned}\n"
         let document = try XCTUnwrap(OrgIndexService.parseSynchronously([
@@ -189,6 +228,7 @@ final class OrgPreviewContainerMathTests: XCTestCase {
         ])
         XCTAssertTrue(OrgMathParser.matches(in: #"Costs US$5 or \$6, with $unfinished math."#).isEmpty)
         XCTAssertTrue(OrgMathParser.matches(in: "$5 and $6").isEmpty)
+        XCTAssertNil(OrgMathParser.soleDisplayExpression(in: #"\[x^2"#))
     }
 
     func testOrdinaryContainersRemainIntactAndCaptionMathIsAvailable() throws {

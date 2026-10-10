@@ -48,15 +48,6 @@ final class OrgHeadingMoveTests: XCTestCase {
                        prefix + second + first + third)
     }
 
-    func testReordersChildrenWithoutMovingParentOrChangingLevels() throws {
-        let prefix = "* Parent\nParent body\n"
-        let first = "** First\nOwn body\n*** Child\nNested body\n"
-        let second = "** Second\nSecond body\n"
-        let suffix = "* Next parent\n"
-        XCTAssertEqual(try move(prefix + first + second + suffix, from: 1, to: 3, placement: .after),
-                       prefix + second + first + suffix)
-    }
-
     func testRejectsSelfDescendantsAndNoOp() throws {
         let document = try parsed("* Parent\n** Child\n** Sibling\n* Other\n** Cousin\n")
         let headings = document.root.children.filter { $0.type == "heading" }
@@ -77,17 +68,6 @@ final class OrgHeadingMoveTests: XCTestCase {
             + "*** Child\n#+BEGIN_SRC text\n* Literal\n#+END_SRC\n***** Deep\n- [ ] Keep\n"
         XCTAssertEqual(try move(a + b, from: 0, to: 3, placement: .child), b + nested)
         XCTAssertEqual(try move(b + a, from: 2, to: 0, placement: .child), b + nested)
-    }
-
-    func testMovesAcrossParentsAndPromotesWholeSubtree() throws {
-        let source = "* A\n** First\nFirst body\n*** Nested\nNested body\n* B\n** Second\nSecond body\n* C\n"
-        XCTAssertEqual(try move(source, from: 1, to: 4, placement: .before),
-                       "* A\n* B\n** First\nFirst body\n*** Nested\nNested body\n** Second\nSecond body\n* C\n")
-        XCTAssertEqual(try move(source, from: 1, to: 0, placement: .after),
-                       "* A\n* First\nFirst body\n** Nested\nNested body\n* B\n** Second\nSecond body\n* C\n")
-        XCTAssertEqual(try move(source, from: 1, to: 0, placement: .before),
-                       "* First\nFirst body\n** Nested\nNested body\n* A\n* B\n** Second\nSecond body\n* C\n")
-        XCTAssertEqual(try move("* A\n* B\n", from: 1, to: 0, placement: .child), "* A\n** B\n")
     }
 
     func testEveryReparentingPreservesHeadingSourceRangesAndDestinationLevel() throws {

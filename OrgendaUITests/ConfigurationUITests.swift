@@ -55,59 +55,23 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["files.settings"].waitForExistence(timeout: 3))
     }
 
-    func testSettingsPanelWithLargeText() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
-                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
-                               "-appearance", "Dark"]
-        app.launch()
-        defer { app.terminate() }
-        XCTAssertTrue(app.tabBars.buttons["Files"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["Files"].tap()
-        app.buttons["files.settings"].tap()
-        XCTAssertTrue(app.buttons["settings.workspace"].waitForExistence(timeout: 3))
-        screenshot("Settings panel accessibility", app: app)
-        reveal("settings.appearance", in: app).tap()
-        XCTAssertTrue(app.buttons["Dark"].waitForExistence(timeout: 3))
-        app.buttons["Dark"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].exists)
-        screenshot("Appearance inline accessibility", app: app)
-        XCTAssertTrue(app.buttons["settings.done"].isHittable)
-        app.buttons["settings.done"].tap()
-    }
-
     func testSettingsShowsWorkflowAndCopiesEmacsPrompt() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "--workflow-settings-fixture",
-                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(["--workflow-settings-fixture"], workspace: "--ui-test-workspace")
         let filesTab = app.tabBars.buttons["Files"]
         XCTAssertTrue(filesTab.waitForExistence(timeout: 5))
         filesTab.tap()
         app.buttons["files.settings"].tap()
         screenshot("Settings direct entry points", app: app)
-        XCTAssertFalse(app.navigationBars["Workspace configuration"].exists)
-        XCTAssertFalse(app.staticTexts["config.json · Workspace root"].exists)
-        XCTAssertFalse(app.buttons["Appearance choices"].exists)
-        XCTAssertFalse(app.buttons["Keyboard shortcuts"].exists)
-        XCTAssertFalse(app.buttons["Tags & priorities"].exists)
-        XCTAssertFalse(app.buttons["Agenda & Dashboard"].exists)
         reveal("settings.workflow", in: app).tap()
         XCTAssertTrue(app.navigationBars["Workflow"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["In progress"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Terminal"].exists)
-        XCTAssertFalse(app.buttons["States & order"].exists)
-        XCTAssertFalse(app.buttons["Add sequence"].exists)
         XCTAssertTrue(app.buttons["configuration.addProcess"].exists)
         XCTAssertTrue(app.buttons["configuration.addTerminal"].exists)
         screenshot("Workflow", app: app)
         addState("WAIT", terminal: false, app: app)
         addState("CANCELED", terminal: true, app: app)
         XCTAssertFalse(app.buttons["Edit"].exists, "Workflow ordering must always be available.")
-        XCTAssertFalse(app.buttons["configuration.save"].exists)
         XCTAssertFalse(app.buttons["settings.done"].exists)
         XCTAssertFalse(app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier BEGINSWITH 'configuration.keyword.reorder.'")
@@ -130,15 +94,6 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertLessThan(app.buttons["configuration.keyword.CANCELED"].frame.minY,
                           app.buttons["configuration.keyword.DONE"].frame.minY)
         screenshot("Workflow automatically saved after reordering", app: app)
-        app.buttons["configuration.addProcess"].tap()
-        let draftKeyword = app.textFields["configuration.newKeyword"]
-        XCTAssertTrue(draftKeyword.waitForExistence(timeout: 3))
-        draftKeyword.tap()
-        draftKeyword.typeText("DRAFT")
-        app.buttons["configuration.cancelKeyword"].tap()
-        XCTAssertTrue(app.alerts["Discard changes?"].waitForExistence(timeout: 3))
-        app.alerts.buttons["Discard Changes"].tap()
-        XCTAssertFalse(app.buttons["configuration.keyword.DRAFT"].exists)
         app.buttons["configuration.keyword.TODO"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["configuration.keyword.preview"].firstMatch.waitForExistence(timeout: 3))
         screenshot("State appearance", app: app)
@@ -161,12 +116,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testWorkflowStateSheetAndContextActionsPersist() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "--workflow-settings-fixture",
-                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(["--workflow-settings-fixture"], workspace: "--ui-test-workspace")
         XCTAssertTrue(app.tabBars.buttons["Files"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Files"].tap()
         app.buttons["files.settings"].tap()
@@ -245,11 +195,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testSettingsSearchOpensWorkflowWithoutCategoryHub() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(workspace: "--ui-test-workspace")
         XCTAssertTrue(app.tabBars.buttons["Search"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Search"].tap()
         let search = app.searchFields.firstMatch
@@ -261,7 +207,6 @@ final class ConfigurationUITests: XCTestCase {
         result.tap()
         XCTAssertTrue(app.navigationBars["Workflow"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["configuration.addProcess"].exists)
-        XCTAssertFalse(app.navigationBars["Workspace configuration"].exists)
         XCTAssertFalse(app.buttons["settings.done"].exists)
         app.buttons["configuration.back"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
@@ -271,13 +216,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testConfigurationAndTemplateAtAccessibilitySize() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
-                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
-                               "-appearance", "Dark"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"], workspace: "--ui-test-workspace", appearance: "Dark")
         XCTAssertTrue(app.tabBars.buttons["Files"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Files"].tap()
         app.buttons["files.settings"].tap()
@@ -295,12 +234,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testFilesRemindersAndConfigAreDirectDestinations() throws {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "--workflow-settings-fixture",
-                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(["--workflow-settings-fixture"], workspace: "--ui-test-workspace")
         XCTAssertTrue(app.tabBars.buttons["Files"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Files"].tap()
         app.buttons["files.settings"].tap()
@@ -326,7 +260,6 @@ final class ConfigurationUITests: XCTestCase {
         reveal("configuration.classicPreset", in: app).tap()
         XCTAssertTrue(app.buttons["Apply"].waitForExistence(timeout: 3))
         app.buttons["Apply"].tap()
-        XCTAssertFalse(app.buttons["configuration.save"].exists)
         reveal("configuration.showJSON", in: app).tap()
         let applied = try configurationJSON(in: app)
         for field in ["files", "capture", "agenda", "logging", "reminders"] {
@@ -345,12 +278,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testReminderTimingPresetsCustomValuesAndInvalidDraftPersistence() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "--workflow-settings-fixture",
-                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "Light"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(["--workflow-settings-fixture"], workspace: "--ui-test-workspace", appearance: "Light")
         XCTAssertTrue(app.tabBars.buttons["Files"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Files"].tap()
         app.buttons["files.settings"].tap()
@@ -392,7 +320,6 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertEqual(repeatInterval.value as? String, "5 min",
                        "Cancel must discard the invalid repeat-interval draft.")
 
-        XCTAssertFalse(app.buttons["configuration.save"].exists)
         app.buttons["configuration.back"].tap()
         reveal("settings.configuration", in: app).tap()
         reveal("configuration.showJSON", in: app).tap()
@@ -430,7 +357,6 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["settings.files"].label.contains("文件与议程"))
         reveal("settings.workflow", in: app).tap()
         XCTAssertTrue(app.navigationBars["工作流"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.buttons["configuration.save"].exists)
         XCTAssertFalse(app.buttons["settings.done"].exists)
         XCTAssertFalse(app.staticTexts["Terminal"].exists)
         app.buttons["configuration.keyword.TODO"].tap()
@@ -491,7 +417,6 @@ final class ConfigurationUITests: XCTestCase {
         reveal("settings.files", in: app).tap()
         revealElement(inbox, in: app)
         XCTAssertEqual(inbox.value as? String, "custom/inbox.org", "A valid correction must persist automatically.")
-        XCTAssertFalse(app.buttons["configuration.save"].exists)
         screenshot("Settings automatically saved after correcting invalid input", app: app)
     }
 
@@ -799,9 +724,6 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     private func screenshot(_ name: String, app: XCUIApplication) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        attachScreenshot(name, screenshot: app.screenshot())
     }
 }

@@ -185,33 +185,14 @@ enum OrgPreviewMarkup {
 
         switch node.type {
         case "bold", "italic", "underline", "strikethrough":
-            let source = String(node.text.dropFirst().dropLast())
-            return styledFragments(in: source) { value in
-                switch node.type {
-                case "bold": value.inlinePresentationIntent = .stronglyEmphasized
-                case "italic": value.inlinePresentationIntent = .emphasized
-                case "underline": value.underlineStyle = .single
-                case "strikethrough": value.strikethroughStyle = .single
-                default: break
-                }
-            }
+            return styledFragments(render(node, replacement: nil))
         case "code", "verbatim", "statistics_cookie", "target", "radio_target", "macro",
              "export_snippet", "footnote_reference", "inline_footnote", "footnote_definition_marker",
              "description_tag", "timestamp", "timestamp_range", "active_timestamp", "inactive_timestamp":
             return [.text(render(node, replacement: nil))]
         case "link", "angle_link", "plain_link":
             if let image = OrgPreviewImageReference.from(node) { return [.image(image)] }
-            let target = node.type == "angle_link"
-                ? String(node.text.dropFirst().dropLast())
-                : node.children.first { $0.type == "link_target" }?.text ?? node.text
-            let label = node.children.first { $0.type == "link_description" }?.text ?? target
-            return styledFragments(in: label) { value in
-                if let url = externalURL(target) {
-                    value.link = url
-                    value.foregroundColor = OrgendaTheme.accentText
-                    value.underlineStyle = .single
-                }
-            }
+            return styledFragments(render(node, replacement: nil))
         default:
             guard !node.children.isEmpty else { return fragments(in: node.text) }
 
@@ -281,13 +262,11 @@ enum OrgPreviewMarkup {
         }
     }
 
-    private static func styledFragments(
-        in source: String,
-        style: (inout AttributedString) -> Void
-    ) -> [OrgPreviewInlineFragment] {
-        fragments(in: source).map { fragment in
+    private static func styledFragments(_ source: AttributedString) -> [OrgPreviewInlineFragment] {
+        let attributes = source.runs.first?.attributes ?? AttributeContainer()
+        return fragments(in: String(source.characters)).map { fragment in
             guard case .text(var value) = fragment else { return fragment }
-            style(&value)
+            value.mergeAttributes(attributes)
             return .text(value)
         }
     }

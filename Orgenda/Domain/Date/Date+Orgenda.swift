@@ -22,4 +22,16 @@ extension Date {
         String(format: "%04d-%02d-%02d", calendar.component(.year, from: self),
                calendar.component(.month, from: self), calendar.component(.day, from: self))
     }
+
+    /// Org timestamps use the Gregorian calendar and must not roll invalid
+    /// dates or times into a different day when Foundation constructs them.
+    static func orgTimestamp(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        let components = DateComponents(year: year, month: month, day: day, hour: hour, minute: minute)
+        guard let date = calendar.date(from: components),
+              calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date) == components
+        else { return nil }
+        return date
+    }
 }

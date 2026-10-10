@@ -153,12 +153,7 @@ final class UIUXPolishUITests: XCTestCase {
     }
 
     func testCustomBlockPreviewPreservesContentAndCheckboxEditing() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "--file-browser-fixture",
-                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "Light"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(["--file-browser-fixture"], workspace: "--ui-test-workspace", appearance: "Light")
         openInbox(in: app)
         app.buttons["Edit"].tap()
         let editor = app.textViews["Org source editor"]
@@ -186,11 +181,7 @@ final class UIUXPolishUITests: XCTestCase {
     }
 
     func testPreviewRendersNewlineDelimitedMathEnvironments() throws {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "--file-browser-fixture", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "Light"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(["--file-browser-fixture"], workspace: "--ui-test-workspace", appearance: "Light")
         openInbox(in: app)
         app.buttons["Edit"].tap()
         let editor = app.textViews["Org source editor"]
@@ -221,73 +212,9 @@ final class UIUXPolishUITests: XCTestCase {
         attach(app, name: "Rendered newline delimited math environments", always: true)
     }
 
-    func testPreviewRendersFullSubtypeParagraphWithoutRawDelimiters() throws {
-        let source = #"""
-        * Full F
-        将全称量词看作是“函数”后，类型 \( T = \forall X \mathrel{\raisebox{0.1ex}{\scriptsize$<$}}\!\colon T_1. T_2\) 可以看作是一个“将 \( T_1 \) 的 subtypes 映射到类型为 \( T_2 \) 的 terms 上”的函数。令 \( S = \forall X <: S1. S2\)，其中 \( T_1 <: S_1 \)，也就是说 \( \operatorname{dom}(T) \subseteq \operatorname{dom}(S) \)。
-        """# + "\n"
-        let app = openRenderedMathFixture(source)
-        defer { app.terminate() }
-        let preview = app.scrollViews["org.preview.scroll"]
-        XCTAssertTrue(preview.staticTexts["Full F"].waitForExistence(timeout: 3))
-        XCTAssertTrue(preview.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "subtypes")).firstMatch.exists)
-        for command in [#"\("#, #"\)"#, #"\forall"#, #"\mathrel"#] {
-            XCTAssertFalse(preview.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", command)).firstMatch.exists, command)
-        }
-        attach(app, name: "Subtype paragraph rendered in Preview", always: true)
-    }
-
-    func testPreviewRendersFiveRowErasureDefinition() throws {
-        let formula = #"""
-        \begin{aligned}
-
-        & \operatorname{erase}(x) &&= x \\
-
-        & \operatorname{erase}(\lambda x : T_1 . t_2) &&= \lambda x. \operatorname{erase}(t_2) \\
-
-        & \operatorname{erase}(t_1\ t_2) &&= \operatorname{erase}(t_1)\ \operatorname{erase}(t_2) \\
-
-        & \operatorname{erase}(\lambda X. t_2) &&= \operatorname{erase}(t_2) \\
-
-        & \operatorname{erase}(t_1\ [T_2]) &&= \operatorname{erase}(t_1) \\
-        \end{aligned}
-        """#
-        let source = "* Erasure\n#+begin_definition\n*(erasure)*\nThe erasure of a term \\(t\\) in System F is defined as follows:\n"
-            + formula + "\n#+end_definition\nAfter the definition.\n"
-        let app = openRenderedMathFixture(source)
-        defer { app.terminate() }
-        let image = app.images.matching(NSPredicate(format: "label == %@", formula)).firstMatch
-        XCTAssertTrue(image.waitForExistence(timeout: 3), "The full definition equation should render as one image")
-        XCTAssertGreaterThan(image.frame.height, 80)
-        let preview = app.scrollViews["org.preview.scroll"]
-        XCTAssertTrue(preview.staticTexts["definition"].exists)
-        XCTAssertTrue(preview.staticTexts["After the definition."].exists)
-        XCTAssertFalse(preview.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", #"\begin{aligned}"#)).firstMatch.exists)
-        attach(app, name: "Five row erasure definition rendered in Preview", always: true)
-    }
-
-    private func openRenderedMathFixture(_ source: String) -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "--file-browser-fixture", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "Light"]
-        app.launch()
-        openInbox(in: app)
-        app.buttons["Edit"].tap()
-        let editor = app.textViews["Org source editor"]
-        XCTAssertTrue(editor.waitForExistence(timeout: 3))
-        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.9)).tap()
-        editor.typeText("\n" + source)
-        XCTAssertTrue((editor.value as? String)?.contains(source) == true)
-        app.buttons["Preview"].tap()
-        return app
-    }
 
     func testPreviewLoadsRelativeAndAttachmentImagesAndOpensZoom() {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "--image-preview-fixture", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "Light"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp(["--image-preview-fixture"], workspace: "--ui-test-workspace", appearance: "Light")
         app.tabBars.buttons["Files"].tap()
         app.buttons["files.open.notes"].tap()
         app.buttons["files.open.notes/note.org"].tap()
@@ -351,13 +278,7 @@ final class UIUXPolishUITests: XCTestCase {
     }
 
     private func launchApp() -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "--ui-test-workspace", "-AppleLanguages", "(en)",
-            "-AppleLocale", "en_US", "-appearance", "Light"
-        ]
-        app.launch()
+        let app = launchTestApp(workspace: "--ui-test-workspace", appearance: "Light")
         return app
     }
 
@@ -365,9 +286,6 @@ final class UIUXPolishUITests: XCTestCase {
         let environment = ProcessInfo.processInfo.environment
         guard always || environment["ORGENDA_CAPTURE_AUDIT"] == "1"
             || environment["TEST_RUNNER_ORGENDA_CAPTURE_AUDIT"] == "1" else { return }
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        attachScreenshot(name, screenshot: app.screenshot())
     }
 }

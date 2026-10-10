@@ -101,15 +101,6 @@ final class IPadLayoutUITests: XCTestCase {
         attach(app, name: "One Dashboard tab after repeated sidebar selections")
     }
 
-    func testCompactDashboardKeepsItsTabAndMenu() {
-        let app = launchApp(viewportSize: CGSize(width: 600, height: 600), horizontalSizeClass: "compact")
-        defer { app.terminate() }
-        XCTAssertTrue(app.tabBars.buttons["Dashboard"].isHittable)
-        assertValue("Unscheduled", of: app.buttons["agenda.viewMenu"])
-        XCTAssertTrue(app.staticTexts["Plan iPad reading workflow"].isHittable)
-        XCTAssertFalse(app.buttons["sidebar.perspective.overdue"].exists)
-    }
-
     private func toggleWorkspaceSidebar(in app: XCUIApplication) {
         let toggles = app.buttons.matching(NSPredicate(
             format: "label == 'Hide Sidebar' OR label == 'Show Sidebar' OR identifier == 'ToggleSideBar' OR label == 'Toggle sidebar'"
@@ -399,6 +390,9 @@ final class IPadLayoutUITests: XCTestCase {
         let app = launchApp(viewportSize: narrowSize, horizontalSizeClass: "compact")
         defer { app.terminate() }
         let narrowViewport = assertViewportSize(narrowSize, in: app)
+        XCTAssertTrue(app.tabBars.buttons["Dashboard"].isHittable)
+        assertValue("Unscheduled", of: app.buttons["agenda.viewMenu"])
+        XCTAssertTrue(app.staticTexts["Plan iPad reading workflow"].isHittable)
         selectRootTab("Calendar", in: app)
         assertValue("Stacked", of: element("calendar.layout", in: app))
 
@@ -648,9 +642,6 @@ final class IPadLayoutUITests: XCTestCase {
     private func attach(_ app: XCUIApplication, name: String) {
         // App-level screenshots can crop the rotated iPad window into a buffer
         // with the wrong dimensions. Capture the device's full display instead.
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        attachScreenshot(name, screenshot: XCUIScreen.main.screenshot())
     }
 }

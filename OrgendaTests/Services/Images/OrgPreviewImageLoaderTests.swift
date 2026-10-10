@@ -17,17 +17,6 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         XCTAssertEqual(image.size.height, 8)
     }
 
-    func testLoadsLocalImageAndFallsBackOnlyWhenAFileIsMissing() async throws {
-        let root = try temporaryFolder()
-        defer { try? FileManager.default.removeItem(at: root) }
-        try imageData(width: 12, height: 8).write(to: root.appendingPathComponent("image.png"))
-        let image = try await OrgPreviewImageLoader().load(
-            candidates: ["missing.png", "image.png"],
-            fileStore: WorkspaceFileStore(rootURL: root))
-        XCTAssertEqual(image.size.width, 12)
-        XCTAssertEqual(image.size.height, 8)
-    }
-
     func testLocalImageReplacementIsNotHiddenByACache() async throws {
         let root = try temporaryFolder()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -35,10 +24,10 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
         let loader = OrgPreviewImageLoader()
         let store = WorkspaceFileStore(rootURL: root)
         try imageData(width: 12, height: 8).write(to: url)
-        let first = try await loader.load(candidates: ["image.png"], fileStore: store)
+        let first = try await loader.load(candidates: ["missing.png", "image.png"], fileStore: store)
         try imageData(width: 20, height: 10).write(to: url, options: .atomic)
         let second = try await loader.load(candidates: ["image.png"], fileStore: store)
-        XCTAssertEqual(first.size.width, 12)
+        XCTAssertEqual(first.size, CGSize(width: 12, height: 8))
         XCTAssertEqual(second.size.width, 20)
     }
 

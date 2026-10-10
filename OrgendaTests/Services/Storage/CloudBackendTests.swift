@@ -11,12 +11,13 @@ final class CloudBackendTests: XCTestCase {
     func testCloudConnectionPreservesExplicitEmailAndIdentity() throws {
         for provider in [StorageProvider.googleDrive, .dropbox, .oneDrive] {
             let original = StorageConnection(provider: provider, displayName: "Orgenda",
-                accountID: "account-123", accountEmail: " alice@example.com \n", rootID: "root-123", credentialKey: "saved-key")
+                accountID: "account-123", accountName: "old@example.com", accountEmail: " alice@example.com \n", rootID: "root-123", credentialKey: "saved-key")
             let data = try JSONEncoder().encode(original)
             let restored = try JSONDecoder().decode(StorageConnection.self, from: data)
             XCTAssertEqual(restored.accountEmail, original.accountEmail)
             XCTAssertEqual(restored.emailAddress, "alice@example.com")
             XCTAssertEqual(restored.providerSummary, "alice@example.com")
+            XCTAssertEqual(restored.storageSummary, "Orgenda")
             XCTAssertEqual(restored.identity, original.identity)
             XCTAssertEqual(restored.credentialKey, "saved-key")
         }
@@ -37,51 +38,29 @@ final class CloudBackendTests: XCTestCase {
         }
     }
 
-    func testExplicitEmailSurvivesPersistenceIndependentlyOfAccountName() throws {
-        let connection = StorageConnection(provider: .googleDrive, displayName: "Google Drive · Orgenda",
-            accountID: "account-123", accountName: "old@example.com", accountEmail: " new@example.com ", rootID: "root")
-        let restored = try JSONDecoder().decode(StorageConnection.self, from: JSONEncoder().encode(connection))
-        XCTAssertEqual(restored.emailAddress, "new@example.com")
-        XCTAssertEqual(restored.providerSummary, "new@example.com")
-        XCTAssertEqual(restored.storageSummary, "Orgenda")
-        XCTAssertEqual(restored.identity, connection.identity)
-    }
-
-    func testOneDriveReadsOnlyEmailFromProfile() async throws {
-        StorageMockURLProtocol.handler = { request in
-            XCTAssertEqual(request.url?.path, "/v1.0/me")
-            let fields = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems
-            XCTAssertEqual(fields?.first(where: { $0.name == "$select" })?.value, "mail")
-            return .json(["mail": "alice@example.com", "displayName": "Alice", "userPrincipalName": "alice@tenant.example"])
+    func testOneDriveReadsOnlyExplicitProfileMail() async throws {
+        for mail in ["alice@example.com", nil] {
+            StorageMockURLProtocol.handler = { request in
+                XCTAssertEqual(request.url?.path, "/v1.0/me")
+                let fields = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems
+                XCTAssertEqual(fields?.first(where: { $0.name == "$select" })?.value, "mail")
+                return .json(["mail": mail as Any? ?? NSNull(), "displayName": "Alice", "userPrincipalName": "alice@tenant.example"])
+            }
+            let client = CloudHTTPClient(transport: transport, tokens: TestTokenSource(), allowedHosts: ["graph.microsoft.com"])
+            let email = try await CloudConnectionFactory.oneDriveAccountEmail(client: client)
+            XCTAssertEqual(email, mail)
         }
-        let client = CloudHTTPClient(transport: transport, tokens: TestTokenSource(), allowedHosts: ["graph.microsoft.com"])
-        let email = try await CloudConnectionFactory.oneDriveAccountEmail(client: client)
-        XCTAssertEqual(email, "alice@example.com")
     }
 
-    func testOneDriveMissingMailDoesNotFallBackToPrincipalName() async throws {
-        StorageMockURLProtocol.handler = { _ in
-            .json(["mail": NSNull(), "displayName": "Alice", "userPrincipalName": "alice@tenant.example"])
+    func testResponseLimitRejectsAdvertisedAndStreamedOversizedBodies() async throws {
+        for reply in [StorageMockURLProtocol.Reply(body: Data(repeating: 42, count: 4096)),
+                      .init(headers: ["Content-Length": "5000"])] {
+            StorageMockURLProtocol.handler = { _ in reply }
+            do {
+                _ = try await transport.send(URLRequest(url: URL(string: "https://dav.example/test")!), maxBytes: 512)
+                XCTFail("Oversized response accepted")
+            } catch { XCTAssertEqual(error as? StorageError, .tooLarge) }
         }
-        let client = CloudHTTPClient(transport: transport, tokens: TestTokenSource(), allowedHosts: ["graph.microsoft.com"])
-        let email = try await CloudConnectionFactory.oneDriveAccountEmail(client: client)
-        XCTAssertNil(email)
-    }
-
-    func testResponseBodyLimitIsEnforcedWithoutContentLength() async throws {
-        StorageMockURLProtocol.handler = { _ in .init(body: Data(repeating: 42, count: 4096)) }
-        do {
-            _ = try await transport.send(URLRequest(url: URL(string: "https://dav.example/test")!), maxBytes: 512)
-            XCTFail("An unbounded response was accepted")
-        } catch { XCTAssertEqual(error as? StorageError, .tooLarge) }
-    }
-
-    func testDeclaredResponseLengthIsRejectedBeforeReading() async throws {
-        StorageMockURLProtocol.handler = { _ in .init(headers: ["Content-Length": "5000"], body: Data()) }
-        do {
-            _ = try await transport.send(URLRequest(url: URL(string: "https://dav.example/test")!), maxBytes: 512)
-            XCTFail("Oversized content-length was accepted")
-        } catch { XCTAssertEqual(error as? StorageError, .tooLarge) }
     }
 
     func testRetryAfterSecondsAndHTTPDateBecomeBackoff() throws {

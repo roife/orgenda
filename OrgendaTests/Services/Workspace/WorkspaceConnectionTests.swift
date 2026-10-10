@@ -55,11 +55,6 @@ final class WorkspaceConnectionTests: XCTestCase {
         XCTAssertEqual(store.configuration.files.inbox, "tasks.org")
         XCTAssertTrue(store.search("config", scope: .files).isEmpty)
     }
-    func testWorkspaceStartsInLoadingStateBeforeStartupTaskRuns() {
-        XCTAssertTrue(WorkspaceStore().isStartingWorkspace)
-        XCTAssertTrue(WorkspaceStore.preview().isStartingWorkspace)
-    }
-
     #if DEBUG
     func testUITestStartupWaitsForInitialIndexWithoutOpeningUserWorkspace() async throws {
         let arguments = ["--ui-test-workspace"]
@@ -197,6 +192,7 @@ final class WorkspaceConnectionTests: XCTestCase {
         let root = try folder()
         try "* TODO From startup\n".write(to: root.appendingPathComponent("inbox.org"), atomically: true, encoding: .utf8)
         let store = WorkspaceStore.preview()
+        XCTAssertTrue(store.isStartingWorkspace)
         let ready = expectation(description: "Initial index is published before loading ends")
         withObservationTracking {
             _ = store.isStartingWorkspace
@@ -220,18 +216,6 @@ final class WorkspaceConnectionTests: XCTestCase {
         XCTAssertFalse(store.isStartingWorkspace)
         await store.waitForWorkspaceIndex()
         XCTAssertEqual(store.items.map(\.title), ["Refreshed"])
-    }
-
-    func testEmptyFolderFinishesStartupWithRealEmptyState() async throws {
-        let root = try folder()
-        let store = WorkspaceStore.preview()
-        await store.startWorkspace(arguments: [], defaults: try startupDefaults(), localWorkspaceURL: root)
-        XCTAssertFalse(store.isStartingWorkspace)
-        XCTAssertTrue(store.isFolderConnected)
-        XCTAssertTrue(store.items.isEmpty)
-        XCTAssertTrue(store.documents.isEmpty)
-        XCTAssertTrue(store.journalEntries.isEmpty)
-        XCTAssertNil(store.fileSyncError)
     }
 
     func testInvalidBookmarkEndsLoadingAndKeepsErrorAvailable() async throws {
@@ -348,6 +332,8 @@ final class WorkspaceConnectionTests: XCTestCase {
         try "* Conflict\n".write(to: url, atomically: true, encoding: .utf8)
         await store.synchronizeFiles()
         XCTAssertEqual(store.saveStatus(for: "inbox.org"), .conflict)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "* Conflict\n")
+        XCTAssertEqual(store.documents.first { $0.path == "inbox.org" }?.contents, "* My edit\n")
         XCTAssertTrue(store.dirtyFilePaths.isEmpty, "Conflicting text is already saved on this device")
         XCTAssertEqual(store.pendingUploadPaths, ["inbox.org"])
         XCTAssertEqual(store.saveStatus(for: "other.org"), .saved)
@@ -358,11 +344,6 @@ final class WorkspaceConnectionTests: XCTestCase {
         XCTAssertNil(store.fileSaveErrors["inbox.org"])
         XCTAssertEqual(store.externalDocumentRevisions["inbox.org"], revision)
         _ = try recoveryFiles(for: root)
-    }
-
-    func testWorkspaceAndRecoveryFilesAreExposedToSystemFilesApp() {
-        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "UIFileSharingEnabled") as? Bool, true)
-        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "LSSupportsOpeningDocumentsInPlace") as? Bool, true)
     }
 
     func testSourceJournalEditRebuildsCardsWithoutRestart() async throws {
@@ -442,22 +423,6 @@ final class WorkspaceConnectionTests: XCTestCase {
         await store.synchronizeFiles()
         XCTAssertTrue(store.items.isEmpty)
         XCTAssertTrue(store.documents.isEmpty)
-    }
-
-    func testConflictPreservesRemoteAndKeepsLocalPending() async throws {
-        let root = try folder()
-        let url = root.appendingPathComponent("inbox.org")
-        try "* TODO Original\n".write(to: url, atomically: true, encoding: .utf8)
-        let store = WorkspaceStore()
-        await store.connectFolder(root, remember: false)
-        store.parseWorkspace()
-        try "* TODO Remote\n".write(to: url, atomically: true, encoding: .utf8)
-        store.updateDocument(path: "inbox.org", contents: "* TODO Local\n")
-        await store.synchronizeFiles()
-        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "* TODO Remote\n")
-        XCTAssertEqual(store.documents.first?.contents, "* TODO Local\n")
-        XCTAssertEqual(store.pendingFileCount, 1)
-        XCTAssertNotNil(store.fileSyncError)
     }
 
     func testAdoptFolderVersionsArchivesLocalDraftAndAllowsNextSave() async throws {

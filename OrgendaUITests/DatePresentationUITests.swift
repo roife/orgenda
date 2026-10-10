@@ -2,11 +2,7 @@ import XCTest
 
 final class DatePresentationUITests: XCTestCase {
     func testYearMonthTapSelectsMonthAndKeepsResizeWorking() throws {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp()
         app.tabBars.buttons["Calendar"].tap()
         app.dragCalendarHandle(by: 347)
         XCTAssertEqual(app.calendarDensityHandle.value as? String, "Year")
@@ -48,11 +44,7 @@ final class DatePresentationUITests: XCTestCase {
     }
 
     func testCalendarHandleResizesThroughWeekMonthAndYear() throws {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp()
         app.tabBars.buttons["Calendar"].tap()
 
         let handle = app.calendarDensityHandle
@@ -82,10 +74,7 @@ final class DatePresentationUITests: XCTestCase {
         XCTAssertEqual(handle.value as? String, "Year")
         XCTAssertGreaterThan(handle.frame.midY, monthY + 70)
         XCTAssertTrue(app.scrollViews["orgenda.agenda.timeline"].isHittable)
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Calendar year expanded with drag handle"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
+        attachScreenshot("Calendar year expanded with drag handle", screenshot: app.screenshot())
 
         let years = app.scrollViews["orgenda.calendar.years"]
         XCTAssertTrue(years.waitForExistence(timeout: 3))
@@ -116,11 +105,7 @@ final class DatePresentationUITests: XCTestCase {
     }
 
     func testCalendarJournalPagingKeepsDateAndCapturesOnSelectedDay() throws {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--demo-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
-        defer { app.terminate() }
+        let app = launchTestApp()
 
         XCTAssertFalse(app.tabBars.buttons["Journal"].exists)
         app.tabBars.buttons["Calendar"].tap()
@@ -170,10 +155,7 @@ final class DatePresentationUITests: XCTestCase {
         XCTAssertTrue(journal.staticTexts["Calendar journal capture"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons[anotherID].isSelected)
 
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Calendar journal timeline for selected day"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
+        attachScreenshot("Calendar journal timeline for selected day", screenshot: app.screenshot())
 
         app.buttons[todayID].tap()
         XCTAssertTrue(journal.staticTexts["Morning note"].waitForExistence(timeout: 3))
@@ -199,11 +181,7 @@ final class DatePresentationUITests: XCTestCase {
     }
 
     func testCalendarDateSelectionAtAccessibilitySize() {
-        verifyDatePresentation(contentSize: "UICTContentSizeCategoryAccessibilityXXXL")
-    }
-
-    func testCalendarDateSelectionInDarkAppearance() {
-        verifyDatePresentation(appearance: "Dark")
+        verifyDatePresentation(contentSize: "UICTContentSizeCategoryAccessibilityXXXL", appearance: "Dark")
     }
 
     private func verifyDatePresentation(contentSize: String? = nil, appearance: String = "Light") {
@@ -284,10 +262,7 @@ final class DatePresentationUITests: XCTestCase {
         app.buttons["orgenda.calendar.today"].tap()
         XCTAssertTrue(app.buttons["orgenda.calendar.day.\(todayKey)"].isSelected)
         XCTAssertEqual(calendarHeading.label, todayHeadingLabel)
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "Calendar date header and separate Search tab - \(contentSize ?? appearance)"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        attachScreenshot("Calendar date header and separate Search tab - \(contentSize ?? appearance)", screenshot: app.screenshot())
 
         if contentSize != nil {
             verifyAccessibleMonthSelection(app, calendar: calendar, today: today, formatter: formatter)
@@ -317,10 +292,7 @@ final class DatePresentationUITests: XCTestCase {
         XCTAssertTrue(lastDateButton.isSelected)
         XCTAssertTrue(app.scrollViews["orgenda.agenda.timeline"].isHittable)
 
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Month date strip at largest accessibility size"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
+        attachScreenshot("Month date strip at largest accessibility size", screenshot: app.screenshot())
     }
 }
 
@@ -387,10 +359,7 @@ final class ChineseLocalizationUITests: XCTestCase {
     }
 
     private func attach(_ app: XCUIApplication, name: String) {
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = name
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
+        attachScreenshot(name, screenshot: app.screenshot())
     }
 }
 

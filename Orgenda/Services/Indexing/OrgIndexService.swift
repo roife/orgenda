@@ -172,22 +172,9 @@ actor OrgIndexService {
             return Int(timestamp[range])
         }
 
-        var components = DateComponents()
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .autoupdatingCurrent
-        components.calendar = calendar
-        components.timeZone = .autoupdatingCurrent
-        components.year = integer(1)
-        components.month = integer(2)
-        components.day = integer(3)
-        components.hour = integer(4) ?? 0
-        components.minute = integer(5) ?? 0
-        guard let date = components.date else { return nil }
-        let validated = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
-        guard validated.year == components.year, validated.month == components.month,
-              validated.day == components.day, validated.hour == components.hour,
-              validated.minute == components.minute else { return nil }
-        return date
+        guard let year = integer(1), let month = integer(2), let day = integer(3) else { return nil }
+        return Date.orgTimestamp(year: year, month: month, day: day,
+                                 hour: integer(4) ?? 0, minute: integer(5) ?? 0)
     }
 
     private static func timestampDuration(_ timestamp: String, hasTime: Bool) -> Int {

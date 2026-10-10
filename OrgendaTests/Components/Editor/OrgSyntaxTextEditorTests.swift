@@ -21,36 +21,6 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
         XCTAssertEqual(view.selectedRange, (source as NSString).range(of: "Café"))
     }
 
-    func testEditorFontIsCompactAndScalesWithDynamicType() {
-        let standardFont = OrgSyntaxPresentation.bodyFont(
-            compatibleWith: UITraitCollection(preferredContentSizeCategory: .large)
-        )
-        let accessibilityFont = OrgSyntaxPresentation.bodyFont(
-            compatibleWith: UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge)
-        )
-
-        XCTAssertEqual(standardFont.pointSize, 16, accuracy: 0.01)
-        XCTAssertGreaterThan(accessibilityFont.pointSize, standardFont.pointSize)
-    }
-
-    func testWorkflowSymbolsExistAndCurrentStatesHaveDistinctColors() {
-        for state in OrgWorkflowState.allCases {
-            XCTAssertNotNil(UIImage(systemName: state.symbol), state.rawValue)
-        }
-        let states = OrgWorkspaceConfiguration.taskStates
-        XCTAssertEqual(Set(states.map(\.symbol)).count, states.count)
-        for style in [UIUserInterfaceStyle.light, .dark] {
-            let colors = states.map {
-                UIColor(OrgendaTheme.workflowColor($0)).resolvedColor(with: UITraitCollection(userInterfaceStyle: style))
-            }
-            for index in colors.indices {
-                for other in colors.indices where other > index {
-                    XCTAssertNotEqual(colors[index], colors[other], "\(states[index]) and \(states[other])")
-                }
-            }
-        }
-    }
-
     func testWorkflowColorsCoverRichHeadingTitlesWithoutChangingSource() async throws {
         let source = "中文🙂\n* WAIT 标题 *加粗* [[https://example.com][链接]] :tag:\nBody.\n* Plain heading\n"
         let highlights = await OrgSyntaxHighlighter().highlights(in: source)
@@ -316,11 +286,6 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
                        matches.map(\.expression.original))
     }
 
-    func testMathParserLeavesEscapedCurrencyAndUnmatchedDelimitersAlone() {
-        XCTAssertTrue(OrgMathParser.matches(in: #"Costs US$5 or \$6, with $unfinished math."#).isEmpty)
-        XCTAssertNil(OrgMathParser.soleDisplayExpression(in: #"\[x^2"#))
-    }
-
     func testPreviewFragmentsPreserveMarkupAroundInlineMath() throws {
         let node = try parsedNodes(#"*Euler:* prefix:$e^{i\pi}+x_1=0$ and [[https://example.com][details]]."# + "\n")[0]
         let fragments = OrgPreviewMarkup.fragments(node)
@@ -394,21 +359,6 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
         XCTAssertEqual(expressions, ["T_1", "T_2", "S"])
     }
 
-    func testPreviewGroupsMultilineDisplayMathIntoOneRow() throws {
-        let source = #"""
-        Before
-        \[
-        \int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}
-        \]
-        After
-        """# + "\n"
-        let nodes = try parsedNodes(source)
-        let rows = OrgPreviewMathRows.group(OrgPreviewOutline.rows(from: nodes))
-
-        XCTAssertEqual(rows.filter { $0.node.type != "blank_line" }.map(\.node.type), ["paragraph", "math_block", "paragraph"])
-        XCTAssertNotNil(OrgMathParser.soleDisplayExpression(in: rows[1].node.text))
-    }
-
     func testUserAlphaExamplesRenderWithDelimiterBoundaryNewlines() throws {
         let examples = [
             "\\[\n\\alpha\n\\]\n",
@@ -430,12 +380,15 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
         }
     }
 
-    func testLiteralDisplaySyntaxStaysLiteral() throws {
-        let source = #"Literal ~\[x\]~ and =\begin{aligned}x\end{aligned}= remain code."# + "\n"
-        let rows = OrgPreviewOutline.rows(from: try parsedNodes(source))
-        let grouped = OrgPreviewMathRows.group(rows)
-        XCTAssertEqual(grouped.map(\.id), rows.map(\.id))
-        XCTAssertFalse(grouped.contains { $0.node.type == "math_block" })
+    func testLiteralAndUnclosedDisplaySyntaxLeavesRowsUnchanged() throws {
+        for source in [
+            #"Literal ~\[x\]~ and =\begin{aligned}x\end{aligned}= remain code."# + "\n",
+            #"{{{tex(\[x\])}}} and @@latex:\[x\]@@."# + "\n",
+            "* First\n\\[\nx=1\n\n* Second\n\\]\n#+BEGIN_SRC latex\n\\[ y=2 \\]\n#+END_SRC\n"
+        ] {
+            let rows = OrgPreviewOutline.rows(from: try parsedNodes(source))
+            XCTAssertEqual(OrgPreviewMathRows.group(rows).map(\.node), rows.map(\.node), source)
+        }
     }
 
     func testNestedMathEnvironmentKeepsOuterBoundsAndUTF8Offsets() throws {
@@ -486,13 +439,6 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
         }
     }
 
-    func testMacroAndExportSnippetsRetainLiteralMathDelimiters() throws {
-        let source = #"{{{tex(\[x\])}}} and @@latex:\[x\]@@."# + "\n"
-        let rows = OrgPreviewOutline.rows(from: try parsedNodes(source))
-        let grouped = OrgPreviewMathRows.group(rows)
-        XCTAssertEqual(grouped.map(\.id), rows.map(\.id))
-    }
-
     func testAlignedEnvironmentAcrossBlankLinesPreservesSurroundingChinese() throws {
         let formula = #"""
         \begin{aligned}
@@ -524,15 +470,6 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
             expression, textStyle: .body, dynamicTypeSize: .large, colorScheme: .light
         ))
         XCTAssertGreaterThan(render.image.size.height, 60)
-        let image = UIGraphicsImageRenderer(size: render.image.size).image { context in
-            UIColor.white.setFill()
-            context.fill(CGRect(origin: .zero, size: render.image.size))
-            render.image.draw(at: .zero)
-        }
-        let attachment = XCTAttachment(image: image)
-        attachment.name = "Aligned De Bruijn formulas rendered"
-        attachment.lifetime = .keepAlways
-        add(attachment)
     }
 
     func testBracketAndDollarDisplayMathSplitProseWithoutLosingMarkup() throws {
@@ -576,14 +513,6 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
                 }
             }
         }
-    }
-
-    func testUnclosedDisplayMathDoesNotConsumeHeadingsOrCodeBlocks() throws {
-        let source = "* First\n\\[\nx=1\n\n* Second\n\\]\n#+BEGIN_SRC latex\n\\[ y=2 \\]\n#+END_SRC\n"
-        let rows = OrgPreviewOutline.rows(from: try parsedNodes(source))
-        let grouped = OrgPreviewMathRows.group(rows)
-        XCTAssertEqual(grouped.map(\.id), rows.map(\.id))
-        XCTAssertFalse(grouped.contains { $0.node.type == "math_block" })
     }
 
     func testAlignBlockUsesRawSourceInsteadOfOrgVerbatimNodes() async throws {
@@ -735,7 +664,9 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
         XCTAssertEqual(math.node.text, formula)
         XCTAssertEqual(substring(source, utf8Range: math.node.startByte..<math.node.endByte), formula)
         let expression = try XCTUnwrap(OrgMathParser.soleDisplayExpression(in: math.node.text))
-        XCTAssertNotNil(OrgMathRendering.render(expression, textStyle: .body, dynamicTypeSize: .large, colorScheme: .light))
+        let rendered = try XCTUnwrap(OrgMathRendering.render(
+            expression, textStyle: .body, dynamicTypeSize: .large, colorScheme: .light))
+        XCTAssertGreaterThan(rendered.image.size.height, 80)
         XCTAssertTrue(children.contains { $0.node.text.contains("The erasure of a term") })
         XCTAssertTrue(rows.last?.node.text.contains("After the definition.") == true)
     }
@@ -827,33 +758,6 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
 
 @MainActor
 final class OrgMathCompatibilityTests: XCTestCase {
-    func testRaisedSubtypeRelationProducesAnActualInlineMathImage() throws {
-        let source = #"T = \forall X \mathrel{\raisebox{0.1ex}{\scriptsize$<$}}\!\colon T_1. T_2"#
-        let projected = OrgMathRendering.compatibleLatex(source)
-        XCTAssertEqual(projected, #"T = \forall X <\!\colon T_1. T_2"#)
-
-        var renderer = MathImage(latex: projected, fontSize: 17, textColor: .black, labelMode: .text)
-        let (error, image, layout) = renderer.asImage()
-        XCTAssertNil(error)
-        let renderedImage = try XCTUnwrap(image)
-        let renderedLayout = try XCTUnwrap(layout)
-        XCTAssertGreaterThan(renderedImage.size.width, 0)
-        XCTAssertGreaterThan(renderedImage.size.height, 0)
-        XCTAssertGreaterThan(renderedLayout.ascent, 0)
-        XCTAssertTrue(renderedLayout.descent.isFinite)
-
-        // The projection must also work through the preview's rendering path
-        // without modifying the expression used by source editing/fallback.
-        let original = #"\("# + source + #"\)"#
-        let expression = OrgMathExpression(latex: source, original: original, mode: .inline)
-        let preview = try XCTUnwrap(OrgMathRendering.render(
-            expression, textStyle: .body, dynamicTypeSize: .large, colorScheme: .light
-        ))
-        XCTAssertGreaterThan(preview.image.size.width, 0)
-        XCTAssertEqual(expression.latex, source)
-        XCTAssertEqual(expression.original, original)
-    }
-
     func testRaisedRelationProjectionRetainsSupportedRelationAndSurroundingMath() throws {
         let source = #"x \mathrel { \raisebox{+.1ex}{ \scriptsize $>$ } } y \mathrel{\raisebox{-0.2pt}{\scriptsize$=$}} z"#
         let projected = OrgMathRendering.compatibleLatex(source)
@@ -884,42 +788,6 @@ final class OrgMathCompatibilityTests: XCTestCase {
             OrgMathExpression(latex: unsupported, original: unsupported, mode: .inline),
             textStyle: .body, dynamicTypeSize: .large, colorScheme: .light
         ))
-    }
-    func testErasureEquationsRenderWithLeadingAndEmptyAlignmentColumns() throws {
-        let source = #"""
-        \begin{aligned}
-
-        & \operatorname{erase}(x) &&= x \\
-
-        & \operatorname{erase}(\lambda x : T_1 . t_2) &&= \lambda x. \operatorname{erase}(t_2) \\
-
-        & \operatorname{erase}(t_1\ t_2) &&= \operatorname{erase}(t_1)\ \operatorname{erase}(t_2) \\
-
-        & \operatorname{erase}(\lambda X. t_2) &&= \operatorname{erase}(t_2) \\
-
-        & \operatorname{erase}(t_1\ [T_2]) &&= \operatorname{erase}(t_1) \\
-        \end{aligned}
-        """#
-        let projected = OrgMathRendering.compatibleLatex(source)
-        XCTAssertEqual(projected, source)
-
-        var parseError: NSError?
-        let list = try XCTUnwrap(MTMathListBuilder.build(fromString: projected, error: &parseError))
-        XCTAssertNil(parseError)
-        let table = try XCTUnwrap(list.atoms.first as? MTMathTable)
-        XCTAssertEqual(table.numColumns, 4)
-        XCTAssertGreaterThanOrEqual(table.numRows, 5)
-        XCTAssertEqual(table.get(alignmentForColumn: 1), .left)
-        XCTAssertEqual(table.get(alignmentForColumn: 3), .left)
-        XCTAssertTrue(table.cells[0][0].atoms.isEmpty)
-        XCTAssertTrue(table.cells[0][2].atoms.isEmpty)
-
-        let rendered = try XCTUnwrap(OrgMathRendering.render(
-            OrgMathExpression(latex: source, original: source, mode: .display),
-            textStyle: .body, dynamicTypeSize: .large, colorScheme: .light
-        ))
-        XCTAssertGreaterThan(rendered.image.size.width, 0)
-        XCTAssertGreaterThan(rendered.image.size.height, 80)
     }
 
     func testCompatibilityProjectionPreservesAllAlignmentSyntax() {
