@@ -9,7 +9,6 @@ extension WorkspaceStore {
             remoteContents: "* TODO Prepare weekly meeting\nOutline discussion topics.\n", remoteRevision: "fixture-revision",
             detectedAt: .now, remoteModifiedAt: .now.addingTimeInterval(-120))]
         pendingUploadPaths = ["notes.org"]
-        pendingFileCount = 1
         syncState = .conflict(1)
         fileSyncError = String(localized: "Resolve the conflicting files to finish syncing.")
         lastFileSync = .now.addingTimeInterval(-300)

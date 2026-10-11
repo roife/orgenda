@@ -5,76 +5,73 @@ import OrgTreeSitter
 /// Reconstructs journal cards from their saved source without depending on a
 /// particular year or on the lifetime of the workspace store.
 enum JournalFileIndex {
-    static func entries(in documents: [WorkspaceDocument], directory: String = "journal") -> [JournalEntry] {
-        let parser = OrgParser()
+    /// Extract cards from the tree already parsed for this document.
+    static func entries(in document: WorkspaceDocument, root: OrgSyntaxNode,
+                        directory: String = "journal") -> [JournalEntry] {
+        guard document.path.hasPrefix(directory + "/")
+            || (directory == "journal" && document.path.split(separator: "/").dropLast().contains(where: {
+                $0.lowercased() == "journal"
+            })) else { return [] }
         var entries: [JournalEntry] = []
         var occurrences: [String: Int] = [:]
 
-        for document in documents.sorted(by: { $0.path < $1.path }) {
-            guard document.kind == .org,
-                  (document.path.hasPrefix(directory + "/") || (directory == "journal" && document.path.split(separator: "/").dropLast().contains(where: {
-                      $0.lowercased() == "journal"
-                  })))
-            else { continue }
+        let bytes = Array(document.contents.utf8)
+        let headings = root.namedChildren
+            .filter { $0.type == "heading" }
+            .map { node in
+                Heading(
+                    level: node.text.prefix(while: { $0 == "*" }).count,
+                    title: String(node.text.drop(while: { $0 == "*" }))
+                        .trimmingCharacters(in: .whitespacesAndNewlines),
+                    startByte: Int(node.startByte), endByte: Int(node.endByte),
+                    startLine: Int(node.startPoint.row) + 1
+                )
+            }
+        let filename = URL(fileURLWithPath: document.path).deletingPathExtension().lastPathComponent
+        let filenameDay = Day(filename: filename)
 
-            let bytes = Array(document.contents.utf8)
-            let headings = parser.parse(document.contents).rootNode.namedChildren
-                .filter { $0.type == "heading" }
-                .map { node in
-                    Heading(
-                        level: node.text.prefix(while: { $0 == "*" }).count,
-                        title: String(node.text.drop(while: { $0 == "*" }))
-                            .trimmingCharacters(in: .whitespacesAndNewlines),
-                        startByte: Int(node.startByte), endByte: Int(node.endByte),
-                        startLine: Int(node.startPoint.row) + 1
-                    )
-                }
-            let filename = URL(fileURLWithPath: document.path).deletingPathExtension().lastPathComponent
-            let filenameDay = Day(filename: filename)
+        func append(day: Day, title: String, bodyStart: Int, sourceStart: Int, end: Int, line: Int) {
+            let body = String(decoding: bytes[bodyStart..<end], as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let (date, displayTitle) = day.entry(title: title)
+            let identity = "\(document.path)\u{0}\(day.key)\u{0}\(title)"
+            let occurrence = occurrences[identity, default: 0]
+            occurrences[identity] = occurrence + 1
+            entries.append(JournalEntry(
+                id: stableID("\(identity)\u{0}\(occurrence)"),
+                date: date, title: displayTitle, body: body,
+                source: SourceLocation(
+                    file: document.path, startByte: sourceStart, endByte: end, startLine: line
+                )
+            ))
+        }
 
-            func append(day: Day, title: String, bodyStart: Int, sourceStart: Int, end: Int, line: Int) {
-                let body = String(decoding: bytes[bodyStart..<end], as: UTF8.self)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                let (date, displayTitle) = day.entry(title: title)
-                let identity = "\(document.path)\u{0}\(day.key)\u{0}\(title)"
-                let occurrence = occurrences[identity, default: 0]
-                occurrences[identity] = occurrence + 1
-                entries.append(JournalEntry(
-                    id: stableID("\(identity)\u{0}\(occurrence)"),
-                    date: date, title: displayTitle, body: body,
-                    source: SourceLocation(
-                        file: document.path, startByte: sourceStart, endByte: end, startLine: line
-                    )
-                ))
+        var currentDay = filenameDay
+        for (index, heading) in headings.enumerated() {
+            if heading.level == 1 {
+                currentDay = Day(heading: heading.title) ?? filenameDay
+            }
+            guard let day = currentDay, heading.level <= 2 else { continue }
+            let following = headings.dropFirst(index + 1)
+            let end = following.first(where: { $0.level <= heading.level })?.startByte ?? bytes.count
+
+            if heading.level == 1 {
+                // A day heading groups its level-two entries. Its source is
+                // only a card when the day has body text and no such entries.
+                guard !following.prefix(while: { $0.level > 1 }).contains(where: { $0.level == 2 }),
+                      !String(decoding: bytes[heading.endByte..<end], as: UTF8.self)
+                        .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                else { continue }
             }
 
-            var currentDay = filenameDay
-            for (index, heading) in headings.enumerated() {
-                if heading.level == 1 {
-                    currentDay = Day(heading: heading.title) ?? filenameDay
-                }
-                guard let day = currentDay, heading.level <= 2 else { continue }
-                let following = headings.dropFirst(index + 1)
-                let end = following.first(where: { $0.level <= heading.level })?.startByte ?? bytes.count
+            append(day: day, title: heading.title, bodyStart: heading.endByte,
+                   sourceStart: heading.startByte, end: end, line: heading.startLine)
+        }
 
-                if heading.level == 1 {
-                    // A day heading groups its level-two entries. Its source is
-                    // only a card when the day has body text and no such entries.
-                    guard !following.prefix(while: { $0.level > 1 }).contains(where: { $0.level == 2 }),
-                          !String(decoding: bytes[heading.endByte..<end], as: UTF8.self)
-                            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    else { continue }
-                }
-
-                append(day: day, title: heading.title, bodyStart: heading.endByte,
-                       sourceStart: heading.startByte, end: end, line: heading.startLine)
-            }
-
-            if headings.isEmpty, let day = filenameDay,
-               !document.contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                append(day: day, title: document.title, bodyStart: 0,
-                       sourceStart: 0, end: bytes.count, line: 1)
-            }
+        if headings.isEmpty, let day = filenameDay,
+           !document.contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            append(day: day, title: document.title, bodyStart: 0,
+                   sourceStart: 0, end: bytes.count, line: 1)
         }
         return entries
     }

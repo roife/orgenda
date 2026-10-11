@@ -5,9 +5,6 @@ extension OrgAgendaPerspective {
         usesEmacsConfiguration ? allCases.filter { $0 != .agenda } : [.overdue, .todos]
     }
 
-    static let browsingViews: [Self] = [.dashboard, .overdue, .todos]
-    static let taskViews: [Self] = [.urgent, .next, .waiting, .projects, .someday]
-
     var title: String {
         switch self {
         case .agenda: String(localized: "Calendar")

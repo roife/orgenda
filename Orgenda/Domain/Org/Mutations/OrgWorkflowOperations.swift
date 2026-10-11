@@ -44,12 +44,12 @@ enum OrgWorkflowOperations {
     }
 
     static func requiresNote(from: OrgWorkflowState, to: OrgWorkflowState) -> Bool {
-        from != to && (to.enterLog == .note || from.leaveLog == .note)
+        from.rawValue != to.rawValue && (to.enterLog == .note || from.leaveLog == .note)
     }
 
     static func normalized(_ item: OrgItem, replacing original: OrgItem, now: Date = Date()) -> OrgItem {
         var item = item
-        if original.state != item.state {
+        if original.state.rawValue != item.state.rawValue {
             if item.state.isTerminal { item.closed = now }
             else if original.state.isTerminal { item.closed = nil }
         }
@@ -65,7 +65,7 @@ enum OrgWorkflowOperations {
         logging: WorkspaceConfiguration.Logging = .init(done: .time, reschedule: .time, redeadline: .time)
     ) throws -> String {
         let cleanNote = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let doneLog = original.state != item.state && item.state.isTerminal ? logging.done : .none
+        let doneLog = original.state.rawValue != item.state.rawValue && item.state.isTerminal ? logging.done : .none
         let dateNote = (original.scheduled != item.scheduled && logging.reschedule == .note)
             || (original.deadline != item.deadline && logging.redeadline == .note)
         if (requiresNote(from: original.state, to: item.state) || doneLog == .note || dateNote), cleanNote.isEmpty {
@@ -79,7 +79,7 @@ enum OrgWorkflowOperations {
             let text = $0.trimmingCharacters(in: .whitespaces)
             return "  " + (text.uppercased() == ":END:" ? "," + $0 : $0)
         }.joined(separator: "\n")
-        if original.state != item.state,
+        if original.state.rawValue != item.state.rawValue,
            item.state.enterLog != .none || original.state.leaveLog != .none || doneLog != .none {
             var entry = "- State \"\(item.state.rawValue)\" from \"\(original.state.rawValue)\" \(stamp)"
             if !cleanNote.isEmpty {

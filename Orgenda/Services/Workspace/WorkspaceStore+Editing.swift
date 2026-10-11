@@ -71,20 +71,21 @@ extension WorkspaceStore {
 
         // Repair source locations from the current document before rebasing all
         // items. A second quick edit can then resolve even before indexing finishes.
-        for index in items.indices where items[index].source.file == original.source.file {
-            let matches = resolved.document.headings.filter { $0.title == items[index].title }
-            if let heading = matches.first(where: { $0.source.startByte == items[index].source.startByte })
+        var nextItems = items
+        for index in nextItems.indices where nextItems[index].source.file == original.source.file {
+            let matches = resolved.document.headings.filter { $0.title == nextItems[index].title }
+            if let heading = matches.first(where: { $0.source.startByte == nextItems[index].source.startByte })
                 ?? (matches.count == 1 ? matches.first : nil) {
-                items[index].source = heading.source
+                nextItems[index].source = heading.source
             }
         }
         let source = resolved.heading.source
-        items[itemIndex] = item
-        items[itemIndex].source = source
-        rebaseItemSources(in: original.source.file, through: edits, contents: contents)
+        nextItems[itemIndex] = item
+        nextItems[itemIndex].source = source
+        rebaseItemSources(&nextItems, in: original.source.file, through: edits, contents: contents)
         if logInsertionDelta != 0 {
-            let headingStart = items[itemIndex].source.startByte
-            updateItemSources(in: original.source.file, contents: contents) { source in
+            let headingStart = nextItems[itemIndex].source.startByte
+            Self.updateItemSources(&nextItems, in: original.source.file, contents: contents) { source in
                 if source.startByte > headingStart {
                     source.startByte += logInsertionDelta
                 }
@@ -93,6 +94,7 @@ extension WorkspaceStore {
                 }
             }
         }
+        items = nextItems
         documents[documentIndex].contents = contents
         operationError = nil
         scheduleWorkspaceRefresh(changedPaths: [original.source.file])
@@ -151,7 +153,6 @@ extension WorkspaceStore {
                 documents = beforeDocuments
                 items = beforeItems
                 dirtyFilePaths = beforeDirtyPaths
-                pendingFileCount = beforeDirtyPaths.count
                 fileSaveTask?.cancel()
                 resetWorkspaceIndex()
                 scheduleWorkspaceRefresh(changedPaths: beforeIndexPaths.union([updated.source.file]), saveFiles: false)
@@ -186,9 +187,11 @@ extension WorkspaceStore {
             operationError = String(localized: "The event changed. Reopen it before completing this occurrence.")
             return
         }
-        items[itemIndex] = updated
-        items[itemIndex].source = resolved.heading.source
-        rebaseItemSources(in: original.source.file, through: edits, contents: contents)
+        var nextItems = items
+        nextItems[itemIndex] = updated
+        nextItems[itemIndex].source = resolved.heading.source
+        rebaseItemSources(&nextItems, in: original.source.file, through: edits, contents: contents)
+        items = nextItems
         documents[documentIndex].contents = contents
         scheduleWorkspaceRefresh(changedPaths: [original.source.file])
     }
@@ -265,7 +268,7 @@ extension WorkspaceStore {
         guard let move = OrgHeadingMove.plan(in: document, headingID: headingID,
                                              targetID: targetID, placement: placement),
               let contents = try? move.mutation.applied(to: documents[index].contents) else { return nil }
-        updateItemSources(in: document.path, contents: contents) { source in
+        Self.updateItemSources(&items, in: document.path, contents: contents) { source in
             source = move.relocatedSource(source)
         }
         documents[index].contents = contents
@@ -408,8 +411,9 @@ extension WorkspaceStore {
         return lower
     }
 
-    private func rebaseItemSources(in path: String, through edits: [OrgSourceMutation], contents: String) {
-        updateItemSources(in: path, contents: contents) { source in
+    private func rebaseItemSources(_ items: inout [OrgItem], in path: String,
+                                   through edits: [OrgSourceMutation], contents: String) {
+        Self.updateItemSources(&items, in: path, contents: contents) { source in
             for edit in edits {
                 let delta = edit.replacement.utf8.count - (edit.endByte - edit.startByte)
                 if source.startByte >= edit.endByte {
@@ -422,7 +426,8 @@ extension WorkspaceStore {
         }
     }
 
-    private func updateItemSources(in path: String, contents: String, update: (inout SourceLocation) -> Void) {
+    private static func updateItemSources(_ items: inout [OrgItem], in path: String, contents: String,
+                                          update: (inout SourceLocation) -> Void) {
         let lineStarts = Self.lineStarts(in: contents)
         for index in items.indices where items[index].source.file == path {
             var source = items[index].source

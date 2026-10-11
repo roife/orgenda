@@ -18,7 +18,6 @@ struct AgendaView: View {
     let onShowInFile: (OrgItem) -> Void
     let onShowOverdue: () -> Void
     @Binding var perspective: Perspective
-    @Binding var navigationRequest: Perspective?
     var expectsConnectedWorkspace = false
     @State private var visitedPerspectives: Set<Perspective>
     @State private var editorItem: OrgItem?
@@ -34,7 +33,6 @@ struct AgendaView: View {
         onCapture: @escaping (Date?) -> Void,
         onShowInFile: @escaping (OrgItem) -> Void,
         onShowOverdue: @escaping () -> Void,
-        navigationRequest: Binding<Perspective?> = .constant(nil),
         expectsConnectedWorkspace: Bool = false
     ) {
         self.store = store
@@ -42,7 +40,6 @@ struct AgendaView: View {
         self.onCapture = onCapture
         self.onShowInFile = onShowInFile
         self.onShowOverdue = onShowOverdue
-        _navigationRequest = navigationRequest
         self.expectsConnectedWorkspace = expectsConnectedWorkspace
         _perspective = perspective
         _visitedPerspectives = State(initialValue: [perspective.wrappedValue])
@@ -151,12 +148,6 @@ struct AgendaView: View {
         }
         .onChange(of: perspective, initial: true) { _, option in
             visitedPerspectives.insert(option)
-        }
-        .task(id: navigationRequest) {
-            guard let requested = navigationRequest,
-                  availablePerspectives.contains(requested) else { return }
-            selectPerspective(requested)
-            navigationRequest = nil
         }
     }
 

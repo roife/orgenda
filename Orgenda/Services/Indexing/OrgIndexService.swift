@@ -4,10 +4,6 @@ import OrgTreeSitter
 actor OrgIndexService {
     private let parser = OrgParser()
 
-    func journalEntries(in documents: [WorkspaceDocument], directory: String = "journal") -> [JournalEntry] {
-        JournalFileIndex.entries(in: documents, directory: directory)
-    }
-
     func parse(_ documents: [WorkspaceDocument], configuration: WorkspaceConfiguration = .classic) -> [ParsedOrgDocument] {
         var parsed: [ParsedOrgDocument] = []
         parsed.reserveCapacity(documents.count)
@@ -36,23 +32,14 @@ actor OrgIndexService {
         guard document.kind == .org else { return nil }
         let tree = parser.parse(document.contents)
         let workflow = OrgConfiguredHeading.workflow(in: document.contents, base: configuration.workflow)
-        let root = OrgConfiguredHeading.normalize(snapshot(tree.rootNode, path: document.path), workflow: workflow)
+        let root = OrgConfiguredHeading.normalize(ParsedOrgNode(tree.rootNode, path: document.path), workflow: workflow)
         return ParsedOrgDocument(
             path: document.path,
             root: root,
             headings: indexHeadings(tree.rootNode.namedChildren, path: document.path, root: root, workflow: workflow),
-            hasError: tree.hasError
-        )
-    }
-
-    private static func snapshot(_ node: OrgSyntaxNode, path: String) -> ParsedOrgNode {
-        ParsedOrgNode(
-            id: "\(path):\(node.startByte):\(node.endByte):\(node.type)",
-            type: node.type,
-            text: node.text,
-            startByte: Int(node.startByte),
-            endByte: Int(node.endByte),
-            children: node.namedChildren.map { snapshot($0, path: path) }
+            hasError: tree.hasError,
+            journalEntries: JournalFileIndex.entries(in: document, root: tree.rootNode,
+                                                     directory: configuration.files.journal)
         )
     }
 
@@ -63,7 +50,7 @@ actor OrgIndexService {
 
         for (index, node) in blocks.enumerated() where node.type == "heading" {
             let following = blocks.dropFirst(index + 1).prefix { $0.type != "heading" }
-            let bodyBlocks = following.map { snapshot($0, path: path) }
+            let bodyBlocks = Array(root.children.dropFirst(index + 1).prefix { $0.type != "heading" })
             let planning = following.filter { $0.type == "planning" }.map(\.text).joined(separator: "\n")
             let body = OrgHeadingBody.editableNodes(in: bodyBlocks)
                 .map(\.text)

@@ -24,7 +24,7 @@ extension WorkspaceStore {
                 // A fixed dashboard follows the configured state sequence;
                 // there is no separate user-programmable query/view system.
                 return dates + configuration.workflow.states.filter { !$0.isTerminal }.map { state in
-                    OrgAgendaGroup(title: state.title, items: openTodos.filter { $0.state == state })
+                    OrgAgendaGroup(title: state.title, items: openTodos.filter { $0.state.rawValue == state.rawValue })
                 }
             }
             return []
@@ -40,10 +40,10 @@ extension WorkspaceStore {
             }
         }
         func group(_ title: String, state: OrgWorkflowState, paths: Set<String> = OrgWorkspaceConfiguration.actionPaths) -> OrgAgendaGroup {
-            OrgAgendaGroup(title: title, items: sorted(open.filter { $0.state == state && paths.contains($0.source.file) }), state: state)
+            OrgAgendaGroup(title: title, items: sorted(open.filter { $0.state.rawValue == state.rawValue && paths.contains($0.source.file) }), state: state)
         }
         let projects = OrgAgendaGroup(title: String(localized: "Projects"), items: sorted(open.filter {
-            $0.state == .todo && $0.tags.contains("project") && OrgWorkspaceConfiguration.projectPaths.contains($0.source.file)
+            $0.state.rawValue == "TODO" && $0.tags.contains("project") && OrgWorkspaceConfiguration.projectPaths.contains($0.source.file)
         }))
         switch perspective {
         case .dashboard:

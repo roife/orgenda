@@ -81,14 +81,13 @@ actor OrgSyntaxHighlighter {
         }
 
         // Replace hardcoded grammar metadata with configuration-aware ranges.
-        let document = WorkspaceDocument(path: "highlight.org", title: "", contents: source, kind: .org)
-        if let semantic = OrgIndexService.parseSynchronously([document], configuration: configuration).first {
-            result.removeAll { $0.kind == .todo || $0.kind == .priority }
-            for heading in semantic.root.children where heading.type == "heading" {
-                for child in heading.children where child.type == "todo_keyword" || child.type == "priority" {
-                    if let range = rangeMap.range(startByte: child.startByte, endByte: child.endByte) {
-                        result.append(OrgHighlightSpan(range: range, kind: child.type == "priority" ? .priority : .todo))
-                    }
+        let workflow = OrgConfiguredHeading.workflow(in: source, base: configuration.workflow)
+        result.removeAll { $0.kind == .todo || $0.kind == .priority }
+        for node in tree.rootNode.namedChildren where node.type == "heading" {
+            let heading = OrgConfiguredHeading.normalize(ParsedOrgNode(node, path: "highlight.org"), workflow: workflow)
+            for child in heading.children where child.type == "todo_keyword" || child.type == "priority" {
+                if let range = rangeMap.range(startByte: child.startByte, endByte: child.endByte) {
+                    result.append(OrgHighlightSpan(range: range, kind: child.type == "priority" ? .priority : .todo))
                 }
             }
         }

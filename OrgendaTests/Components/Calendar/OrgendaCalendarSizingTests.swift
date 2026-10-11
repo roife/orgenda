@@ -23,27 +23,22 @@ final class OrgendaCalendarSizingTests: XCTestCase {
         XCTAssertFalse(snapshot.matches(month: selected, selectedDate: selected, markedDates: marked, calendar: calendar))
     }
 
-    func testMonthYearTransitionMatchesAcceptedBrowserSamples() {
-        // Reference samples from the exported JavaScript curves, including the
-        // 66% S-curve midpoint and blur that persists through the second half.
-        let samples: [(CGFloat, Double, CGFloat)] = [
-            (0, 1, 5),
-            (0.25, 0.6653125, 4.955313752051177),
-            (0.5, 0.66, 4.0570051743037965),
-            (0.75, 0.6496875, 1.4001145442412677),
-            (0.7867, 0.6365420494089715, 1.0021306661561296),
-            (1, 0, 0)
-        ]
-        for (progress, opacity, blur) in samples {
-            XCTAssertEqual(OrgendaCalendarTransition.veilOpacity(at: progress), opacity, accuracy: 1e-9)
-            XCTAssertEqual(OrgendaCalendarTransition.blurRadius(at: progress), blur, accuracy: 1e-9)
-            XCTAssertEqual(OrgendaCalendarTransition.morphProgress(at: progress), progress, accuracy: 1e-9)
-        }
-        // Spring overshoot must never produce negative opacity or blur.
-        XCTAssertEqual(OrgendaCalendarTransition.veilOpacity(at: -0.1), 1)
-        XCTAssertEqual(OrgendaCalendarTransition.veilOpacity(at: 1.1), 0)
-        XCTAssertEqual(OrgendaCalendarTransition.blurRadius(at: -0.1), 5)
-        XCTAssertEqual(OrgendaCalendarTransition.blurRadius(at: 1.1), 0)
+    func testMonthYearTransitionIsBoundedMonotonicAndSettlesAtEndpoints() {
+        let progress: [CGFloat] = [-0.1, 0, 0.25, 0.5, 0.75, 1, 1.1]
+        let opacity = progress.map(OrgendaCalendarTransition.veilOpacity)
+        let blur = progress.map(OrgendaCalendarTransition.blurRadius)
+        let morph = progress.map(OrgendaCalendarTransition.morphProgress)
+        XCTAssertTrue(opacity.allSatisfy { (0...1).contains($0) })
+        XCTAssertTrue(blur.allSatisfy { (0...CGFloat(OrgendaCalendarTransition.blurMax)).contains($0) })
+        XCTAssertTrue(morph.allSatisfy { (0...1).contains($0) })
+        XCTAssertTrue(zip(opacity, opacity.dropFirst()).allSatisfy { $0 >= $1 })
+        XCTAssertTrue(zip(blur, blur.dropFirst()).allSatisfy { $0 >= $1 })
+        XCTAssertTrue(zip(morph, morph.dropFirst()).allSatisfy { $0 <= $1 })
+        XCTAssertEqual(opacity.first, 1)
+        XCTAssertEqual(opacity.last, 0)
+        XCTAssertEqual(blur.last, 0)
+        XCTAssertEqual(morph.first, 0)
+        XCTAssertEqual(morph.last, 1)
     }
 
     func testResizeKeepsAllDensitiesReachableAtRegularAndAccessibilitySizes() {

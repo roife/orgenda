@@ -87,19 +87,4 @@ enum OrgendaDatePresentation {
         return "\(day) · \(time)"
     }
 
-    static func monthHeading(
-        _ date: Date,
-        locale: Locale = .autoupdatingCurrent,
-        calendar: Calendar = .autoupdatingCurrent
-    ) -> String {
-        var style = Date.FormatStyle.dateTime
-            .locale(locale)
-            .month(.abbreviated)
-        style.calendar = calendar
-        style.timeZone = calendar.timeZone
-        let month = date.formatted(style)
-        let year = calendar.component(.year, from: date)
-            .formatted(.number.locale(locale).grouping(.never))
-        return "\(month) \(year)"
-    }
 }

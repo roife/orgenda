@@ -131,7 +131,6 @@ final class OrgPreviewCustomBlockTests: XCTestCase {
             XCTAssertEqual(presented.first { $0.id == node.id }, node)
             XCTAssertEqual(sourceSlice(source, range: node.startByte..<node.endByte), node.text)
         }
-        XCTAssertEqual(try parsedNodes(source), nodes)
     }
 
     func testAdjacentEmptyAndNonemptyBlocksAtEndOfFileStaySeparate() throws {

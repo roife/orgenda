@@ -54,7 +54,7 @@ final class DocumentOutlineFilterTests: XCTestCase {
 
     func testAncestorsOfMatchesAreRetainedWithFilteredChildren() {
         var filter = DocumentOutlineFilter()
-        filter.states = [.todo]
+        filter.states = ["TODO"]
         let nodes = [
             node("Parent", children: [
                 node("Child Todo", state: .todo),
@@ -68,29 +68,24 @@ final class DocumentOutlineFilterTests: XCTestCase {
         XCTAssertEqual(filter.matchCount(in: nodes), 1)
     }
 
-    func testCriteriaCombineWithAnd() {
+    func testCombinedCriteriaAndResetRestoreAllRows() {
         var filter = DocumentOutlineFilter()
-        filter.states = [.todo]
+        filter.states = ["TODO"]
         filter.deadlineFrom = day("2019-05-19")
+        filter.scheduledTo = day("2019-05-21")
+        filter.scheduledFrom = day("2019-05-19")
+        filter.deadlineTo = day("2019-05-21")
         let nodes = [
-            node("Both", state: .todo, deadline: day("2019-05-20")),
+            node("Both", state: .todo, scheduled: day("2019-05-20"), deadline: day("2019-05-20")),
             node("OnlyState", state: .todo),
-            node("OnlyDate", state: .done, deadline: day("2019-05-20"))
+            node("OnlyDate", state: .done, scheduled: day("2019-05-20"), deadline: day("2019-05-20"))
         ]
         XCTAssertEqual(filter.apply(to: nodes).map(\.title), ["Both"])
-    }
-
-    func testResetClearsEveryCriterion() {
-        var filter = DocumentOutlineFilter()
-        filter.states = [.todo]
-        filter.scheduledFrom = day("2019-05-19")
-        filter.deadlineTo = day("2019-05-20")
         XCTAssertTrue(filter.isActive)
         filter.reset()
         XCTAssertFalse(filter.isActive)
         XCTAssertEqual(filter, DocumentOutlineFilter())
-        let nodes = [node("A", state: .todo), node("B")]
-        XCTAssertEqual(filter.apply(to: nodes).map(\.title), ["A", "B"])
-        XCTAssertEqual(filter.matchCount(in: nodes), 2)
+        XCTAssertEqual(filter.apply(to: nodes).map(\.title), nodes.map(\.title))
+        XCTAssertEqual(filter.matchCount(in: nodes), nodes.count)
     }
 }

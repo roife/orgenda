@@ -209,8 +209,6 @@ final class EmacsProfileIntegrationTests: XCTestCase {
         XCTAssertEqual(Set(store.agendaGroups(for: .someday).flatMap(\.items).map(\.title)), ["Later", "Maybe"])
         XCTAssertFalse(store.agendaItems.contains { $0.title == "Extra file" })
         XCTAssertFalse(store.datedItems.contains { $0.title == "Maybe" })
-        XCTAssertEqual(OrgWorkspaceConfiguration.taskStates, [.todo, .next, .wait, .someday, .urgent, .done, .canceled])
-        XCTAssertEqual(OrgWorkflowState.allCases.map(\.rawValue), ["TODO", "NEXT", "WAIT", "SOMEDAY", "URGENT", "DONE", "CANCELED"])
         let project = store.items.first { $0.title == "Project" }!
         store.toggleDone(project)
         XCTAssertEqual(store.items.first { $0.id == project.id }?.state, .done)

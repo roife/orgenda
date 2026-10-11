@@ -15,8 +15,7 @@ extension WorkspaceStore {
             parsed,
             replacingAll: true,
             refreshedPaths: Set(documents.filter { $0.kind == .org }.map(\.path)),
-            durationMilliseconds: (CFAbsoluteTimeGetCurrent() - started) * 1_000,
-            indexedJournal: isFolderConnected ? JournalFileIndex.entries(in: documents, directory: effectiveConfiguration.files.journal) : nil
+            durationMilliseconds: (CFAbsoluteTimeGetCurrent() - started) * 1_000
         )
     }
 
@@ -52,8 +51,6 @@ extension WorkspaceStore {
         }
         guard !targets.isEmpty else { return }
         let requestedSources = Dictionary(uniqueKeysWithValues: targets.map { ($0.path, $0.contents) })
-        let journalSources = documents.filter { $0.kind == .org }
-        let shouldIndexJournal = isFolderConnected
 
         parseTask = Task(priority: .utility) { [weak self, indexService] in
             // Let the state change and its transition commit a frame before doing
@@ -66,7 +63,6 @@ extension WorkspaceStore {
 
             let started = CFAbsoluteTimeGetCurrent()
             let parsed = await indexService.parse(targets, configuration: configuration)
-            let indexedJournal = shouldIndexJournal ? await indexService.journalEntries(in: journalSources, directory: configuration.files.journal) : nil
             let duration = (CFAbsoluteTimeGetCurrent() - started) * 1_000
             guard !Task.isCancelled else { return }
 
@@ -82,8 +78,7 @@ extension WorkspaceStore {
                 accepted,
                 replacingAll: replacingAll,
                 refreshedPaths: acceptedPaths,
-                durationMilliseconds: duration,
-                indexedJournal: indexedJournal
+                durationMilliseconds: duration
             )
             self.pendingDirtyPaths.subtract(acceptedPaths)
             self.parseTask = nil
@@ -142,8 +137,7 @@ extension WorkspaceStore {
         _ parsed: [ParsedOrgDocument],
         replacingAll: Bool,
         refreshedPaths: Set<String>,
-        durationMilliseconds: Double,
-        indexedJournal: [JournalEntry]? = nil
+        durationMilliseconds: Double
     ) {
         var nextDocuments = replacingAll ? [:] : parsedDocuments
         for path in refreshedPaths {
@@ -160,6 +154,8 @@ extension WorkspaceStore {
             }
         let nextItems = merging(headings, into: items, refreshedPaths: refreshedPaths)
         let allDocuments = nextDocuments.values
+        let indexedJournal = isFolderConnected
+            ? allDocuments.sorted { $0.path < $1.path }.flatMap(\.journalEntries) : nil
         let nodeCount = allDocuments.reduce(0) { $0 + $1.nodeCount }
         let errorCount = allDocuments.lazy.filter(\.hasError).count
         let status = errorCount == 0

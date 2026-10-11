@@ -17,26 +17,17 @@ final class WorkspaceImageReadTests: XCTestCase {
         try FileManager.default.removeItem(at: temporaryDirectory)
     }
 
-    func testReadsExactBinaryBytesWithoutIndexingImageAsDocument() async throws {
-        try fixture("images/测试 photo.png")
+    func testReadsVisibleAndHiddenImagesWithoutIndexingTheirBytes() async throws {
+        let paths = ["images/测试 photo.png", ".attach/ab/cdef/screenshot.png"]
         let store = WorkspaceFileStore(rootURL: root)
-
-        let data = try await store.readImageData(path: "images/测试 photo.png")
+        for path in paths {
+            try fixture(path)
+            let data = try await store.readImageData(path: path)
+            XCTAssertEqual(data, imageBytes, path)
+        }
         let documents = try await store.load()
-
-        XCTAssertEqual(data, imageBytes)
-        XCTAssertFalse(documents.contains { $0.path == "images/测试 photo.png" })
-    }
-
-    func testReadsHiddenAttachmentFoldersDirectly() async throws {
-        try fixture(".attach/ab/cdef/screenshot.png")
-        let store = WorkspaceFileStore(rootURL: root)
-
-        let data = try await store.readImageData(path: ".attach/ab/cdef/screenshot.png")
-        let documents = try await store.load()
-
-        XCTAssertEqual(data, imageBytes)
-        XCTAssertTrue(documents.isEmpty)
+        XCTAssertEqual(documents.map(\.path), ["images"])
+        XCTAssertEqual(documents.first?.kind, .folder)
     }
 
     func testReadsNormalizedAbsoluteAndAliasedWorkspacePaths() async throws {
@@ -94,26 +85,18 @@ final class WorkspaceImageReadTests: XCTestCase {
     }
 
     func testRejectsOversizedImageButAllowsExactLimit() async throws {
-        try fixture("photo.png")
+        let bytes = Data(repeating: 0xAE, count: 160 * 1024)
+        try fixture("photo.png", bytes: bytes)
         let store = WorkspaceFileStore(rootURL: root)
 
         do {
-            _ = try await store.readImageData(path: "photo.png", maxBytes: imageBytes.count - 1)
+            _ = try await store.readImageData(path: "photo.png", maxBytes: bytes.count - 1)
             XCTFail("Read an image beyond the allowed byte budget")
         } catch let failure as WorkspaceFileStore.ImageReadFailure {
             XCTAssertEqual(failure, .tooLarge)
         }
-        let exact = try await store.readImageData(path: "photo.png", maxBytes: imageBytes.count)
-        XCTAssertEqual(exact, imageBytes)
-    }
-
-    func testReadsFileSpanningMultipleBoundedChunks() async throws {
-        let bytes = Data(repeating: 0xAE, count: 160 * 1024)
-        try fixture("large.png", bytes: bytes)
-
-        let data = try await WorkspaceFileStore(rootURL: root).readImageData(path: "large.png", maxBytes: bytes.count)
-
-        XCTAssertEqual(data, bytes)
+        let exact = try await store.readImageData(path: "photo.png", maxBytes: bytes.count)
+        XCTAssertEqual(exact, bytes)
     }
 
     @discardableResult

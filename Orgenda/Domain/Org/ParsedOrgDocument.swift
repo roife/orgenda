@@ -1,4 +1,5 @@
 import Foundation
+import OrgTreeSitter
 
 struct ParsedOrgNode: Identifiable, Hashable, Sendable {
     let id: String
@@ -7,6 +8,32 @@ struct ParsedOrgNode: Identifiable, Hashable, Sendable {
     let startByte: Int
     let endByte: Int
     let children: [ParsedOrgNode]
+}
+
+extension ParsedOrgNode {
+    init(_ node: OrgSyntaxNode, path: String) {
+        self.init(
+            id: "\(path):\(node.startByte):\(node.endByte):\(node.type)",
+            type: node.type, text: node.text,
+            startByte: Int(node.startByte), endByte: Int(node.endByte),
+            children: node.namedChildren.map { ParsedOrgNode($0, path: path) }
+        )
+    }
+
+    func child(ofType type: String) -> ParsedOrgNode? {
+        children.first { $0.type == type }
+    }
+
+    var todoNode: ParsedOrgNode? { child(ofType: "todo_keyword") }
+    var checkboxNode: ParsedOrgNode? { child(ofType: "checkbox") }
+
+    var descendantsByID: [String: ParsedOrgNode] {
+        var result = [id: self]
+        for child in children {
+            result.merge(child.descendantsByID) { current, _ in current }
+        }
+        return result
+    }
 }
 
 struct IndexedOrgHeading: Hashable, Sendable {
@@ -39,14 +66,17 @@ struct ParsedOrgDocument: Identifiable, Hashable, Sendable {
     let path: String
     let root: ParsedOrgNode
     let headings: [IndexedOrgHeading]
+    let journalEntries: [JournalEntry]
     let hasError: Bool
     /// Counted once during parsing so publishing never re-walks every tree.
     let nodeCount: Int
 
-    init(path: String, root: ParsedOrgNode, headings: [IndexedOrgHeading], hasError: Bool) {
+    init(path: String, root: ParsedOrgNode, headings: [IndexedOrgHeading], hasError: Bool,
+         journalEntries: [JournalEntry] = []) {
         self.path = path
         self.root = root
         self.headings = headings
+        self.journalEntries = journalEntries
         self.hasError = hasError
         func count(_ node: ParsedOrgNode) -> Int {
             1 + node.children.reduce(0) { $0 + count($1) }

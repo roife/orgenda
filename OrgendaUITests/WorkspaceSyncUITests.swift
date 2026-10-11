@@ -1,22 +1,6 @@
 import XCTest
 
 final class WorkspaceSyncUITests: XCTestCase {
-    func testSearchSettingsOpensMatchingPageAndKeepsQuery() {
-        let app = launchTestApp(workspace: "--ui-test-workspace")
-        app.tabBars.buttons["Search"].tap()
-        let search = app.searchFields.firstMatch
-        XCTAssertTrue(search.waitForExistence(timeout: 3))
-        search.typeText("Appearance")
-        let result = app.buttons["search.setting.appearance"]
-        XCTAssertTrue(result.waitForExistence(timeout: 3))
-        result.tap()
-        XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.buttons["settings.workspace"].isHittable)
-        app.buttons["settings.done"].tap()
-        XCTAssertTrue(result.waitForExistence(timeout: 3))
-        XCTAssertEqual(search.value as? String, "Appearance")
-    }
-
     func testSearchDocumentOpensPreviewAndKeepsResults() {
         let app = launchTestApp(workspace: "--ui-test-workspace")
         app.tabBars.buttons["Search"].tap()
@@ -133,7 +117,6 @@ final class WorkspaceSyncUITests: XCTestCase {
 
     func testWebDAVFormRejectsInsecureAddressWithoutConnecting() {
         let app = openWorkspaceSettings()
-        defer { app.terminate() }
         app.buttons["workspace.chooseFolder"].tap()
         app.buttons["storage.provider.webDAV"].tap()
         XCTAssertTrue(app.navigationBars["Connect WebDAV"].waitForExistence(timeout: 3))
@@ -158,7 +141,6 @@ final class WorkspaceSyncUITests: XCTestCase {
 
     func testConflictPreviewAndReplacementConfirmation() {
         let app = openWorkspaceSettings(extraArguments: ["--storage-sync-fixture"])
-        defer { app.terminate() }
         app.buttons["workspace.resolveConflict"].tap()
         let conflict = app.buttons["storage.conflict.notes.org"]
         XCTAssertTrue(conflict.waitForExistence(timeout: 3))
@@ -174,7 +156,6 @@ final class WorkspaceSyncUITests: XCTestCase {
 
     func testChangingStorageWithPendingEditsRequiresKeepingCopies() {
         let app = openWorkspaceSettings(extraArguments: ["--storage-sync-fixture"])
-        defer { app.terminate() }
         let conflict = app.buttons["workspace.resolveConflict"]
         XCTAssertTrue(conflict.waitForExistence(timeout: 3))
         let connection = app.descendants(matching: .any).matching(identifier: "workspace.connection").firstMatch
@@ -222,10 +203,7 @@ final class WorkspaceSyncUITests: XCTestCase {
     }
 
     private func openWorkspaceSettings(extraArguments: [String] = []) -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
-        app.launch()
+        let app = launchTestApp(extraArguments, workspace: "--ui-test-workspace")
         app.selectRootTab("Files")
         app.buttons["files.settings"].tap()
         let workspace = app.buttons["settings.workspace"]

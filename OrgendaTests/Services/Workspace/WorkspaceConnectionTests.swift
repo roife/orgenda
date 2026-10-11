@@ -4,6 +4,71 @@ import XCTest
 
 @MainActor
 final class WorkspaceConnectionTests: XCTestCase {
+    func testConfigurationUpdatesRefreshTaskMetadataWithoutRewritingSource() async throws {
+        let root = try folder()
+        let source = "* TODO Task\n"
+        try source.write(to: root.appendingPathComponent("inbox.org"), atomically: true, encoding: .utf8)
+        let store = WorkspaceStore()
+        await store.connectFolder(root, remember: false, defaults: try startupDefaults())
+        let original = try XCTUnwrap(store.items.first)
+        var configuration = store.configuration
+        configuration.workflow.keywords["TODO"] = .init(label: "Pending", icon: .star, color: .pink,
+                                                        log: .init(enter: .note, leave: .time))
+        let styled = await store.saveConfiguration(configuration, expectedRevision: store.configurationRevision)
+        XCTAssertTrue(styled, store.configurationError ?? "")
+        await store.waitForWorkspaceIndex()
+        let updated = try XCTUnwrap(store.items.first)
+        XCTAssertEqual(updated.id, original.id)
+        XCTAssertEqual(updated.state.label, "Pending")
+        XCTAssertEqual(updated.state.icon, .star)
+        XCTAssertEqual(updated.state.color, .pink)
+        XCTAssertEqual(updated.state.enterLog, .note)
+        XCTAssertEqual(updated.state.leaveLog, .time)
+        XCTAssertEqual(store.parsedDocuments["inbox.org"]?.headings.first?.state, updated.state)
+        XCTAssertFalse(OrgWorkflowOperations.requiresNote(from: original.state, to: updated.state))
+
+        configuration.workflow.sequences = [.init(process: ["OPEN"], terminal: ["TODO", "DONE"],
+                                                   initial: "OPEN", complete: "DONE", reopen: "OPEN")]
+        let completed = await store.saveConfiguration(configuration, expectedRevision: store.configurationRevision)
+        XCTAssertTrue(completed, store.configurationError ?? "")
+        await store.waitForWorkspaceIndex()
+        XCTAssertEqual(store.items.first?.id, original.id)
+        XCTAssertEqual(store.items.first?.state.isTerminal, true)
+        XCTAssertTrue(store.openTodos.isEmpty)
+        await store.synchronizeFiles()
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("inbox.org"), encoding: .utf8), source)
+    }
+
+    func testIncrementalJournalRefreshRetainsOtherFilesAndRemovesDeletedCards() async throws {
+        let root = try folder()
+        let journal = root.appendingPathComponent("diary")
+        try FileManager.default.createDirectory(at: journal, withIntermediateDirectories: true)
+        try "* 2032-01-01 Thu\n** First\nOld body.\n".write(to: journal.appendingPathComponent("first.org"), atomically: true, encoding: .utf8)
+        try "* 2032-01-02 Fri\n** Second\nKeep body.\n".write(to: journal.appendingPathComponent("second.org"), atomically: true, encoding: .utf8)
+        var configuration = WorkspaceConfiguration.standard
+        configuration.files.journal = "diary"
+        try ConfigurationDocument(configuration: configuration).encoded(configuration)
+            .write(to: root.appendingPathComponent("config.json"), atomically: true, encoding: .utf8)
+        let store = WorkspaceStore()
+        await store.connectFolder(root, remember: false, defaults: try startupDefaults())
+        let second = try XCTUnwrap(store.journalEntries.first { $0.title == "Second" })
+        store.updateDocument(path: "diary/first.org", contents: "* 2032-01-01 Thu\n** Renamed\nNew body.\n")
+        await store.waitForWorkspaceIndex()
+        XCTAssertEqual(store.journalEntries.count, 2)
+        XCTAssertEqual(store.journalEntries.first { $0.title == "Renamed" }?.body, "New body.")
+        XCTAssertEqual(store.journalEntries.first { $0.title == "Second" }, second)
+        await store.fileSaveTask?.value
+        await store.synchronizeFiles()
+        try FileManager.default.removeItem(at: journal.appendingPathComponent("second.org"))
+        await store.synchronizeFiles()
+        await store.waitForWorkspaceIndex()
+        XCTAssertEqual(store.journalEntries.map(\.title), ["Renamed"])
+        await store.connectFolder(try folder(), remember: false)
+        XCTAssertTrue(store.items.isEmpty)
+        XCTAssertTrue(store.journalEntries.isEmpty)
+        XCTAssertTrue(store.parsedDocuments.isEmpty)
+    }
+
     func testImportedConfigurationPreservesExtensionsAndCanRestorePreviousDocument() async throws {
         let root = try folder()
         let store = WorkspaceStore()
@@ -322,7 +387,10 @@ final class WorkspaceConnectionTests: XCTestCase {
         let url = root.appendingPathComponent("inbox.org")
         try "* Original\n".write(to: url, atomically: true, encoding: .utf8)
         try "* Other\n".write(to: root.appendingPathComponent("other.org"), atomically: true, encoding: .utf8)
-        let store = WorkspaceStore()
+        let store = WorkspaceStore(documents: [
+            .init(path: "inbox.org", title: "Inbox", contents: "* Original\n", kind: .org)
+        ])
+        XCTAssertEqual(store.saveStatus(for: "inbox.org"), .unavailable)
         await store.connectFolder(root, remember: false)
         XCTAssertEqual(store.saveStatus(for: "inbox.org"), .saved)
         let revision = store.externalDocumentRevisions["inbox.org"]
@@ -344,27 +412,6 @@ final class WorkspaceConnectionTests: XCTestCase {
         XCTAssertNil(store.fileSaveErrors["inbox.org"])
         XCTAssertEqual(store.externalDocumentRevisions["inbox.org"], revision)
         _ = try recoveryFiles(for: root)
-    }
-
-    func testSourceJournalEditRebuildsCardsWithoutRestart() async throws {
-        let root = try folder()
-        let journal = root.appendingPathComponent("journal")
-        try FileManager.default.createDirectory(at: journal, withIntermediateDirectories: true)
-        let original = "* 2027-01-05 Tue\n** Before\nOriginal body\n"
-        try original.write(to: journal.appendingPathComponent("2027.org"), atomically: true, encoding: .utf8)
-        let store = WorkspaceStore()
-        await store.connectFolder(root, remember: false)
-        XCTAssertEqual(store.journalEntries.first?.title, "Before")
-        store.updateDocument(path: "journal/2027.org", contents: "* 2027-01-05 Tue\n** After\nEdited body\n")
-        await store.waitForWorkspaceIndex()
-        XCTAssertEqual(store.journalEntries.first?.title, "After")
-        XCTAssertEqual(store.journalEntries.first?.body, "Edited body")
-        await store.synchronizeFiles()
-        let empty = try folder()
-        await store.connectFolder(empty, remember: false)
-        XCTAssertTrue(store.items.isEmpty)
-        XCTAssertTrue(store.journalEntries.isEmpty)
-        XCTAssertTrue(store.parsedDocuments.isEmpty)
     }
 
     private func startupDefaults() throws -> UserDefaults {
@@ -523,10 +570,5 @@ final class WorkspaceConnectionTests: XCTestCase {
         XCTAssertEqual(next.journal(on: date).first?.date, date)
     }
 
-    func testRootFolderRowsDoNotRepeatNestedFiles() {
-        let docs = [WorkspaceDocument(path: "agenda", title: "agenda", contents: "", kind: .folder),
-                    WorkspaceDocument(path: "agenda/tasks.org", title: "tasks", contents: "", kind: .org),
-                    WorkspaceDocument(path: "inbox.org", title: "inbox", contents: "", kind: .org)]
-        XCTAssertEqual(visibleFolderDocuments(docs, folderPath: "").map(\.path), ["agenda", "inbox.org"])
-    }
+
 }

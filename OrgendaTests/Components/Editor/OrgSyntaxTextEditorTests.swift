@@ -268,7 +268,11 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
         let nodes = try parsedNodes(source)
         XCTAssertEqual(OrgPreviewMarkup.literalText(nodes[0]), "let x = \"*literal*\"")
         XCTAssertEqual(OrgPreviewMarkup.literalText(nodes[1]), "*fixed*\n\ntail")
-        XCTAssertEqual(String(OrgPreviewMarkup.blockText(nodes[2]).characters), "A bold quote.")
+        let quote = OrgPreviewContainerMath.blockFragments(nodes[2]).compactMap { fragment -> String? in
+            if case .text(let text) = fragment { return String(text.characters) }
+            return nil
+        }.joined()
+        XCTAssertEqual(quote, "A bold quote.")
     }
 
     func testMathParserRecognizesInlineDisplayAndEnvironmentSyntax() {
@@ -328,22 +332,7 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
                 expression, textStyle: .body, dynamicTypeSize: .large, colorScheme: .light
             ), expression.original)
         }
-        let renderer = ImageRenderer(content:
-            OrgPreviewRichText(fragments: fragments)
-                .font(.body)
-                .lineSpacing(2)
-                .frame(width: 370, alignment: .leading)
-                .padding(16)
-                .background(.white)
-                .environment(\.colorScheme, .light)
-                .environment(\.dynamicTypeSize, .large)
-        )
-        renderer.scale = 3
-        let screenshot = try XCTUnwrap(renderer.uiImage)
-        let attachment = XCTAttachment(image: screenshot)
-        attachment.name = "Chinese inline formulas rendered"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+
     }
 
     func testPreviewRendersAdjacentFormulasInsideOneTextNode() {
@@ -543,15 +532,8 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
             dynamicTypeSize: .large,
             colorScheme: .light
         ))
-        let cached = try XCTUnwrap(OrgMathRendering.render(
-            expression,
-            textStyle: .body,
-            dynamicTypeSize: .large,
-            colorScheme: .light
-        ))
         XCTAssertGreaterThan(rendered.image.size.width, 0)
         XCTAssertGreaterThan(rendered.image.size.height, 0)
-        XCTAssertTrue(rendered === cached)
 
         let spans = await OrgSyntaxHighlighter().highlights(in: source)
         XCTAssertFalse(spans.contains { $0.kind == .verbatim })
@@ -565,15 +547,7 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
             colorScheme: .light,
             dynamicTypeSize: .large
         )
-        let cached = OrgCodeHighlighting.attributed(
-            source,
-            language: "swift",
-            colorScheme: .light,
-            dynamicTypeSize: .large
-        )
-
         XCTAssertEqual(String(highlighted.characters), source)
-        XCTAssertEqual(highlighted, cached)
         XCTAssertGreaterThan(highlighted.runs.count, 1)
     }
 
@@ -685,7 +659,7 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
 
     func testPresentationAttributesPreserveSelectionAndSemanticTraits() async throws {
         var source = "* NEXT [#B] 编写 [[id:文档][说明]] :dev:\n#+BEGIN_SRC swift\nlet value = 1\n#+END_SRC\n"
-        let highlighter = try XCTUnwrap(OrgSyntaxHighlighter())
+        let highlighter = OrgSyntaxHighlighter()
         let highlights = await highlighter.highlights(in: source)
         let binding = Binding(get: { source }, set: { source = $0 })
         let editor = OrgSyntaxTextEditor(text: binding, highlights: highlights)

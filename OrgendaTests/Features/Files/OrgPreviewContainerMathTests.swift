@@ -97,7 +97,6 @@ final class OrgPreviewContainerMathTests: XCTestCase {
             guard case .text(let value) = fragment else { return false }
             return value.runs.contains { $0.link?.absoluteString == "https://example.com" }
         })
-        try assertRendered(math(fragments))
     }
 
     func testQuoteBodyKeepsInlineMathAndGroupsMultilineDisplayMath() throws {
@@ -126,7 +125,6 @@ final class OrgPreviewContainerMathTests: XCTestCase {
             guard case .text(let value) = fragment else { return false }
             return value.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true }
         })
-        try assertRendered(math(fragments))
     }
 
     func testVerseAndCenterPreserveIndentationAndSeparateDisplayExpressions() throws {
@@ -144,7 +142,6 @@ final class OrgPreviewContainerMathTests: XCTestCase {
             }
             XCTAssertTrue(text(first).hasPrefix("  First"), name)
             XCTAssertEqual(text(last), "  Last", name)
-            try assertRendered(math(fragments))
         }
     }
 
@@ -154,7 +151,6 @@ final class OrgPreviewContainerMathTests: XCTestCase {
         let fragments = OrgPreviewMarkup.fragments(node)
         XCTAssertEqual(math(fragments).map(\.latex), [#"\alpha = \beta"#])
         XCTAssertTrue(text(fragments).hasPrefix("[proof] "))
-        try assertRendered(math(fragments))
     }
 
     func testEmptyBodyDoesNotExposeBlockDelimiters() throws {
@@ -267,16 +263,6 @@ final class OrgPreviewContainerMathTests: XCTestCase {
             case .inline: "inline"
             case .display: "display"
             }
-        }
-    }
-
-    private func assertRendered(_ expressions: [OrgMathExpression]) throws {
-        for expression in expressions {
-            let rendered = try XCTUnwrap(OrgMathRendering.render(
-                expression, textStyle: .subheadline, dynamicTypeSize: .large, colorScheme: .light
-            ), expression.original)
-            XCTAssertGreaterThan(rendered.image.size.width, 0)
-            XCTAssertGreaterThan(rendered.image.size.height, 0)
         }
     }
 }

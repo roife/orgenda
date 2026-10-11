@@ -57,13 +57,6 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertTrue(resolved.documents.contains { $0.path.hasPrefix("orgenda/Unsaved Edits/config-") && $0.kind == .markdown })
     }
 
-    func testUninitializedCacheDoesNotAppearReady() async throws {
-        let backend = SessionFakeBackend()
-        let workspace = try session(backend)
-        do { _ = try await workspace.snapshot(); XCTFail("An uninitialized cache is not an empty workspace") }
-        catch { XCTAssertEqual(error as? StorageError, .rootUnavailable) }
-    }
-
     func testOfflineDraftSurvivesRestartAndUploadsAfterReconnect() async throws {
         let backend = SessionFakeBackend(["inbox.org": "* Original\n"])
         let first = try session(backend)
@@ -312,7 +305,7 @@ final class WorkspaceSessionTests: XCTestCase {
         let other = StorageConnection(provider: .webDAV, displayName: "Other", rootID: "/other")
         let isolated = try WorkspaceSession(connection: other, cacheDirectory: cache, remote: SessionFakeBackend())
         do { _ = try await isolated.snapshot(); XCTFail("A new connection must not expose another cache") }
-        catch {}
+        catch { XCTAssertEqual(error as? StorageError, .rootUnavailable) }
     }
 
     func testUseLocalRefusesAnUnseenNewRemoteRevision() async throws {
@@ -425,17 +418,37 @@ final class WorkspaceSessionTests: XCTestCase {
         try await reopened.synchronize()
     }
 
-    func testDeltaFolderRenameAndDeletionCarryAllDescendants() async throws {
+    func testFileDeltaRetainsUnchangedFilesAndReplacesRenamedPaths() async throws {
+        let backend = SessionFakeBackend(["first.org": "* Original\n", "second.org": "* Keep\n"])
+        let workspace = try session(backend)
+        try await workspace.synchronize()
+        await backend.replace("first.org", contents: "* Updated\n")
+        let scan = try await backend.scan(cursor: nil)
+        let changed = try XCTUnwrap(scan.files.first { $0.path == "first.org" })
+        await backend.returnNextScan(RemoteScan(files: [changed], isFullSnapshot: false))
+        try await workspace.synchronize()
+        let updated = try await workspace.snapshot()
+        XCTAssertEqual(updated.documents.map(\.contents), ["* Updated\n", "* Keep\n"])
+
+        let moved = try await backend.move(changed, to: "renamed.org")
+        await backend.returnNextScan(RemoteScan(files: [moved], isFullSnapshot: false))
+        try await workspace.synchronize()
+        let renamed = try await workspace.snapshot()
+        XCTAssertEqual(renamed.documents.map(\.path), ["renamed.org", "second.org"])
+        XCTAssertEqual(renamed.documents.map(\.contents), ["* Updated\n", "* Keep\n"])
+    }
+
+    func testFullSnapshotFolderRenameAndDeletionCarryAllDescendants() async throws {
         let backend = SessionFakeBackend(["project/task.org": "* Task\n"])
         let oldFolder = await backend.addDirectory("project")
         let workspace = try session(backend)
         try await workspace.synchronize()
-        let moved = try await backend.move(oldFolder, to: "renamed")
-        await backend.returnNextScan(RemoteScan(files: [moved], cursor: "rename", isFullSnapshot: false))
+        _ = try await backend.move(oldFolder, to: "renamed")
         try await workspace.synchronize()
         let renamed = try await workspace.snapshot()
         XCTAssertEqual(renamed.documents.map(\.path), ["renamed", "renamed/task.org"])
-        await backend.returnNextScan(RemoteScan(files: [], deletedIDs: [moved.id], cursor: "delete", isFullSnapshot: false))
+        await backend.remove("renamed/task.org")
+        await backend.remove("renamed")
         try await workspace.synchronize()
         let deleted = try await workspace.snapshot()
         XCTAssertTrue(deleted.documents.isEmpty)

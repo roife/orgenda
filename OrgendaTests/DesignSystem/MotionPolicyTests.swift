@@ -39,19 +39,6 @@ final class MotionPolicyTests: XCTestCase {
         XCTAssertTrue(otherYearDate.contains("2027"))
     }
 
-    func testMonthHeadingAlwaysPlacesYearAfterLocalizedMonth() throws {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Taipei"))
-        for year in [2026, 2027] {
-            let date = try XCTUnwrap(calendar.date(from: DateComponents(year: year, month: 9, day: 21)))
-            for (language, month) in [("en_US", "Sep"), ("zh_CN", "9月"), ("zh_TW", "9月")] {
-                XCTAssertEqual(OrgendaDatePresentation.monthHeading(
-                    date, locale: Locale(identifier: language), calendar: calendar
-                ), "\(month) \(year)")
-            }
-        }
-    }
-
     func testDatePresentationUsesTheSuppliedCalendarWithADifferentLocale() throws {
         let date = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-20T00:30:00Z"))
         var calendar = Calendar(identifier: .buddhist)

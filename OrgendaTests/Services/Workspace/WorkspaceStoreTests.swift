@@ -5,6 +5,28 @@ import XCTest
 final class WorkspaceStoreTests: XCTestCase {
     private let referenceDate = Date(timeIntervalSince1970: 1_788_048_000)
 
+    func testDecodedTaskDragUsesConfiguredMetadataAndStillRejectsChangedKeywords() throws {
+        let source = "* OPEN Drag me\nSCHEDULED: <2032-01-01 Thu>\n"
+        let store = WorkspaceStore(documents: [.init(path: "inbox.org", title: "", contents: source, kind: .org)])
+        store.hasWorkspaceConfiguration = true
+        store.configuration.workflow.sequences = [.init(process: ["OPEN"], terminal: ["FINISHED"],
+                                                          initial: "OPEN", complete: "FINISHED", reopen: "OPEN")]
+        store.configuration.workflow.keywords["OPEN"] = .init(label: "In progress", icon: .arrow, color: .blue)
+        store.parseWorkspace()
+        let original = try XCTUnwrap(store.items.first)
+        let transfer = try JSONDecoder().decode(OrgTaskTransfer.self,
+            from: JSONEncoder().encode(OrgTaskTransfer(item: original)))
+        XCTAssertNotEqual(transfer.item.state, original.state)
+        XCTAssertTrue(original.hasSameEditableValues(as: transfer.item))
+        XCTAssertNotNil(store.reschedule(transfer.item, to: try XCTUnwrap(original.scheduled).adding(days: 1)), store.operationError ?? "")
+        XCTAssertEqual(store.items.first?.state.color, .blue)
+        XCTAssertTrue(store.documents[0].contents.contains("SCHEDULED: <2032-01-02 Fri>"))
+
+        var stale = try XCTUnwrap(store.items.first)
+        stale.state = .done
+        XCTAssertFalse(store.items[0].hasSameEditableValues(as: stale))
+    }
+
     func testChangingProjectToTaskPreservesEveryWorkflowState() throws {
         for state in OrgWorkflowState.allCases {
             let store = parsedStore("* \(state.rawValue) Work :project:\n")
@@ -114,11 +136,13 @@ final class WorkspaceStoreTests: XCTestCase {
 
     func testFolderRowsDoNotDuplicateFilesInsideExplicitSubfolders() {
         let documents = [
+            WorkspaceDocument(path: "projects", title: "Projects", contents: "", kind: .folder),
             WorkspaceDocument(path: "projects/design", title: "Design", contents: "", kind: .folder),
             WorkspaceDocument(path: "projects/design/brief.org", title: "Brief", contents: "", kind: .org),
             WorkspaceDocument(path: "projects/loose/notes.org", title: "Notes", contents: "", kind: .org),
             WorkspaceDocument(path: "personal.org", title: "Personal", contents: "", kind: .org)
         ]
+        XCTAssertEqual(visibleFolderDocuments(documents, folderPath: "").map(\.path), ["projects", "personal.org"])
         XCTAssertEqual(
             visibleFolderDocuments(documents, folderPath: "projects").map(\.path),
             ["projects/design", "projects/loose/notes.org"]
@@ -159,13 +183,6 @@ final class WorkspaceStoreTests: XCTestCase {
             XCTAssertEqual(store.search(query, scope: .settings), [.setting(.configuration)], query)
             XCTAssertEqual(store.search(query, scope: .all), [.setting(.configuration)], query)
         }
-    }
-
-    func testDisconnectedDocumentDoesNotReportSavedOrSessionOnly() {
-        let store = WorkspaceStore(documents: [
-            WorkspaceDocument(path: "inbox.org", title: "Inbox", contents: "", kind: .org)
-        ])
-        XCTAssertEqual(store.saveStatus(for: "inbox.org"), .unavailable)
     }
 
     func testClosedPlanningTimestampClearsAStaleAgendaDateWhenReindexed() throws {
@@ -438,20 +455,15 @@ final class WorkspaceStoreTests: XCTestCase {
         }
     }
 
-    func testChangingEventsAndProjectsToTasksRoundTrips() throws {
-        for source in [
-            "* Meeting :event:\nSCHEDULED: <2026-08-31 Mon 09:30>\n",
-            "* TODO Meeting :project:\n"
-        ] {
-            let store = parsedStore(source)
-            var item = try XCTUnwrap(store.items.first)
-            item.kind = .task
-            XCTAssertTrue(store.save(item))
-            store.parseWorkspace()
-            XCTAssertEqual(store.items.first?.kind, .task)
-            XCTAssertEqual(store.items.first?.state, .todo)
-            XCTAssertTrue(try XCTUnwrap(store.documents.first?.contents).contains("* TODO Meeting"))
-        }
+    func testChangingPlainEventToTaskAddsWorkflowKeyword() throws {
+        let store = parsedStore("* Meeting :event:\nSCHEDULED: <2026-08-31 Mon 09:30>\n")
+        var item = try XCTUnwrap(store.items.first)
+        item.kind = .task
+        XCTAssertTrue(store.save(item))
+        store.parseWorkspace()
+        XCTAssertEqual(store.items.first?.kind, .task)
+        XCTAssertEqual(store.items.first?.state, .todo)
+        XCTAssertTrue(try XCTUnwrap(store.documents.first?.contents).contains("* TODO Meeting"))
     }
 
     func testStaleEditorBaselineRejectsNewerSourceNotesBeforeAndAfterReindex() throws {

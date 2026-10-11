@@ -95,15 +95,6 @@ enum OrgMathParser {
         return match.expression
     }
 
-    static func startsDisplayExpression(in source: String) -> Bool {
-        let trimmed = source.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.hasPrefix("$$") || trimmed.hasPrefix(#"\["#) { return true }
-        guard trimmed.hasPrefix(#"\begin{"#),
-              let brace = trimmed.dropFirst(#"\begin{"#.count).firstIndex(of: "}") else { return false }
-        let nameStart = trimmed.index(trimmed.startIndex, offsetBy: #"\begin{"#.count)
-        return environments.contains(String(trimmed[nameStart..<brace]))
-    }
-
     private static func delimited(
         in source: String,
         from start: String.Index,

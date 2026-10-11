@@ -11,8 +11,9 @@ struct RemoteFile: Codable, Equatable, Sendable, Identifiable {
 
 struct RemoteScan: Sendable {
     var files: [RemoteFile]
-    var deletedIDs: Set<String> = []
     var cursor: String? = nil
+    /// Incremental scans contain file additions/updates only. Deletions and
+    /// directory changes require a complete snapshot from the backend.
     var isFullSnapshot: Bool = true
 }
 

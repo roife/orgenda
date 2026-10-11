@@ -47,7 +47,6 @@ enum OrgCaptureTemplate: String, CaseIterable, Identifiable, Sendable {
         [.reminder, .repeatingReminder, .calendarEvent].contains(self)
     }
 
-    static let repeatingIntervals = [".+1d", ".+1w", ".+1m", "++1w", "++1m", "++1y"]
 
     /// Switching a capture template retains the user's title and notes.
     func applyingDefaults(to item: OrgItem, date: Date = .now, preservingPlanning: Bool = false) -> OrgItem {

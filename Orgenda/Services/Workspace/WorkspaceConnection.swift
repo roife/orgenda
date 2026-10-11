@@ -7,10 +7,6 @@ extension WorkspaceStore {
             .appendingPathComponent("Workspace", isDirectory: true)
     }
 
-    var storageDescription: String {
-        storageConnection?.provider.isRemote == true ? String(localized: "Edits are saved on this device before syncing.") : (isFolderConnected ? String(localized: "Changes save to the connected folder.") : String(localized: "Connect a folder to save changes."))
-    }
-
     func startWorkspace(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         defaults: UserDefaults = .standard,

@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class OrgPreviewImagePresentationTests: XCTestCase {
     func testImageInChineseParagraphPreservesMathLinksAndUTF8SourceOffsets() throws {
-        let source = #"前言🙂 \(x + y\) [[file:images/示意.png]] 后文 [[https://example.com][资料]] \(z\)。"# + "\n"
+        let source = #"前言🙂 \(x + y\) [[file:images/示意.png][状态迁移图]] 后文 [[https://example.com][资料]] \(z\)。"# + "\n"
         let document = try parse(source)
         let paragraph = try XCTUnwrap(document.root.children.first { $0.type == "paragraph" })
         let fragments = OrgPreviewMarkup.fragments(paragraph)
@@ -16,6 +16,7 @@ final class OrgPreviewImagePresentationTests: XCTestCase {
         XCTAssertEqual(text(fragments), "前言🙂   后文 资料 。")
         XCTAssertEqual(reference.startByte, #"前言🙂 \(x + y\) "#.utf8.count)
         XCTAssertEqual(reference.target, "file:images/示意.png")
+        XCTAssertEqual(reference.label, "状态迁移图")
         XCTAssertTrue(fragments.contains { fragment in
             guard case .text(let value) = fragment else { return false }
             return value.runs.contains { $0.link?.absoluteString == "https://example.com" }
@@ -28,21 +29,6 @@ final class OrgPreviewImagePresentationTests: XCTestCase {
         }
         XCTAssertEqual(math(before).map(\.latex), ["x + y"])
         XCTAssertEqual(math(after).map(\.latex), ["z"])
-        XCTAssertEqual(paragraph.text, source)
-        XCTAssertEqual(document.root.children, try parse(source).root.children)
-    }
-
-    func testDescribedImageUsesDescriptionAsAlternativeText() throws {
-        let source = "[[file:images/state%20diagram.png][状态迁移图：打开 → 完成]]\n"
-        let paragraph = try XCTUnwrap(try parse(source).root.children.first { $0.type == "paragraph" })
-        let fragments = OrgPreviewMarkup.fragments(paragraph)
-        let reference = try XCTUnwrap(images(fragments).first)
-
-        XCTAssertEqual(reference.label, "状态迁移图：打开 → 完成")
-        XCTAssertEqual(reference.target, "file:images/state%20diagram.png")
-        XCTAssertEqual(reference.startByte, 0)
-        XCTAssertTrue(text(fragments).isEmpty)
-        XCTAssertEqual(segmentKinds(OrgPreviewImageFlow.segments(fragments)), ["image"])
         XCTAssertEqual(paragraph.text, source)
     }
 

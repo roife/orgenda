@@ -323,7 +323,6 @@ extension WorkspaceStore {
         // Advancing that baseline would authorize overwriting an unseen update
         // on the next save retry. Session.write records this race as a conflict.
         for path in dirtyFilePaths { persistedContents[path] = previousBaseline[path] }
-        pendingFileCount = dirtyFilePaths.union(pendingUploadPaths).count
         let configChanged = acceptConfiguration(snapshot.documents.first { $0.path == "config.json" }?.contents)
         acceptDiskDocuments(snapshot.documents)
         if configChanged { scheduleWorkspaceParse() }
@@ -341,7 +340,6 @@ extension WorkspaceStore {
                 dirtyFilePaths.insert(path)
             }
         }
-        pendingFileCount = dirtyFilePaths.union(pendingUploadPaths).count
         guard !dirtyFilePaths.isEmpty else { return }
         syncState = .saving
         fileSaveTask?.cancel()
@@ -385,7 +383,6 @@ extension WorkspaceStore {
         if let workspaceSession, let snapshot = try? await workspaceSession.snapshot(), identity == workspaceFileSessionID {
             applyStorageSnapshot(snapshot)
         }
-        pendingFileCount = dirtyFilePaths.union(pendingUploadPaths).count
     }
 
     func synchronizeFiles(automatic: Bool = false) async {
@@ -414,8 +411,11 @@ extension WorkspaceStore {
             }
         } catch { failure = error }
         guard identity == workspaceFileSessionID else { return }
-        if let workspaceSession, let snapshot = try? await workspaceSession.snapshot() { applyStorageSnapshot(snapshot) }
         if let failure {
+            if let workspaceSession, let snapshot = try? await workspaceSession.snapshot(), identity == workspaceFileSessionID {
+                applyStorageSnapshot(snapshot)
+            }
+            guard identity == workspaceFileSessionID else { return }
             syncFailureCount = min(syncFailureCount + 1, 8)
             let delay = min(300, pow(2, Double(syncFailureCount)) * 2)
             automaticSyncRetryAt = .now.addingTimeInterval(delay)

@@ -16,7 +16,7 @@ final class JournalFileIndexTests: XCTestCase {
         ** 10:00 Other day
         Must not appear on January 5.
         """
-        let entries = JournalFileIndex.entries(in: [document(contents: source)])
+        let entries = entries(in: [document(contents: source)])
         let date = try XCTUnwrap(entries.first?.date)
         let store = WorkspaceStore(journalEntries: Array(entries.reversed()))
 
@@ -39,7 +39,7 @@ final class JournalFileIndexTests: XCTestCase {
         Second note.
         """
         let document = document(path: "journal/2032.org", contents: source)
-        let entries = JournalFileIndex.entries(in: [document])
+        let entries = entries(in: [document])
 
         XCTAssertEqual(entries.map(\.title), ["Evening", "Morning", "Afternoon"])
         XCTAssertEqual(entries.map(\.body), ["Last note of the year.", "First note.", "Second note."])
@@ -65,7 +65,7 @@ final class JournalFileIndexTests: XCTestCase {
         ** 晚安
         收尾。
         """
-        let entries = JournalFileIndex.entries(in: [document(contents: source)])
+        let entries = entries(in: [document(contents: source)])
 
         XCTAssertEqual(entries.map(\.title), ["早晨 ☕️", "晚安"])
         XCTAssertEqual(entries[0].source.startByte, "#+TITLE: 日記 🌱\n* 2028-02-29 Tue\n".utf8.count)
@@ -77,18 +77,18 @@ final class JournalFileIndexTests: XCTestCase {
 
     func testIDsSurviveReloadBodyEditsAndUnrelatedEarlierEntries() {
         let original = document(contents: "* 2026-09-12 Sat\n** Walk\nA walk.\n** Walk\nAnother walk.")
-        let initial = JournalFileIndex.entries(in: [original])
-        XCTAssertEqual(initial.map(\.id), JournalFileIndex.entries(in: [original]).map(\.id))
+        let initial = entries(in: [original])
+        XCTAssertEqual(initial.map(\.id), entries(in: [original]).map(\.id))
         XCTAssertNotEqual(initial[0].id, initial[1].id)
 
         let edited = document(contents: "* 2026-09-11 Fri\n** Reading\nA book.\n" + original.contents.replacingOccurrences(of: "A walk.", with: "A longer walk."))
-        let reloaded = JournalFileIndex.entries(in: [edited]).filter { $0.title == "Walk" }
+        let reloaded = entries(in: [edited]).filter { $0.title == "Walk" }
         XCTAssertEqual(initial.map(\.id), reloaded.map(\.id))
     }
 
     func testDailyOrgJournalFilenamesProvideDatesAndTimes() {
         let source = "* Friday, 25 December 2037\n** 09:15 Breakfast\nA quiet morning.\n** 21:40\nEvening note."
-        let entries = JournalFileIndex.entries(in: [document(path: "personal/journal/20371225.org", contents: source)])
+        let entries = entries(in: [document(path: "personal/journal/20371225.org", contents: source)])
         XCTAssertEqual(entries.map(\.title), ["Breakfast", "Journal entry"])
         XCTAssertTrue(entries.allSatisfy { dayKey($0.date) == "2037-12-25" })
         XCTAssertEqual(Calendar.current.component(.hour, from: entries[0].date), 9)
@@ -97,7 +97,7 @@ final class JournalFileIndexTests: XCTestCase {
     }
 
     func testInvalidDatesAndNonJournalFilesDoNotCreateEntries() {
-        let entries = JournalFileIndex.entries(in: [
+        let entries = entries(in: [
             document(path: "calendar.org", contents: "* 2026-09-12 Sat\n** Meeting\nAgenda."),
             document(path: "journal-notes/2026.org", contents: "* 2026-09-12 Sat\n** Note\nText."),
             document(contents: "* 2027-02-29 Mon\n** Invalid leap day\nText.\n* 2026-13-02 Mon\n** Invalid month\nText.\n* Project notes\n** Undated\nText."),
@@ -107,7 +107,7 @@ final class JournalFileIndexTests: XCTestCase {
     }
 
     func testDailyFileWithoutHeadingsAndDayBodyHaveUsefulEntries() {
-        let entries = JournalFileIndex.entries(in: [
+        let entries = entries(in: [
             document(path: "journal/2030-04-05.org", contents: "Just a note.\n"),
             document(path: "journal/2031.org", contents: "* 2031-06-01 Sun\nA day without an entry heading.\n")
         ])
@@ -115,6 +115,10 @@ final class JournalFileIndexTests: XCTestCase {
         XCTAssertEqual(entries.map(\.body), ["Just a note.", "A day without an entry heading."])
         XCTAssertEqual(entries[0].source.startByte, 0)
         XCTAssertEqual(entries[0].source.endByte, "Just a note.\n".utf8.count)
+    }
+
+    private func entries(in documents: [WorkspaceDocument]) -> [JournalEntry] {
+        OrgIndexService.parseSynchronously(documents.sorted { $0.path < $1.path }).flatMap(\.journalEntries)
     }
 
     private func document(path: String = "journal/2026.org", contents: String) -> WorkspaceDocument {

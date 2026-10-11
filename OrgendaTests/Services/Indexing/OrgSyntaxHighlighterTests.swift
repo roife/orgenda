@@ -23,42 +23,7 @@ final class OrgSyntaxHighlighterTests: XCTestCase {
         }
     }
 
-    func testHighlightsDrawersClocksAndExtendedSyntaxWithoutParsingLiteralContents() async {
-        let source = """
-        * TODO 中文🙂 [2/3]
-          :LOGBOOK:
-          CLOCK: [2026-09-19 Sat 09:00]--[2026-09-19 Sat 10:00] => 1:00
-          :END:
-        See <<目标>> {{{title}}} [fn::注释] <https://orgmode.org>.
-        #+BEGIN_EXAMPLE
-        *literal* [50%]
-        #+END_EXAMPLE
-        #+BEGIN_COMMENT
-        * TODO hidden
-        #+END_COMMENT
-        """
-        let spans = await OrgSyntaxHighlighter().highlights(in: source)
-        let nsSource = source as NSString
-        func contains(_ kind: OrgHighlightKind, _ text: String) -> Bool {
-            spans.contains { $0.kind == kind && nsSource.substring(with: $0.range).contains(text) }
-        }
-        XCTAssertTrue(contains(.drawer, ":LOGBOOK:"))
-        XCTAssertTrue(contains(.drawerDelimiter, ":LOGBOOK:"))
-        XCTAssertTrue(contains(.clock, "CLOCK:"))
-        XCTAssertTrue(contains(.clock, "=> 1:00"))
-        XCTAssertTrue(contains(.progress, "[2/3]"))
-        XCTAssertTrue(contains(.target, "<<目标>>"))
-        XCTAssertTrue(contains(.macro, "{{{title}}}"))
-        XCTAssertTrue(contains(.footnote, "[fn::注释]"))
-        XCTAssertTrue(contains(.sourceBlock, "*literal*"))
-        XCTAssertTrue(contains(.comment, "* TODO hidden"))
-        XCTAssertFalse(contains(.bold, "literal"))
-        XCTAssertFalse(contains(.progress, "[50%]"))
-        XCTAssertFalse(contains(.heading, "hidden"))
-        for span in spans { XCTAssertNotNil(Range(span.range, in: source)) }
-    }
-
-    func testHighlightsRepresentativeOrgSyntax() async throws {
+    func testHighlightsRepresentativeSyntaxWithoutStylingLiteralBlockContents() async {
         let source = """
         #+TITLE: 示例文档
         # 一条中文注释
@@ -67,8 +32,10 @@ final class OrgSyntaxHighlighterTests: XCTestCase {
         :PROPERTIES:
         :ID: 中文-001
         :END:
-        CLOCK: => 1:00
-        Progress [2/3] <<target>> {{{title}}}
+        :LOGBOOK:
+        CLOCK: [2026-09-19 Sat 09:00]--[2026-09-19 Sat 10:00] => 1:00
+        :END:
+        Progress [2/3] <<target>> {{{title}}} [fn::注释]
         - [ ] 阅读 [[https://example.com][说明]] [fn:note]
         | 名称 | 值 |
         |------+----|
@@ -79,8 +46,14 @@ final class OrgSyntaxHighlighterTests: XCTestCase {
         #+BEGIN_QUOTE
         引用内容
         #+END_QUOTE
+        #+BEGIN_EXAMPLE
+        *literal* [50%]
+        #+END_EXAMPLE
+        #+BEGIN_COMMENT
+        * TODO hidden
+        #+END_COMMENT
         """
-        let highlighter = try XCTUnwrap(OrgSyntaxHighlighter())
+        let highlighter = OrgSyntaxHighlighter()
 
         let spans = await highlighter.highlights(in: source)
         let kinds = Set(spans.map(\.kind))
@@ -94,6 +67,16 @@ final class OrgSyntaxHighlighterTests: XCTestCase {
         XCTAssertEqual(text(of: .priority, in: spans, source: source)?.trimmingCharacters(in: .whitespaces), "[#A]")
         XCTAssertEqual(text(of: .link, in: spans, source: source), "[[https://example.com][说明]]")
         XCTAssertEqual(text(of: .checkbox, in: spans, source: source)?.trimmingCharacters(in: .whitespaces), "[ ]")
+        let nsSource = source as NSString
+        for (kind, literal) in [(OrgHighlightKind.bold, "literal"), (.progress, "[50%]"), (.heading, "hidden")] {
+            XCTAssertFalse(spans.contains { $0.kind == kind && nsSource.substring(with: $0.range).contains(literal) }, literal)
+        }
+        for (kind, token) in [(OrgHighlightKind.drawerDelimiter, ":LOGBOOK:"), (.clock, "CLOCK:"),
+                              (.footnote, "[fn::注释]"), (.sourceBlock, "*literal*"), (.comment, "* TODO hidden")] {
+            XCTAssertTrue(spans.contains { $0.kind == kind && nsSource.substring(with: $0.range).contains(token) }, token)
+        }
+        let empty = await highlighter.highlights(in: "")
+        XCTAssertTrue(empty.isEmpty)
     }
 
     func testByteRangeConversionRejectsInvalidBoundariesAndBounds() {
@@ -109,14 +92,6 @@ final class OrgSyntaxHighlighterTests: XCTestCase {
             XCTAssertEqual(OrgSyntaxHighlighter.utf16Range(startByte: start, endByte: end, in: source),
                            expected, "UTF-8 range \(start)..<\(end)")
         }
-    }
-
-    func testEmptyDocumentProducesNoSpans() async throws {
-        let highlighter = try XCTUnwrap(OrgSyntaxHighlighter())
-
-        let spans = await highlighter.highlights(in: "")
-
-        XCTAssertTrue(spans.isEmpty)
     }
 
     private func text(

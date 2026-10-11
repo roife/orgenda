@@ -31,7 +31,7 @@ final class WorkspaceStore {
     var isSynchronizing = false
     var fileSyncError: String?
     var lastFileSync: Date?
-    var pendingFileCount = 0
+    var pendingFileCount: Int { dirtyFilePaths.union(pendingUploadPaths).count }
     var storageConnection: StorageConnection?
     var syncState: WorkspaceSyncState = .idle
     var syncConflicts: [WorkspaceConflict] = []

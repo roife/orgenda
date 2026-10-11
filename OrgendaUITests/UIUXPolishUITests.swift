@@ -3,7 +3,6 @@ import XCTest
 final class UIUXPolishUITests: XCTestCase {
     func testEditorAccessoryUndoRedoAndDismissKeyboard() throws {
         let app = launchApp()
-        defer { app.terminate() }
         openInbox(in: app)
         app.buttons["Edit"].tap()
         let editor = app.textViews["Org source editor"]
@@ -50,7 +49,6 @@ final class UIUXPolishUITests: XCTestCase {
 
     func testOutlineEmptyFilterCanBeClearedInPlace() {
         let app = launchApp()
-        defer { app.terminate() }
         openInbox(in: app)
         app.buttons["org.document.outline"].tap()
         let roadmap = outlineHeading("Review quarterly roadmap", in: app)
@@ -87,7 +85,6 @@ final class UIUXPolishUITests: XCTestCase {
 
     func testReplacingSearchQueryAndChangingScopeShowsCurrentResults() {
         let app = launchApp()
-        defer { app.terminate() }
         app.selectRootTab("Search")
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 3))
@@ -125,31 +122,6 @@ final class UIUXPolishUITests: XCTestCase {
         XCTAssertEqual(app.buttons["search.scope.menu"].value as? String, "All categories")
         XCTAssertFalse(app.staticTexts["No results"].exists)
         attach(app, name: "Search results after query and scope changes")
-    }
-
-    func testPreviewHeadingActionsPreserveEachOther() {
-        let app = launchApp()
-        defer { app.terminate() }
-        openInbox(in: app)
-        let disclosure = app.buttons.matching(NSPredicate(
-            format: "identifier BEGINSWITH 'org.preview.heading.disclosure.'"
-        )).firstMatch
-        let state = app.buttons.matching(NSPredicate(
-            format: "identifier BEGINSWITH 'org.preview.todo.'"
-        )).firstMatch
-        XCTAssertTrue(disclosure.waitForExistence(timeout: 3))
-        XCTAssertTrue(state.waitForExistence(timeout: 3))
-
-        let initialExpansion = disclosure.value as? String
-        let initialState = state.value as? String
-        disclosure.tap()
-        XCTAssertNotEqual(disclosure.value as? String, initialExpansion)
-        XCTAssertEqual(state.value as? String, initialState, "Collapsing a heading must not change its status")
-        let changedExpansion = disclosure.value as? String
-        state.tap()
-        XCTAssertNotEqual(state.value as? String, initialState)
-        XCTAssertEqual(disclosure.value as? String, changedExpansion, "Changing status must not toggle collapse")
-        attach(app, name: "Compact preview heading actions")
     }
 
     func testCustomBlockPreviewPreservesContentAndCheckboxEditing() {

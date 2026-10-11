@@ -35,8 +35,12 @@ extension WorkspaceStore {
                 return result
             }
             self.keepDemoParentFolders(of: source, in: &moved)
-            for index in self.items.indices where WorkspaceFileTransfer.contains(self.items[index].source.file, in: source) {
-                self.items[index].source.file = destination + self.items[index].source.file.dropFirst(source.count)
+            self.items = self.items.map { item in
+                var item = item
+                if WorkspaceFileTransfer.contains(item.source.file, in: source) {
+                    item.source.file = destination + item.source.file.dropFirst(source.count)
+                }
+                return item
             }
             for index in self.journalEntries.indices where WorkspaceFileTransfer.contains(self.journalEntries[index].source.file, in: source) {
                 self.journalEntries[index].source.file = destination + self.journalEntries[index].source.file.dropFirst(source.count)

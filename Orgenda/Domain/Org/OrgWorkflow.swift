@@ -92,9 +92,6 @@ struct OrgWorkflowState: Codable, Identifiable, Hashable, Sendable {
         }
     }
 
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.rawValue == rhs.rawValue }
-    func hash(into hasher: inout Hasher) { hasher.combine(rawValue) }
-
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let token = try container.decode(String.self)

@@ -244,25 +244,3 @@ enum OrgPreviewCustomBlocks {
         return result
     }
 }
-
-extension ParsedOrgNode {
-    func child(ofType type: String) -> ParsedOrgNode? {
-        children.first { $0.type == type }
-    }
-
-    var todoNode: ParsedOrgNode? {
-        child(ofType: "todo_keyword")
-    }
-
-    var checkboxNode: ParsedOrgNode? {
-        child(ofType: "checkbox")
-    }
-
-    var descendantsByID: [String: ParsedOrgNode] {
-        var result = [id: self]
-        for child in children {
-            result.merge(child.descendantsByID) { current, _ in current }
-        }
-        return result
-    }
-}

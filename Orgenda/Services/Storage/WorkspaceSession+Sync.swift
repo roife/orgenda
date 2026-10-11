@@ -78,29 +78,12 @@ extension WorkspaceSession {
         var cursor: String?
         if let remote {
             let scan = try await remote.scan(cursor: manifest.cursor)
-            guard scan.isFullSnapshot || manifest.initialized else { throw StorageError.invalidResponse }
+            guard scan.isFullSnapshot || (manifest.initialized && scan.files.allSatisfy { !$0.isDirectory }) else {
+                throw StorageError.invalidResponse
+            }
             var files = scan.isFullSnapshot ? [:] : manifest.entries.mapValues(\.file)
             if !scan.isFullSnapshot {
-                let removedFolders = manifest.entries.values.filter {
-                    $0.file.isDirectory && scan.deletedIDs.contains($0.file.id)
-                }.map { $0.file.path }
-                files = files.filter { path, _ in
-                    !removedFolders.contains { WorkspaceFileTransfer.contains(path, in: $0) }
-                }
-                // Delta APIs can report only the renamed directory. Child IDs
-                // remain stable, but every descendant's relative path changes.
-                for changed in scan.files where changed.isDirectory {
-                    guard let previous = manifest.entries.values.first(where: { $0.file.id == changed.id })?.file,
-                          previous.path != changed.path else { continue }
-                    let descendants = files.filter { $0.key != previous.path && WorkspaceFileTransfer.contains($0.key, in: previous.path) }
-                    for (path, var child) in descendants {
-                        files.removeValue(forKey: path)
-                        child.path = changed.path + path.dropFirst(previous.path.count)
-                        guard files[child.path] == nil else { throw StorageError.conflict(child.path) }
-                        files[child.path] = child
-                    }
-                }
-                let changedIDs = Set(scan.files.map(\.id)).union(scan.deletedIDs)
+                let changedIDs = Set(scan.files.map(\.id))
                 files = files.filter { !changedIDs.contains($0.value.id) }
             }
             try validateInventory(scan.files)

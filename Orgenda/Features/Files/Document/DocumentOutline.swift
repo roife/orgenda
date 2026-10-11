@@ -67,7 +67,7 @@ struct DocumentOutlineNode: Identifiable {
 /// heading stays when it matches, or when one of its descendants matches so the
 /// match keeps its outline path. Empty criteria mean "match everything".
 struct DocumentOutlineFilter: Equatable {
-    var states: Set<OrgWorkflowState> = []
+    var states: Set<String> = []
     var scheduledFrom: Date?
     var scheduledTo: Date?
     var deadlineFrom: Date?
@@ -101,7 +101,7 @@ struct DocumentOutlineFilter: Equatable {
     }
 
     private func matchesState(_ node: DocumentOutlineNode) -> Bool {
-        states.isEmpty || node.state.map(states.contains) == true
+        states.isEmpty || node.state.map { states.contains($0.rawValue) } == true
     }
 
     private func matches(_ date: Date?, from: Date?, to: Date?) -> Bool {
@@ -325,12 +325,12 @@ struct DocumentOutlineFilterSheet: View {
                     OrgendaFlowLayout(horizontalSpacing: 8, verticalSpacing: 8) {
                         ForEach(workflow.states) { state in
                             Toggle(isOn: Binding(
-                                get: { filter.states.contains(state) },
+                                get: { filter.states.contains(state.rawValue) },
                                 set: { isSelected in
                                     if isSelected {
-                                        filter.states.insert(state)
+                                        filter.states.insert(state.rawValue)
                                     } else {
-                                        filter.states.remove(state)
+                                        filter.states.remove(state.rawValue)
                                     }
                                 }
                             )) {

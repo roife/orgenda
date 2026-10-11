@@ -25,11 +25,13 @@ struct OrgWorkflowPicker: View {
     var states: [OrgWorkflowState] = OrgWorkspaceConfiguration.taskStates
 
     var body: some View {
-        Picker(selection: $selection) {
+        Picker(selection: Binding(get: { selection.rawValue }, set: { token in
+            if let state = states.first(where: { $0.rawValue == token }) { selection = state }
+        })) {
             ForEach(states) { state in
                 OrgWorkflowLabel(state: state)
                     .foregroundStyle(OrgendaTheme.workflowColor(state))
-                    .tag(state)
+                    .tag(state.rawValue)
                     .accessibilityIdentifier("workflow.option.\(state.rawValue)")
             }
         } label: {

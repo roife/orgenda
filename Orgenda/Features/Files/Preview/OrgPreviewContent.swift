@@ -22,13 +22,12 @@ struct OrgPreviewContent: View {
     let onMoveHeading: (String, String, OrgHeadingPlacement) -> Bool
 
     var body: some View {
-        let presentationRows = OrgPreviewMathRows.group(rows)
-        let visibleRows = presentationRows.filter {
+        let visibleRows = rows.filter {
             $0.node.type != "blank_line" && $0.parentHeadingIDs.allSatisfy {
                 !collapsedHeadingIDs.contains($0)
             }
         }
-        let targetRow = presentationRows.first { $0.id == dropTarget?.headingID }
+        let targetRow = rows.first { $0.id == dropTarget?.headingID }
         let afterTargetID = dropTarget.flatMap { target in
             visibleRows.last { row in
                 (row.id == target.headingID || row.parentHeadingIDs.contains(target.headingID))
@@ -80,7 +79,7 @@ struct OrgPreviewContent: View {
                 }
                 .opacity(drag.map { row.id == $0.headingID || row.parentHeadingIDs.contains($0.headingID) } == true ? 0.4 : 1)
                 .padding(.leading, row.indentation)
-                .padding(.top, row.id == presentationRows.first(where: { $0.node.type != "blank_line" })?.id
+                .padding(.top, row.id == rows.first(where: { $0.node.type != "blank_line" })?.id
                     ? 0 : row.spacingBefore)
                 .background {
                     if dropTarget?.placement == .child && row.id == dropTarget?.headingID {

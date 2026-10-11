@@ -110,7 +110,7 @@ struct OrgItemEditor: View {
             item.tags = parsedTags
             let previousDefaults = previous.applyingDefaults(to: originalDraft, date: captureDate)
             draft = template.applyingDefaults(to: item, date: captureDate, preservingPlanning: true)
-            if item.state != previousDefaults.state { draft.state = item.state }
+            if item.state.rawValue != previousDefaults.state.rawValue { draft.state = item.state }
             tagsText = draft.tags.joined(separator: ", ")
             hasConfiguredTime = draft.hasTime
         }
@@ -397,7 +397,7 @@ struct OrgItemEditor: View {
         guard !isNew, store.usesEmacsConfiguration || store.hasWorkspaceConfiguration else { return false }
         let logging = store.effectiveConfiguration.logging
         return OrgWorkflowOperations.requiresNote(from: originalDraft.state, to: draft.state)
-            || (originalDraft.state != draft.state && draft.state.isTerminal && logging.done == .note)
+            || (originalDraft.state.rawValue != draft.state.rawValue && draft.state.isTerminal && logging.done == .note)
             || (originalDraft.scheduled != draft.scheduled && logging.reschedule == .note)
             || (originalDraft.deadline != draft.deadline && logging.redeadline == .note)
     }

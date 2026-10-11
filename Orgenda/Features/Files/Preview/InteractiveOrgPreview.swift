@@ -18,8 +18,8 @@ struct InteractiveOrgPreview: View {
     @State private var editorItem: OrgItem?
     @State private var proposedState: OrgWorkflowState?
     @State private var scrollPosition = ScrollPosition(y: 0)
-    /// Flattened outline rows, rebuilt only when the parsed document changes
-    /// instead of on every body evaluation (scrolling included).
+    /// Final presentation rows, including math grouping, rebuilt only when
+    /// the parsed document changes rather than on disclosure or drag updates.
     @State private var previewRows: [OrgPreviewRow] = []
     /// Scroll offset kept outside SwiftUI state: per-frame scroll updates must
     /// not re-evaluate this body.
@@ -42,7 +42,7 @@ struct InteractiveOrgPreview: View {
         self.isActive = isActive
         self.outlineMove = outlineMove
         _previewRows = State(initialValue: store.parsedDocuments[path]
-            .map { OrgPreviewOutline.rows(from: $0.root.children) } ?? [])
+            .map { OrgPreviewMathRows.group(OrgPreviewOutline.rows(from: $0.root.children)) } ?? [])
     }
 
     var body: some View {
@@ -111,7 +111,7 @@ struct InteractiveOrgPreview: View {
             .presentationDragIndicator(.visible)
         }
         .onChange(of: store.parsedDocuments[path]) { previous, document in
-            previewRows = document.map { OrgPreviewOutline.rows(from: $0.root.children) } ?? []
+            previewRows = document.map { OrgPreviewMathRows.group(OrgPreviewOutline.rows(from: $0.root.children)) } ?? []
             if let previous, let document {
                 collapsedHeadingIDs = OrgHeadingContinuity.remap(
                     collapsedHeadingIDs, from: previous, to: document,

@@ -17,12 +17,6 @@ enum OrgPreviewMarkup {
         }
     }
 
-    static func blockText(_ node: ParsedOrgNode) -> AttributedString {
-        var result = AttributedString()
-        for child in contents(of: node) { result.append(render(child, replacement: nil)) }
-        return trimmed(result, spaces: false)
-    }
-
     static func fragments(
         _ node: ParsedOrgNode,
         trimSpaces: Bool = false,

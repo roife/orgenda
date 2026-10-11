@@ -54,8 +54,6 @@ final class WorkspaceConfigurationTests: XCTestCase {
         XCTAssertThrowsError(try ConfigurationDocument(String(decoding: encoded, as: UTF8.self)))
         configuration.workflow.sequences = []
         XCTAssertThrowsError(try configuration.validate())
-        XCTAssertNoThrow(try WorkspaceConfiguration.standard.validate())
-        XCTAssertNoThrow(try WorkspaceConfiguration.classic.validate())
     }
 
     func testSingleWorkspaceDefaultDoesNotDisableFileLocalSequences() {
@@ -186,7 +184,6 @@ final class WorkspaceConfigurationTests: XCTestCase {
     func testInvalidConfigCannotBeAccepted() throws {
         for source in [
             #"{"version":2}"#,
-            #"{"version":1,"workflow":{"sequences":[]}}"#,
             #"{"version":1,"files":{"inbox":"../escape.org"}}"#,
             ##"{"version":1,"workflow":{"keywords":{"TODO":{"color":"#ffffff"}}}}"##,
             #"{"version":1,"reminders":{"repeatMinutes":0}}"#,

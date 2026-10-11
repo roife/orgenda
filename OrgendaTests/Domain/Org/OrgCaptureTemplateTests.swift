@@ -85,7 +85,7 @@ final class OrgCaptureTemplateTests: XCTestCase {
         var item = OrgCaptureTemplate.repeatingReminder.applyingDefaults(to: fixture(), date: date)
         XCTAssertEqual(item.kind, .task)
         XCTAssertEqual(item.recurrence, ".+1d")
-        for interval in OrgCaptureTemplate.repeatingIntervals {
+        for interval in [".+1d", ".+1w", ".+1m", "++1w", "++1m", "++1y"] {
             item.recurrence = interval
             item.properties["APPT_WARNTIME"] = "30"
             let source = OrgCaptureTemplate.repeatingReminder.source(for: item, createdAt: date)

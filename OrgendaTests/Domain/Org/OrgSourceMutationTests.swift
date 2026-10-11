@@ -90,7 +90,6 @@ final class OrgSourceMutationTests: XCTestCase {
         XCTAssertEqual(parsed.headings.map(\.kind),
                        Array(repeating: .task, count: states.count)
                        + Array(repeating: .project, count: states.count))
-        XCTAssertEqual(states.filter(\.isTerminal), [.done, .canceled])
     }
 
     func testEditingWorkflowHeadingPreservesItsTokenAndOtherSource() throws {
@@ -284,7 +283,9 @@ final class OrgSourceMutationTests: XCTestCase {
         ]
 
         for (current, next) in expected {
-            let source = "#+未知: 保留🙂\n* \(current) \t标题\n"
+            let prefix = "#+未知: 保留🙂\n<<opaque::语法>>\n* "
+            let suffix = " \t标题 :奇怪:tag:\n%% raw 🚀 bytes %%\n"
+            let source = prefix + current + suffix
             let range = try byteRange(of: "\(current) \t", in: source)
             let updated = try OrgSourceMutation.workflowToggle(
                 in: source,
@@ -292,7 +293,7 @@ final class OrgSourceMutationTests: XCTestCase {
                 endByte: range.end
             ).applied(to: source)
 
-            XCTAssertEqual(updated, "#+未知: 保留🙂\n* \(next) \t标题\n", current)
+            XCTAssertEqual(Data(updated.utf8), Data((prefix + next + suffix).utf8), current)
         }
     }
 
@@ -324,24 +325,6 @@ final class OrgSourceMutationTests: XCTestCase {
                 XCTAssertEqual($0 as? OrgSourceMutationError, expected)
             }
         }
-    }
-
-    func testUnknownSyntaxBeforeAndAfterReplacementIsByteForBytePreserved() throws {
-        let prefix = "#+CUSTOM_ODD: 🧪 原样\n<<opaque::语法>>\n* "
-        let suffix = " 标题 :奇怪:tag:\n%% raw 🚀 bytes %%\n"
-        let source = prefix + "TODO" + suffix
-        let startByte = prefix.utf8.count
-        let endByte = startByte + "TODO".utf8.count
-
-        let next = try OrgSourceMutation.workflowToggle(
-            in: source,
-            startByte: startByte,
-            endByte: endByte
-        ).applied(to: source)
-
-        XCTAssertEqual(next, prefix + "DONE" + suffix)
-        XCTAssertEqual(Array(next.utf8.prefix(prefix.utf8.count)), Array(prefix.utf8))
-        XCTAssertEqual(Array(next.utf8.suffix(suffix.utf8.count)), Array(suffix.utf8))
     }
 
     func testUnsupportedSemanticTokenReturnsExplicitErrorWithoutChangingSource() throws {

@@ -163,7 +163,7 @@ extension OrgSourceMutation {
     ) -> [OrgSourceMutation]? {
         var edits: [OrgSourceMutation] = []
         let newline = heading.text.hasSuffix("\r\n") ? "\r\n" : "\n"
-        let headerChanged = original.title != item.title || original.state != item.state
+        let headerChanged = original.title != item.title || original.state.rawValue != item.state.rawValue
             || original.priority != item.priority || original.tags != item.tags
             || original.kind != item.kind
 
@@ -179,7 +179,7 @@ extension OrgSourceMutation {
                 return String(text.reversed().prefix { $0 == " " || $0 == "\t" }.reversed())
             }
             var workflowText = workflow?.text ?? ""
-            if original.state != item.state
+            if original.state.rawValue != item.state.rawValue
                 || (original.kind != item.kind && workflow == nil && [.task, .project, .habit].contains(item.kind)) {
                 workflowText = item.state.rawValue + whitespace(workflow?.text)
             }

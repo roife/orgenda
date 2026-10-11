@@ -73,9 +73,6 @@ final class ConfigurationUITests: XCTestCase {
         addState("CANCELED", terminal: true, app: app)
         XCTAssertFalse(app.buttons["Edit"].exists, "Workflow ordering must always be available.")
         XCTAssertFalse(app.buttons["settings.done"].exists)
-        XCTAssertFalse(app.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier BEGINSWITH 'configuration.keyword.reorder.'")
-        ).firstMatch.exists, "Ordering must use the system control, not a custom drag handle.")
         for token in ["TODO", "WAIT", "DONE", "CANCELED"] {
             let handle = nativeReorderHandle(for: token, in: app)
             let state = app.buttons["configuration.keyword.\(token)"]
@@ -371,16 +368,12 @@ final class ConfigurationUITests: XCTestCase {
         reveal("workspace.chooseFolder", in: app).tap()
         XCTAssertTrue(app.navigationBars["选择存储位置"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["storage.provider.iCloud"].exists)
-        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "在设备之间保持同步")).firstMatch.exists)
-        XCTAssertFalse(app.staticTexts["Keep your Org files in sync across devices."].exists)
-        screenshot("Chinese storage picker without removed subtitle", app: app)
+        screenshot("Chinese storage picker", app: app)
         app.buttons["storage.cancel"].tap()
     }
 
     func testSettingsDetailPagesSupportEdgeSwipeBack() {
-        continueAfterFailure = false
         let app = launchConfigurationFixture()
-        defer { app.terminate() }
 
         for (destination, title) in [
             ("workspace", "Workspace & Sync"),
@@ -399,9 +392,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testSettingsDraftSurvivesValidationAndProtectsNavigation() {
-        continueAfterFailure = false
         let app = launchConfigurationFixture()
-        defer { app.terminate() }
         reveal("settings.files", in: app).tap()
         let inbox = app.descendants(matching: .any)["configuration.files.inbox"].firstMatch
         revealElement(inbox, in: app)
@@ -448,9 +439,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testTemplateValidationKeepsDraftAndCancelRequiresDiscard() {
-        continueAfterFailure = false
         let app = launchConfigurationFixture()
-        defer { app.terminate() }
         reveal("settings.capture", in: app).tap()
         reveal("configuration.template.inbox", in: app).tap()
         XCTAssertTrue(app.navigationBars["Capture template"].waitForExistence(timeout: 3))
@@ -488,9 +477,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testWorkflowKeyboardShortcutsRespectTextEditing() {
-        continueAfterFailure = false
         let app = launchConfigurationFixture(extraArguments: ["--native-selection-fixture"])
-        defer { app.terminate() }
         app.buttons["settings.done"].tap()
         app.tabBars.buttons["Dashboard"].tap()
         let item = app.buttons.matching(NSPredicate(
@@ -512,11 +499,9 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testReminderNativeMenuAtAccessibilitySize() {
-        continueAfterFailure = false
         let app = launchConfigurationFixture(extraArguments: [
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"
         ])
-        defer { app.terminate() }
         reveal("settings.reminders", in: app).tap()
         let presets = reveal("settings.reminders.advance.presets", in: app)
         XCTAssertTrue(presets.label.contains("Common values"))
@@ -531,9 +516,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testNativePathSelectionPreservesOrderAndUnloadedPaths() throws {
-        continueAfterFailure = false
         let app = launchConfigurationFixture(extraArguments: ["--native-selection-fixture"])
-        defer { app.terminate() }
         reveal("settings.files", in: app).tap()
         let inboxPicker = reveal("configuration.files.inbox.choose", in: app)
         XCTAssertEqual(inboxPicker.value as? String, "inbox.org")
@@ -571,9 +554,7 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     func testNativeTemplateFileSelectionSearchAndReselect() throws {
-        continueAfterFailure = false
         let app = launchConfigurationFixture(extraArguments: ["--native-selection-fixture"])
-        defer { app.terminate() }
         reveal("settings.capture", in: app).tap()
         reveal("configuration.template.inbox", in: app).tap()
         reveal("configuration.template.chooseFile", in: app).tap()
@@ -607,11 +588,8 @@ final class ConfigurationUITests: XCTestCase {
     }
 
     private func launchConfigurationFixture(extraArguments: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-workspace", "--workflow-settings-fixture",
-                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-appearance", "Light"]
-        app.launchArguments += extraArguments
-        app.launch()
+        let app = launchTestApp(["--workflow-settings-fixture"] + extraArguments,
+                                workspace: "--ui-test-workspace", appearance: "Light")
         app.selectRootTab("Files")
         app.buttons["files.settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))

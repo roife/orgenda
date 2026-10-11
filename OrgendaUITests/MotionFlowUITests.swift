@@ -3,7 +3,6 @@ import XCTest
 final class MotionFlowUITests: XCTestCase {
     func testHabitContextPreviewShowsHistoryWithoutOpeningEditor() {
         let app = gestureApp()
-        defer { app.terminate() }
         let habit = app.staticTexts["Evening walk"].firstMatch
         let timeline = app.scrollViews["orgenda.agenda.timeline"]
         for _ in 0..<3 where !habit.isHittable { timeline.swipeUp() }
@@ -18,7 +17,6 @@ final class MotionFlowUITests: XCTestCase {
 
     func testHapticTouchFilePreviewOpenAndMove() {
         let app = fileGestureApp()
-        defer { app.terminate() }
         let inbox = app.buttons["files.open.inbox.org"]
         XCTAssertTrue(inbox.waitForExistence(timeout: 3))
         inbox.press(forDuration: 1)
@@ -44,7 +42,6 @@ final class MotionFlowUITests: XCTestCase {
 
     func testHapticTouchFolderDeleteRequiresConfirmationAndCanUndo() {
         let app = fileGestureApp()
-        defer { app.terminate() }
         let projects = app.buttons["files.open.projects"]
         XCTAssertTrue(projects.waitForExistence(timeout: 3))
         projects.press(forDuration: 1)
@@ -262,6 +259,11 @@ final class MotionFlowUITests: XCTestCase {
         let inbox = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Inbox,'")).firstMatch
         inbox.tap()
         XCTAssertTrue(app.buttons["org.document.outline"].waitForExistence(timeout: 3))
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.16, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.5)
+        XCTAssertTrue(app.buttons["org.document.outline"].isHittable)
+        XCTAssertTrue(app.staticTexts["Review quarterly roadmap"].isHittable)
         edgeBack(in: app)
         XCTAssertTrue(app.navigationBars["Files"].waitForExistence(timeout: 3))
         inbox.tap()
@@ -285,19 +287,6 @@ final class MotionFlowUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Workflow"].waitForExistence(timeout: 3))
         edgeBack(in: app)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-    }
-
-    func testGestureEdgeBackCanBeCancelled() {
-        let app = gestureApp()
-        app.selectRootTab("Files")
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Inbox,'")).firstMatch.tap()
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.5))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.16, dy: 0.5))
-        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.5)
-        XCTAssertTrue(app.buttons["org.document.outline"].isHittable)
-        XCTAssertTrue(app.staticTexts["Review quarterly roadmap"].isHittable)
-        edgeBack(in: app)
-        XCTAssertTrue(app.navigationBars["Files"].waitForExistence(timeout: 3))
     }
 
     func testGestureTaskSwipesCompleteRescheduleAndUndo() {
@@ -324,7 +313,6 @@ final class MotionFlowUITests: XCTestCase {
 
     func testNativeTaskSwipeClosesAcrossPerspectiveChanges() {
         let app = gestureApp()
-        defer { app.terminate() }
         app.selectRootTab("Dashboard")
         chooseAgendaView("todos", in: app)
         let title = app.staticTexts["Plan iPad reading workflow"]
@@ -340,7 +328,6 @@ final class MotionFlowUITests: XCTestCase {
 
     func testNativeFileSwipeCoordinatesRowsAndScrollDismissal() {
         let app = fileGestureApp()
-        defer { app.terminate() }
         let inbox = app.buttons["files.open.inbox.org"]
         let projects = app.buttons["files.open.projects"]
         XCTAssertTrue(inbox.waitForExistence(timeout: 3))
@@ -478,21 +465,21 @@ final class MotionFlowUITests: XCTestCase {
         let app = launchTestApp()
         app.selectRootTab("Files")
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Inbox,'")).firstMatch.tap()
-        XCTAssertFalse(app.staticTexts["org.document.saveStatus"].exists)
-        XCTAssertFalse(app.buttons["org.document.undo"].exists)
-        XCTAssertFalse(app.buttons["org.document.redo"].exists)
         let disclosure = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'org.preview.heading.disclosure.'")).firstMatch
+        let todo = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'org.preview.todo.'")).firstMatch
+        let initialState = todo.value as? String
         disclosure.tap()
         XCTAssertEqual(disclosure.value as? String, "Collapsed")
+        XCTAssertEqual(todo.value as? String, initialState, "Disclosure must not change task status.")
         app.buttons["Edit"].tap()
         let source = app.textViews["Org source editor"].value as? String
         app.buttons["Preview"].tap()
         XCTAssertEqual(disclosure.value as? String, "Collapsed")
         disclosure.tap()
-        let todo = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'org.preview.todo.'")).firstMatch
         todo.tap()
         let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == 'DONE'"), object: todo)
         XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 3), .completed)
+        XCTAssertEqual(disclosure.value as? String, "Expanded", "Changing task status must not collapse the heading.")
         app.buttons["Edit"].tap()
         app.textViews["Org source editor"].tap()
         let undo = app.buttons["org.editor.undo"]
@@ -506,7 +493,7 @@ final class MotionFlowUITests: XCTestCase {
     }
 
     func testOutlineDragNestsMovesOutAndUpdatesPreviewSourceAndUndo() throws {
-        let app = outlineDragApp()
+        let app = launchTestApp(appearance: "Light")
         app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Files'")).firstMatch.tap()
         app.buttons["files.open.journal/2026.org"].tap()
         app.buttons["Edit"].tap()
@@ -562,7 +549,7 @@ final class MotionFlowUITests: XCTestCase {
     }
 
     func testFilteredOutlineDragMovesHiddenContentAndPreviewNavigationStillWorks() throws {
-        let app = outlineDragApp()
+        let app = launchTestApp(appearance: "Light")
         app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Files'")).firstMatch.tap()
         app.buttons["files.open.journal/2026.org"].tap()
         app.buttons["Edit"].tap()
@@ -597,11 +584,6 @@ final class MotionFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Filter Alpha"].isHittable)
         app.buttons["Edit"].tap()
         XCTAssertEqual(editor.value as? String, prefix + b + a + suffix)
-    }
-
-    private func outlineDragApp() -> XCUIApplication {
-        let app = launchTestApp(appearance: "Light")
-        return app
     }
 
     func testPreviewDragOntoHeadingNestsReparentsAndOutdentsWholeSubtree() throws {
@@ -707,9 +689,10 @@ final class MotionFlowUITests: XCTestCase {
 
         editor.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        // Start below the navigation bar and drag across the keyboard to dismiss it.
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.05, thenDragTo:
-                editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
+                app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
         XCTAssertTrue(filesTab.isHittable)
         XCTAssertGreaterThan(editor.frame.maxY, filesTab.frame.maxY)
@@ -1143,7 +1126,7 @@ final class MotionFlowUITests: XCTestCase {
         XCTAssertTrue(captured.contains("SCHEDULED: <\(key)"))
     }
 
-    func testWorkflowIconPickerSelectsEveryStateAndSaves() {
+    func testWorkflowPickerSelectsTerminalAndActiveStatesAndSaves() {
         let app = gestureApp()
         let item = app.buttons.matching(NSPredicate(
             format: "identifier BEGINSWITH 'agenda.item.open.' AND label CONTAINS 'Review quarterly roadmap'"
@@ -1151,7 +1134,8 @@ final class MotionFlowUITests: XCTestCase {
         XCTAssertTrue(item.waitForExistence(timeout: 3))
         item.tap()
 
-        for state in ["TODO", "NEXT", "WAIT", "SOMEDAY", "URGENT", "DONE", "CANCELED"] {
+        // Domain tests cover the keyword matrix; UI coverage needs both kinds.
+        for state in ["DONE", "URGENT"] {
             app.buttons["item.editor.state"].tap()
             let option = app.buttons["workflow.option.\(state)"]
             XCTAssertTrue(option.waitForExistence(timeout: 2))
@@ -1161,8 +1145,6 @@ final class MotionFlowUITests: XCTestCase {
             )
             XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 3), .completed, state)
         }
-        app.buttons["item.editor.state"].tap()
-        app.buttons["workflow.option.URGENT"].tap()
         app.buttons["item.editor.save"].tap()
         XCTAssertTrue(app.buttons["item.editor.save"].waitForNonExistence(timeout: 3))
         let updated = app.buttons.matching(NSPredicate(

@@ -8,7 +8,7 @@ extension OrgWorkflowState {
 
 extension OrgItem {
     var workflowTitleColor: Color {
-        hasWorkflowState && (state != .todo || state.color != .default)
+        hasWorkflowState && (state.rawValue != "TODO" || state.color != .default)
             ? OrgendaTheme.workflowColor(state) : .primary
     }
 }
