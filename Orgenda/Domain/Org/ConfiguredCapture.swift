@@ -75,7 +75,7 @@ enum ConfiguredCapture {
                 case "%t", "%T", "%u", "%U":
                     let active = expansion.token == "%t" || expansion.token == "%T"
                     let time = expansion.token == "%T" || expansion.token == "%U"
-                    replacement = timestamp(date, active: active, time: time)
+                    replacement = date.orgTimestamp(active: active, includesTime: time)
                 default:
                     let format = String(expansion.token.dropFirst(2).dropLast())
                     replacement = formatted(date, format: format)
@@ -84,11 +84,6 @@ enum ConfiguredCapture {
             result = try OrgSourceMutation(startByte: expansion.start, endByte: expansion.end, replacement: replacement).applied(to: result)
         }
         return result
-    }
-
-    static func timestamp(_ date: Date, active: Bool, time: Bool) -> String {
-        let value = formatted(date, format: time ? "%Y-%m-%d %a %H:%M" : "%Y-%m-%d %a")
-        return (active ? "<" : "[") + value + (active ? ">" : "]")
     }
 
     private static func formatted(_ date: Date, format: String) -> String {

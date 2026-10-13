@@ -20,9 +20,8 @@ struct SettingsView: View {
                             icon: store.storageConnection?.provider.symbol ?? "folder",
                             color: .primary,
                             title: SettingsDestination.workspace.title,
-                            subtitle: store.storageConnection?.providerSummary ?? store.workspaceName,
-                            subtitleIcon: store.syncState.storageSymbol,
-                            iconAsset: store.storageConnection?.provider.iconAsset
+                            subtitle: store.storageConnection?.provider.title ?? store.workspaceName,
+                            subtitleIcon: store.syncState.storageSymbol
                         )
                     }
                     .accessibilityValue([store.storageConnection?.provider.title, store.syncState.title]

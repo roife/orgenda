@@ -3,28 +3,14 @@ import SwiftUI
 struct StorageReconnectAction: View {
     let store: WorkspaceStore
     @State private var credentialConnection: StorageConnection?
-    @State private var isReconnecting = false
 
     var body: some View {
         Button {
-            guard let connection = store.storageConnection else { return }
-            if connection.provider == .webDAV {
-                credentialConnection = connection
-            } else {
-                isReconnecting = true
-                Task {
-                    _ = await store.reconnectStorage()
-                    isReconnecting = false
-                }
-            }
+            credentialConnection = store.storageConnection
         } label: {
-            HStack(spacing: 12) {
-                if isReconnecting { ProgressView() }
-                Label(LocalizedStringKey(store.storageConnection?.provider == .webDAV ? "Update Password" : "Sign In Again"),
-                      systemImage: "key.fill")
-            }
+            Label("Update Password", systemImage: "key.fill")
         }
-        .disabled(isReconnecting || store.isSynchronizing)
+        .disabled(store.isSynchronizing)
         .tint(OrgendaTheme.accentText)
         .accessibilityIdentifier("storage.reauthenticate")
         .sheet(item: $credentialConnection) { connection in
@@ -48,7 +34,7 @@ private struct StorageWebDAVCredentialsView: View {
                     if let endpoint = connection.endpoint {
                         SettingsValueRow(title: String(localized: "Server Address"), value: endpoint.absoluteString)
                     }
-                    if let username = connection.accountName ?? connection.accountID {
+                    if let username = connection.accountID {
                         SettingsValueRow(title: String(localized: "Username"), value: username)
                     }
                     SecureField("New Password", text: $password)

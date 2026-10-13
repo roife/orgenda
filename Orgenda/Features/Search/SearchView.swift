@@ -9,7 +9,6 @@ struct SearchView: View {
     @State private var scope: SearchScope = .all
     @State private var presentation: SearchPresentation?
     @State private var results: [SearchResult] = []
-    @State private var searchTask: Task<Void, Never>?
     @State private var completedSearch: SearchRequest?
 
     private struct SearchRequest: Equatable {
@@ -17,8 +16,22 @@ struct SearchView: View {
         let scope: SearchScope
     }
 
+    private struct SearchInput: Equatable {
+        let request: SearchRequest
+        let items: [OrgItem]
+        let documents: [WorkspaceDocument]
+        let journalEntries: [JournalEntry]
+    }
+
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var searchInput: SearchInput {
+        SearchInput(
+            request: SearchRequest(query: trimmedQuery, scope: scope),
+            items: store.items, documents: store.documents, journalEntries: store.journalEntries
+        )
     }
 
     private var suggestions: SearchSuggestions {
@@ -58,33 +71,19 @@ struct SearchView: View {
         .task(id: focusRequest) {
             if focusRequest != nil { isSearchFocused = true }
         }
-        .task { scheduleSearch() }
-        // Debounced, cancellable search: scanning every document on each
-        // keystroke blocked the main thread. Data changes re-run the active
-        // query so results stay current after edits without a stale copy.
-        .onChange(of: trimmedQuery) { _, _ in scheduleSearch() }
-        .onChange(of: scope) { _, _ in scheduleSearch() }
-        .onChange(of: store.items) { _, _ in scheduleSearch() }
-        .onChange(of: store.documents) { _, _ in scheduleSearch() }
-        .onChange(of: store.journalEntries) { _, _ in scheduleSearch() }
-        .onDisappear { searchTask?.cancel() }
+        .task(id: searchInput) { await search(searchInput.request) }
     }
 
-    private func scheduleSearch() {
-        searchTask?.cancel()
-        let request = SearchRequest(query: trimmedQuery, scope: scope)
+    private func search(_ request: SearchRequest) async {
         guard !request.query.isEmpty else {
-            searchTask = nil
             results = []
             completedSearch = nil
             return
         }
-        searchTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
-            results = store.search(request.query, scope: request.scope)
-            completedSearch = request
-        }
+        try? await Task.sleep(for: .milliseconds(200))
+        guard !Task.isCancelled else { return }
+        results = store.search(request.query, scope: request.scope)
+        completedSearch = request
     }
 
     private var scopeBar: some View {

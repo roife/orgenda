@@ -271,7 +271,7 @@ D01：OrgendaHorizontalPan.swift（已删除） 共 48 行。全仓应用与测�
 | [ConfigurationPromptView.swift](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/ConfigurationPromptView.swift:1) | 89 | 保留 | DisclosureGroup、可选中文字和系统剪贴板，prompt 属于业务内容。 |
 | [ConfigurationSettingsView.swift](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/ConfigurationSettingsView.swift:1) | 635 | R06 | 排序 onMove／onDelete 已原生；Optional 弹窗简化。Back 承担保存失败留稿，不能直接删除。 |
 | [ReminderSettingsView.swift](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/ReminderSettingsView.swift:1) | 249 | 保留 | Toggle、分段／菜单 Picker、Form 已原生；数值分钟规则不等于时刻选择。 |
-| [SettingsRow.swift](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/SettingsRow.swift:1) | 57 | 保留 | 本身已是 Label，只封装多行副标题与云盘图标。 |
+| [SettingsRow.swift](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/SettingsRow.swift:1) | 57 | 保留 | 本身已是 Label，只封装设置图标与多行副标题。 |
 | [SettingsValueRow.swift](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/SettingsValueRow.swift:1) | 18 | 保留 | 本身已是 LabeledContent，只补长值换行。 |
 | [SettingsView.swift](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/SettingsView.swift:1) | 100 | 保留 | 系统 List、NavigationStack、NavigationLink 与 sheet 尺寸。 |
 | [StorageConflictView.swift](/Users/roifewu/.config/orgenda/Orgenda/Features/Settings/StorageConflictView.swift:1) | 185 | R06 | 列表与确认已原生，Optional 绑定可简化；版本对比和冲突解决保留。 |

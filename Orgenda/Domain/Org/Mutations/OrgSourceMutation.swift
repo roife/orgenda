@@ -266,8 +266,7 @@ extension OrgSourceMutation {
                     if original.recurrence != item.recurrence { draft.timestamps[0].recurrence = item.recurrence }
                     eventReplacement = draft.source
                 } else {
-                    eventReplacement = activeTimestampSource(date: date, hasTime: item.hasTime,
-                                                             recurrence: item.recurrence)
+                    eventReplacement = date.orgTimestamp(includesTime: item.hasTime, recurrence: item.recurrence)
                 }
             } else {
                 eventReplacement = ""
@@ -337,17 +336,8 @@ extension OrgSourceMutation {
     static func planningSource(
         keyword: OrgPlanningKeyword, date: Date, hasTime: Bool, recurrence: String?
     ) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = hasTime || keyword == .closed ? "yyyy-MM-dd EEE HH:mm" : "yyyy-MM-dd EEE"
-        let timestamp = formatter.string(from: date) + (recurrence.map { " " + $0 } ?? "")
-        let delimiters = keyword == .closed ? ("[", "]") : ("<", ">")
-        return "\(keyword.sourceToken) \(delimiters.0)\(timestamp)\(delimiters.1)"
-    }
-
-    static func activeTimestampSource(date: Date, hasTime: Bool, recurrence: String?) -> String {
-        String(planningSource(keyword: .scheduled, date: date, hasTime: hasTime, recurrence: recurrence)
-            .dropFirst("SCHEDULED: ".count))
+        keyword.sourceToken + " " + date.orgTimestamp(active: keyword != .closed,
+            includesTime: hasTime || keyword == .closed, recurrence: recurrence)
     }
 
     private static func moveTimestamps(in draft: inout OrgPlanningEntryDraft, to date: Date,

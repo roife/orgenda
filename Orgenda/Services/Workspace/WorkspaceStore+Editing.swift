@@ -148,7 +148,7 @@ extension WorkspaceStore {
         if let repeatedDate, var repeated = items.first(where: { $0.id == updated.id }) {
             repeated.state = hasWorkspaceConfiguration ? workflow(for: updated.source.file).toggled(updated.state) : .todo
             repeated.updateAgendaDate(to: repeatedDate)
-            repeated.properties["LAST_REPEAT"] = "[\(Self.orgDateFormatter.string(from: .now))]"
+            repeated.properties["LAST_REPEAT"] = Date.now.orgTimestamp(active: false, includesTime: true)
             if !save(repeated) {
                 documents = beforeDocuments
                 items = beforeItems
@@ -174,7 +174,7 @@ extension WorkspaceStore {
         }
         var updated = original
         updated.updateAgendaDate(to: nextDate)
-        updated.properties["LAST_REPEAT"] = "[\(Self.orgDateFormatter.string(from: .now))]"
+        updated.properties["LAST_REPEAT"] = Date.now.orgTimestamp(active: false, includesTime: true)
         guard let edits = OrgSourceMutation.itemEdits(replacing: original, with: updated,
                 heading: resolved.node, following: resolved.following) else {
             operationError = String(localized: "The event metadata is ambiguous. Check its properties before completing it.")
@@ -221,7 +221,7 @@ extension WorkspaceStore {
             locale: Locale(identifier: "en_US_POSIX"), timeZone: .autoupdatingCurrent,
             calendar: Calendar(identifier: .gregorian)
         ))
-        let source = "* \(Self.orgDayFormatter.string(from: date))\n** \(time) \(title)\n\(body)"
+        let source = "* \(date.orgDateText(includesTime: false))\n** \(time) \(title)\n\(body)"
         let separator = documents[index].contents.isEmpty ? "" : "\n\n"
         let prefix = documents[index].contents + separator
         let entry = JournalEntry(
@@ -508,17 +508,4 @@ extension WorkspaceStore {
         return true
     }
 
-    static let orgDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd EEE HH:mm"
-        return formatter
-    }()
-
-    static let orgDayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd EEE"
-        return formatter
-    }()
 }

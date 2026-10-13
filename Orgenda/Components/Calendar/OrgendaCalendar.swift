@@ -388,9 +388,7 @@ struct OrgendaCalendar: View {
                 position: position, snapshot: resizeSnapshot,
                 selectedWeekOffset: selectedWeekOffset, sizing: sizing,
                 monthGrid: { monthGrid(for: visibleMonth, exposesAccessibility: false) },
-                yearGrid: { hiddenMonth in
-                    yearGrid(for: visibleMonth, exposesAccessibility: false, hiddenMonth: hiddenMonth)
-                },
+                yearGrid: { yearGrid(for: visibleMonth, exposesAccessibility: false) },
                 weekdayHeader: { weekdayHeader },
                 accessibleDays: { isWeek in
                     dayGrid(
@@ -745,13 +743,12 @@ struct OrgendaCalendar: View {
 
     private var dates: OrgCalendarDates { OrgCalendarDates(calendar: calendar) }
 
-    private func yearGrid(for year: Date, exposesAccessibility: Bool, hiddenMonth: Date? = nil) -> some View {
+    private func yearGrid(for year: Date, exposesAccessibility: Bool) -> some View {
         OrgendaCalendarYearGrid(
             year: year, selectedDate: selectedDate, selectionID: selectionGeometryID,
             selectionNamespace: selectionNamespace, reduceMotion: reduceMotion,
             yearRowHeight: sizing.yearRowHeight, monthLabelHeight: sizing.monthLabelHeight,
             exposesAccessibility: exposesAccessibility,
-            hiddenMonth: hiddenMonth,
             onSelectMonth: selectMonth
         )
     }

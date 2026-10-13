@@ -133,7 +133,7 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertTrue(snapshot.pendingPaths.isEmpty)
     }
 
-    func testDeletionAndReplacedIdentityDoNotResurrectOrOverwrite() async throws {
+    func testDeletionAndRecreatedFileDoNotResurrectOrOverwrite() async throws {
         let backend = SessionFakeBackend(["inbox.org": "* Base\n"])
         let workspace = try session(backend)
         try await workspace.synchronize()
@@ -144,12 +144,12 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertNil(deleted.conflicts.first?.remoteContents)
         let absent = await backend.contents("inbox.org")
         XCTAssertNil(absent)
-        await backend.replace("inbox.org", contents: "* Base\n", newIdentity: true)
+        await backend.replace("inbox.org", contents: "* Recreated\n")
         _ = try? await workspace.synchronize()
         let replaced = try await workspace.snapshot()
         XCTAssertEqual(replaced.conflicts.count, 1)
         let untouched = await backend.contents("inbox.org")
-        XCTAssertEqual(untouched, "* Base\n")
+        XCTAssertEqual(untouched, "* Recreated\n")
     }
 
     func testFailedCompleteDownloadDoesNotRemovePreviouslyLoadedDocuments() async throws {
@@ -250,6 +250,37 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertEqual(moves, 1)
     }
 
+    func testDefinitiveMoveConflictClearsJournalOnFirstAttemptAndRecovery() async throws {
+        for recover in [false, true] {
+            let backend = SessionFakeBackend(["inbox.org": "* Task\n"])
+            await backend.addDirectory("archive")
+            let workspace = try session(backend)
+            try await workspace.synchronize()
+            let expected = try await workspace.load().filter { $0.path == "inbox.org" }
+            let failure = recover ? StorageError.offline : .conflict("inbox.org")
+            await backend.failNextMove(failure)
+            do {
+                try await workspace.move(path: "inbox.org", to: "archive/inbox.org", expected: expected)
+                XCTFail("The rejected move must fail")
+            } catch { XCTAssertEqual(error as? StorageError, failure) }
+            let failed = try await workspace.snapshot()
+            XCTAssertEqual(failed.hasPendingOperation, recover)
+
+            let reopened = try session(backend)
+            if recover {
+                await backend.failNextMove(.conflict("inbox.org"))
+                do { try await reopened.synchronize(); XCTFail("The recovered move must report its conflict") }
+                catch { XCTAssertEqual(error as? StorageError, .conflict("inbox.org")) }
+            }
+            let snapshot = try await reopened.snapshot()
+            XCTAssertFalse(snapshot.hasPendingOperation)
+            XCTAssertEqual(snapshot.documents.first { $0.path == "inbox.org" }?.contents, "* Task\n")
+            try await reopened.synchronize()
+            let moves = await backend.moveCount
+            XCTAssertEqual(moves, 0)
+        }
+    }
+
     func testCachedAttachmentsWorkOfflineAndRejectEscapingPaths() async throws {
         let backend = SessionFakeBackend()
         await backend.addBinary(".attach/image.png", data: Data([1, 2, 3]))
@@ -271,7 +302,7 @@ final class WorkspaceSessionTests: XCTestCase {
         let backend = SessionFakeBackend(["inbox.org": "* Original\n"])
         let workspace = try session(backend)
         try await workspace.synchronize()
-        await backend.replace("INBOX.org", contents: "* Ambiguous\n", newIdentity: true)
+        await backend.replace("INBOX.org", contents: "* Ambiguous\n")
         _ = try? await workspace.synchronize()
         let snapshot = try await workspace.snapshot()
         XCTAssertEqual(snapshot.documents.map(\.path), ["inbox.org"])
@@ -296,6 +327,30 @@ final class WorkspaceSessionTests: XCTestCase {
         let snapshot = try await reopened.snapshot()
         XCTAssertEqual(snapshot.documents.first?.contents, "* Draft\n")
         XCTAssertEqual(snapshot.conflicts.first?.remoteContents, "* External\n")
+    }
+
+    func testReconnectedFolderSupportsDraftUploadAndHeadingMove() async throws {
+        let root = cache.appendingPathComponent("source")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let inbox = root.appendingPathComponent("inbox.org")
+        try Data("* Base\n".utf8).write(to: inbox)
+        let descriptor = StorageConnection(provider: .iCloud, displayName: "Folder", rootID: root.path)
+        let workspace = try WorkspaceSession(connection: descriptor, cacheDirectory: cache,
+                                             folder: WorkspaceFileStore(rootURL: root))
+        try await workspace.synchronize()
+        try await workspace.write(path: "inbox.org", contents: "* Move me\n", expectedContents: "* Base\n")
+        try await workspace.replaceFolderBackend(WorkspaceFileStore(rootURL: root))
+        try await workspace.synchronize()
+        XCTAssertEqual(try String(contentsOf: inbox, encoding: .utf8), "* Move me\n")
+        let source = WorkspaceDocument(path: "inbox.org", title: "Inbox", contents: "", kind: .org)
+        let destination = WorkspaceDocument(path: "archive.org", title: "Archive", contents: "* Move me\n", kind: .org)
+        try await workspace.commitOnlineMove(source: source, destination: destination,
+            expectedSource: "* Move me\n", expectedDestination: nil)
+        XCTAssertEqual(try String(contentsOf: inbox, encoding: .utf8), "")
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("archive.org"), encoding: .utf8), "* Move me\n")
+        let snapshot = try await workspace.snapshot()
+        XCTAssertTrue(snapshot.pendingPaths.isEmpty)
+        XCTAssertFalse(snapshot.hasPendingOperation)
     }
 
     func testCacheIsIsolatedByConnectionIdentity() async throws {
@@ -340,9 +395,8 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertTrue(snapshot.pendingPaths.isEmpty)
     }
 
-    func testLostTrashResponseWithPathIDsRecoversAndRestoresText() async throws {
+    func testLostTrashResponseRecoversAndRestoresText() async throws {
         let backend = SessionFakeBackend(["inbox.org": "* Task\n"])
-        await backend.usePathIdentifiers()
         let workspace = try session(backend)
         try await workspace.synchronize()
         let docs = try await workspace.load()
@@ -399,6 +453,31 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertEqual(uploads, 2)
     }
 
+    func testHeadingMoveRejectsDirectoryUploadResponseAndRetainsSourceForRetry() async throws {
+        let backend = SessionFakeBackend(["inbox.org": "* Move me\n"])
+        let workspace = try session(backend)
+        try await workspace.synchronize()
+        await backend.returnNextUpload(RemoteFile(id: "invalid", path: "archive.org", isDirectory: true))
+        let source = WorkspaceDocument(path: "inbox.org", title: "Inbox", contents: "", kind: .org)
+        let destination = WorkspaceDocument(path: "archive.org", title: "Archive", contents: "* Move me\n", kind: .org)
+        do {
+            try await workspace.commitOnlineMove(source: source, destination: destination,
+                expectedSource: "* Move me\n", expectedDestination: nil)
+            XCTFail("A directory response cannot acknowledge a document upload")
+        } catch { XCTAssertEqual(error as? StorageError, .invalidResponse) }
+        let original = await backend.contents("inbox.org")
+        let snapshot = try await workspace.snapshot()
+        XCTAssertEqual(original, "* Move me\n")
+        XCTAssertFalse(snapshot.documents.contains { $0.path == "archive.org" })
+        XCTAssertTrue(snapshot.hasPendingOperation)
+        let reopened = try session(backend)
+        try await reopened.synchronize()
+        let sourceText = await backend.contents("inbox.org")
+        let destinationText = await backend.contents("archive.org")
+        XCTAssertEqual(sourceText, "")
+        XCTAssertEqual(destinationText, "* Move me\n")
+    }
+
     func testHeadingMoveKeepsSourceWhenCommittedDestinationChangesBeforeRecovery() async throws {
         let backend = SessionFakeBackend(["inbox.org": "* Move me\n"])
         let workspace = try session(backend)
@@ -418,20 +497,18 @@ final class WorkspaceSessionTests: XCTestCase {
         try await reopened.synchronize()
     }
 
-    func testFileDeltaRetainsUnchangedFilesAndReplacesRenamedPaths() async throws {
+    func testSnapshotRetainsUnchangedFilesAndReplacesRenamedPaths() async throws {
         let backend = SessionFakeBackend(["first.org": "* Original\n", "second.org": "* Keep\n"])
         let workspace = try session(backend)
         try await workspace.synchronize()
         await backend.replace("first.org", contents: "* Updated\n")
-        let scan = try await backend.scan(cursor: nil)
+        let scan = try await backend.scan()
         let changed = try XCTUnwrap(scan.files.first { $0.path == "first.org" })
-        await backend.returnNextScan(RemoteScan(files: [changed], isFullSnapshot: false))
         try await workspace.synchronize()
         let updated = try await workspace.snapshot()
         XCTAssertEqual(updated.documents.map(\.contents), ["* Updated\n", "* Keep\n"])
 
-        let moved = try await backend.move(changed, to: "renamed.org")
-        await backend.returnNextScan(RemoteScan(files: [moved], isFullSnapshot: false))
+        _ = try await backend.move(changed, to: "renamed.org")
         try await workspace.synchronize()
         let renamed = try await workspace.snapshot()
         XCTAssertEqual(renamed.documents.map(\.path), ["renamed.org", "second.org"])
@@ -557,16 +634,17 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     var offline = false
     var failingDownload: String?
     var failingUpload: String?
-    var pathIDs = false
     var paused = false
     var uploadStarted = false
     var uploadWaiters: [CheckedContinuation<Void, Never>] = []
     var resume: CheckedContinuation<Void, Never>?
     var loseUploadResponse = false
     var loseMoveResponse = false
+    var nextMoveFailure: StorageError?
     var uploadCount = 0
     var moveCount = 0
     var nextScan: RemoteScan?
+    var nextUpload: RemoteFile?
     var pausedDownloadPath: String?
     var downloadStarted = false
     var downloadWaiters: [CheckedContinuation<Void, Never>] = []
@@ -574,13 +652,13 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
 
     init(_ texts: [String: String] = [:]) {
         for (path, text) in texts {
-            items[path] = Item(file: RemoteFile(id: UUID().uuidString, path: path, isDirectory: false,
+            items[path] = Item(file: RemoteFile(id: path, path: path, isDirectory: false,
                 revision: UUID().uuidString, size: Int64(text.utf8.count)), data: Data(text.utf8))
         }
     }
     init(items: [String: Item]) { self.items = items }
 
-    func scan(cursor: String?) throws -> RemoteScan {
+    func scan() throws -> RemoteScan {
         try checkOnline()
         if let scan = nextScan { nextScan = nil; return scan }
         return RemoteScan(files: items.values.map(\.file))
@@ -599,9 +677,10 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
         guard item.data.count <= maxBytes else { throw StorageError.tooLarge }
         return RemoteDownload(file: item.file, data: item.data)
     }
-    func upload(path: String, data: Data, existing: RemoteFile?, operationID: UUID) async throws -> RemoteFile {
+    func upload(path: String, data: Data, existing: RemoteFile?) async throws -> RemoteFile {
         try checkOnline()
         if path == failingUpload { throw StorageError.offline }
+        if let result = nextUpload { nextUpload = nil; return result }
         if paused {
             uploadStarted = true
             for waiter in uploadWaiters { waiter.resume() }
@@ -613,7 +692,7 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
         guard old?.file.id == existing?.id, old?.file.revision == existing?.revision else {
             throw StorageError.conflict(path)
         }
-        let file = RemoteFile(id: existing?.id ?? UUID().uuidString, path: path, isDirectory: false,
+        let file = RemoteFile(id: path, path: path, isDirectory: false,
                               revision: UUID().uuidString, size: Int64(data.count))
         items[path] = Item(file: file, data: data)
         uploadCount += 1
@@ -630,12 +709,13 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     }
     func move(_ file: RemoteFile, to path: String) throws -> RemoteFile {
         try checkOnline()
+        if let failure = nextMoveFailure { nextMoveFailure = nil; throw failure }
         guard let old = items[file.path], old.file.id == file.id, old.file.revision == file.revision,
               items[path] == nil else { throw StorageError.conflict(file.path) }
         for (oldPath, var item) in items.filter({ WorkspaceFileTransfer.contains($0.key, in: file.path) }) {
             items.removeValue(forKey: oldPath)
             let newPath = path + oldPath.dropFirst(file.path.count)
-            if item.file.id == oldPath { item.file.id = newPath }
+            item.file.id = newPath
             item.file.path = newPath
             items[newPath] = item
         }
@@ -645,7 +725,7 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     }
     @discardableResult
     func addDirectory(_ path: String) -> RemoteFile {
-        let file = RemoteFile(id: pathIDs ? path : UUID().uuidString, path: path, isDirectory: true, revision: UUID().uuidString)
+        let file = RemoteFile(id: path, path: path, isDirectory: true, revision: UUID().uuidString)
         items[path] = Item(file: file, data: Data())
         return file
     }
@@ -655,12 +735,11 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
             if items[parent] == nil { addDirectory(parent) }
             parent = (parent as NSString).deletingLastPathComponent
         }
-        items[path] = Item(file: RemoteFile(id: UUID().uuidString, path: path, isDirectory: false,
+        items[path] = Item(file: RemoteFile(id: path, path: path, isDirectory: false,
             revision: UUID().uuidString, size: Int64(data.count)), data: data)
     }
-    func replace(_ path: String, contents: String, newIdentity: Bool = false) {
-        let id = newIdentity ? UUID().uuidString : items[path]?.file.id ?? UUID().uuidString
-        items[path] = Item(file: RemoteFile(id: id, path: path, isDirectory: false,
+    func replace(_ path: String, contents: String) {
+        items[path] = Item(file: RemoteFile(id: path, path: path, isDirectory: false,
             revision: UUID().uuidString, size: Int64(contents.utf8.count)), data: Data(contents.utf8))
     }
     func remove(_ path: String) { items.removeValue(forKey: path) }
@@ -670,6 +749,7 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     func failDownload(_ path: String) { failingDownload = path }
     func failUpload(_ path: String?) { failingUpload = path }
     func returnNextScan(_ scan: RemoteScan) { nextScan = scan }
+    func returnNextUpload(_ file: RemoteFile) { nextUpload = file }
     func pauseNextDownload(_ path: String) { pausedDownloadPath = path; downloadStarted = false }
     func waitForDownload() async {
         if downloadStarted { return }
@@ -677,10 +757,6 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     }
     func resumeDownload() { downloadResume?.resume(); downloadResume = nil }
     func authenticatedCopy() -> SessionFakeBackend { SessionFakeBackend(items: items) }
-    func usePathIdentifiers() {
-        pathIDs = true
-        for path in items.keys { items[path]?.file.id = path }
-    }
     func pauseNextUpload() { paused = true; uploadStarted = false }
     func waitForUpload() async {
         if uploadStarted { return }
@@ -689,5 +765,6 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     func resumeUpload() { resume?.resume(); resume = nil }
     func loseNextUploadResponse() { loseUploadResponse = true }
     func loseNextMoveResponse() { loseMoveResponse = true }
+    func failNextMove(_ error: StorageError) { nextMoveFailure = error }
     func checkOnline() throws { if offline { throw StorageError.offline } }
 }

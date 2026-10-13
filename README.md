@@ -10,11 +10,11 @@ iPad 支持横竖屏和可调整大小的窗口，顶层标签可切换为侧边
 
 ## 存储与同步
 
-在「设置 → 工作区与同步」选择一个存储位置：本机／系统文件夹、iCloud Drive、WebDAV，或直接登录 OneDrive、Google Drive、Dropbox。三家云盘使用 Orgenda 专属目录，支持电脑端新增和修改普通 Org 文件。云盘登录需要先配置发行者自己的 OAuth 应用；配置键、权限与真实服务验收步骤见 [云端存储说明](docs/CloudStorage.md)。
+在「设置 → 工作区与同步」通过系统「文件」App 选择文件夹，或连接 WebDAV。系统文件夹可位于本机或 iCloud Drive；工作区需要授予整个目录的访问权限。接入方式与验收步骤见 [存储与同步说明](docs/Storage.md)。
 
 文件先可靠保存到本机，再同步到存储位置。已下载的文本可离线打开、编辑和新建；已缓存的图片可离线查看。移动、删除、恢复和跨文件归档需要存储位置可用并且待同步修改已处理。iCloud 的云端传输由系统管理，应用会区分本机保存与文件夹写入状态。
 
-两端冲突时保留修改，由用户选择保留两份或使用其中一版；恢复副本位于「文件 → orgenda → Unsaved Edits」。更换存储位置不会自动搬移旧工作区；有待同步修改时可先保留本机副本。WebDAV 首版要求 HTTPS，并会测试服务器是否正确执行条件写入。
+两端冲突时保留修改，由用户选择保留两份或使用其中一版；恢复副本位于「文件 → orgenda → Unsaved Edits」。更换存储位置不会自动搬移旧工作区；有待同步修改时可先保留本机副本。WebDAV 要求 HTTPS，并会测试服务器是否正确执行条件写入。
 
 长按主屏幕上的 App 图标可直接新建任务、查看今天、搜索或打开文件列表。快捷操作会等待工作区加载完成；若已有编辑窗口，则在关闭该窗口后继续，保留当前草稿。
 
@@ -47,7 +47,7 @@ iPad 支持横竖屏和可调整大小的窗口，顶层标签可切换为侧边
 | 颜色、动效、布局与日期展示 | `Orgenda/DesignSystem` |
 | 数据结构、Org 规则与日期计算 | `Orgenda/Domain` |
 | 文件读写、索引、图片加载与通知 | `Orgenda/Services` |
-| 离线快照、同步队列、WebDAV 与云盘登录 | `Orgenda/Services/Storage` |
+| 离线快照、同步队列、WebDAV 与系统文件夹访问 | `Orgenda/Services/Storage` |
 | Tree-sitter 语法与 Swift 封装 | `Packages/OrgTreeSitter` |
 
 目录边界、状态归属和扩展方式见 [架构说明](docs/Architecture.md)。
@@ -62,8 +62,6 @@ open Orgenda.xcodeproj
 ```
 
 `project.yml` 是项目配置的来源，生成后的 Xcode 工程一并提交。新增、移动源码或修改构建设置后重新生成工程；构建设置应先写入 YAML，避免下次生成时丢失。
-
-云盘登录还需要发行者注册 OAuth 应用并运行 `python3 Scripts/cloud_oauth.py configure` 写入公开应用 ID；Google 回调 scheme 自动生成。本地配置不会被 XcodeGen 覆盖。Debug 允许缺少云盘配置以开发其他功能，Release 会拒绝缺失或格式错误的配置。完整后台步骤见 [云端存储说明](docs/CloudStorage.md)。
 
 命令行构建（可将设备名替换为本机已安装的模拟器）：
 

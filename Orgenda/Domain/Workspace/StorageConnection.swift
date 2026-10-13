@@ -1,18 +1,14 @@
 import Foundation
 
 enum StorageProvider: String, Codable, CaseIterable, Sendable, Identifiable {
-    case local, iCloud, oneDrive, googleDrive, dropbox, webDAV
+    case local, iCloud, webDAV
 
     var id: String { rawValue }
-    var isRemote: Bool { self != .local && self != .iCloud }
-    var usesEmailAccount: Bool { self == .oneDrive || self == .googleDrive || self == .dropbox }
+    var isRemote: Bool { self == .webDAV }
     var title: String {
         switch self {
         case .local: String(localized: "Files")
         case .iCloud: "iCloud Drive"
-        case .oneDrive: "OneDrive"
-        case .googleDrive: "Google Drive"
-        case .dropbox: "Dropbox"
         case .webDAV: "WebDAV"
         }
     }
@@ -20,9 +16,6 @@ enum StorageProvider: String, Codable, CaseIterable, Sendable, Identifiable {
         switch self {
         case .local: "folder.fill"
         case .iCloud: "icloud.fill"
-        case .oneDrive: "cloud.fill"
-        case .googleDrive: "externaldrive.fill"
-        case .dropbox: "shippingbox.fill"
         case .webDAV: "server.rack"
         }
     }
@@ -34,27 +27,12 @@ struct StorageConnection: Codable, Equatable, Sendable, Identifiable {
     var provider: StorageProvider
     var displayName: String
     var accountID: String? = nil
-    var accountName: String? = nil
-    var accountEmail: String? = nil
     var rootID: String
     var endpoint: URL? = nil
     var credentialKey: String? = nil
     var bookmark: Data? = nil
 
     var identity: String { "\(provider.rawValue)|\(accountID ?? "")|\(rootID)|\(id.uuidString)" }
-
-    var emailAddress: String? {
-        guard provider.usesEmailAccount else { return nil }
-        return Self.normalizedEmail(accountEmail)
-    }
-
-    static func normalizedEmail(_ value: String?) -> String? {
-        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return nil }
-        let parts = value.split(separator: "@", omittingEmptySubsequences: false)
-        guard parts.count == 2, parts.allSatisfy({ !$0.isEmpty }) else { return nil }
-        return value
-    }
 }
 
 enum WorkspaceSyncState: Equatable, Sendable {
@@ -70,7 +48,7 @@ enum WorkspaceSyncState: Equatable, Sendable {
         case .synced: String(localized: "Up to date")
         case .folderUpdated: String(localized: "Saved to folder")
         case .offline: String(localized: "Offline · Changes stay on this device")
-        case .authenticationRequired: String(localized: "Sign in again to sync")
+        case .authenticationRequired: String(localized: "Update your WebDAV password to sync")
         case .conflict(let count): String(localized: "\(count) conflicts need attention")
         case .failed(let message): message
         }

@@ -27,12 +27,6 @@ struct StorageHTTPResponse: Sendable {
         default: throw StorageError.http(status)
         }
     }
-    func json() throws -> [String: Any] {
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw StorageError.invalidResponse
-        }
-        return object
-    }
 }
 
 protocol StorageHTTPTransport: Sendable {
@@ -121,7 +115,7 @@ private final class StorageHTTPOperation: NSObject, URLSessionDataDelegate, @unc
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     willPerformHTTPRedirection response: HTTPURLResponse, newRequest: URLRequest,
                     completionHandler: @escaping (URLRequest?) -> Void) {
-        // Never move a password, bearer token, or a preauthenticated URL across origins.
+        // Keep credentials and workspace operations on the configured origin.
         guard let target = newRequest.url,
               StorageHTTP.redirectAllowed(request: request, target: target, status: response.statusCode, pathRoot: allowedPathRoot) else {
             completionHandler(nil); return
@@ -204,75 +198,9 @@ enum StorageHTTP {
             throw StorageError.configuration(String(localized: "Enter an HTTPS server address without embedded credentials."))
         }
     }
-    static func url(_ base: String, path: String = "", query: [URLQueryItem] = []) throws -> URL {
-        guard var components = URLComponents(string: base) else { throw StorageError.invalidResponse }
-        components.path += path
-        if !query.isEmpty { components.queryItems = query }
-        guard let url = components.url else { throw StorageError.invalidResponse }
-        return url
-    }
-    static func string(_ object: [String: Any], _ key: String) throws -> String {
-        guard let value = object[key] as? String, !value.isEmpty else { throw StorageError.invalidResponse }
-        return value
-    }
-    static func date(_ value: Any?) -> Date? {
-        guard let string = value as? String else { return nil }
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return fractional.date(from: string) ?? ISO8601DateFormatter().date(from: string)
-    }
-    static func size(_ value: Any?) -> Int64? {
-        if let value = value as? NSNumber { return value.int64Value }
-        return (value as? String).flatMap(Int64.init)
-    }
-    static func child(_ parent: String, _ name: String) throws -> String {
-        guard !name.contains("/") else { throw StorageError.unsafePath(name) }
-        let path = parent.isEmpty ? name : parent + "/" + name
-        try StorageError.validate(path: path)
-        return path
-    }
     static func strongETag(_ etag: String?) -> String? {
         guard let etag, etag.hasPrefix("\""), etag.hasSuffix("\""), etag.count > 2,
               !etag.contains("\r"), !etag.contains("\n") else { return nil }
         return etag
-    }
-}
-
-protocol StorageAccessTokenSource: Sendable {
-    func accessToken(forceRefresh: Bool) async throws -> String
-}
-
-struct CloudHTTPClient: Sendable {
-    let transport: any StorageHTTPTransport
-    let tokens: any StorageAccessTokenSource
-    let allowedHosts: Set<String>
-
-    func send(_ request: URLRequest, maxBytes: Int = StorageHTTP.metadataLimit) async throws -> StorageHTTPResponse {
-        guard let url = request.url, allowedHosts.contains(url.host?.lowercased() ?? "") else {
-            throw StorageError.invalidResponse
-        }
-        try StorageHTTP.requireHTTPS(url)
-        for attempt in 0...1 {
-            var request = request
-            request.setValue("Bearer " + (try await tokens.accessToken(forceRefresh: attempt == 1)), forHTTPHeaderField: "Authorization")
-            let response = try await transport.send(request, maxBytes: maxBytes)
-            if response.status != 401 { return response }
-        }
-        throw StorageError.authenticationRequired
-    }
-
-    func json(_ url: URL, method: String = "GET", body: [String: Any]? = nil,
-              headers: [String: String] = [:], path: String = "") async throws -> [String: Any] {
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys]); request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
-        else if method == "POST" {
-            // Argument-free JSON RPC endpoints (e.g. Dropbox account lookup)
-            // expect JSON null, rather than an untyped empty request body.
-            request.httpBody = Data("null".utf8)
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
-        for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
-        return try await send(request).checked(path: path).json()
     }
 }

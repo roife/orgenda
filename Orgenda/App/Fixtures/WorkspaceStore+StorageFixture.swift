@@ -4,7 +4,7 @@ import Foundation
 extension WorkspaceStore {
     func configureStorageSyncFixture() {
         storageConnection = StorageConnection(provider: .webDAV, displayName: "Orgenda",
-            accountName: "alice", rootID: "/Orgenda", endpoint: URL(string: "https://dav.example.com"))
+            accountID: "alice", rootID: "/Orgenda", endpoint: URL(string: "https://dav.example.com"))
         syncConflicts = [WorkspaceConflict(path: "notes.org", localContents: "* TODO Prepare weekly meeting\nAdd project progress.\n",
             remoteContents: "* TODO Prepare weekly meeting\nOutline discussion topics.\n", remoteRevision: "fixture-revision",
             detectedAt: .now, remoteModifiedAt: .now.addingTimeInterval(-120))]

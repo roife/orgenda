@@ -4,23 +4,6 @@
     "" : {
 
     },
-    " Choose a folder in Files to use iCloud Drive or another file provider. Cloud transfer is managed by the provider." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " 在“文件”中选择文件夹即可使用 iCloud Drive 或其他文件提供商，云端传输由提供商管理。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " 在“檔案”中選擇資料夾即可使用 iCloud Drive 或其他檔案提供商，雲端傳輸由提供商管理。"
-          }
-        }
-      }
-    },
     "@home" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -71,23 +54,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%? — 游標處文字\n%^{Title} — 請求輸入\n%U — 日期和時間\n%t — 活動日期"
-          }
-        }
-      }
-    },
-    "%@ · Orgenda folder in the account you choose next" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · 接下来选择的账号中的 Orgenda 文件夹"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · 接下來選擇的帳號中的 Orgenda 檔案夾"
           }
         }
       }
@@ -207,23 +173,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 不是 Org 或 Markdown 檔案。"
-          }
-        }
-      }
-    },
-    "%@ sign-in is unavailable because this app's configuration is incomplete. Contact the app developer." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "应用的登录配置不完整，暂时无法登录 %@。请联系应用开发者。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "應用程式的登入設定不完整，暫時無法登入 %@。請聯絡應用程式開發者。"
           }
         }
       }
@@ -2925,23 +2874,6 @@
         }
       }
     },
-    "Cloud Storage" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "云端存储"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "雲端儲存"
-          }
-        }
-      }
-    },
     "Code" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3398,23 +3330,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "連接工作區後，即可開啟該工作區的議程提醒。"
-          }
-        }
-      }
-    },
-    "Connect one location at a time. Cloud services use a dedicated Orgenda folder. Changing locations does not move your existing files." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每次连接一个存储位置。云端服务使用 Orgenda 专属文件夹。更换位置不会搬移现有文件。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每次連接一個儲存位置。雲端服務使用 Orgenda 專屬資料夾。更換位置不會搬移現有檔案。"
           }
         }
       }
@@ -5177,23 +5092,6 @@
         }
       }
     },
-    "Edits save on this device first, then to the selected folder. iCloud manages cloud uploads." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "修改会先保存在本机，再写入所选文件夹。云端上传由 iCloud 管理。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "修改會先儲存在本機，再寫入所選資料夾。雲端上傳由 iCloud 管理。"
-          }
-        }
-      }
-    },
     "Edits save on this device first. Downloaded text files remain available offline." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5207,23 +5105,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "修改會先儲存在本機。已下載的文字檔可繼續離線使用。"
-          }
-        }
-      }
-    },
-    "Email unavailable" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未获取邮箱"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "尚未取得電子郵件地址"
           }
         }
       }
@@ -6449,23 +6330,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "前往今天的日記"
-          }
-        }
-      }
-    },
-    "Google Docs and shortcuts cannot be used as ordinary workspace files. Move them outside the Orgenda folder." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作区不支持 Google 文档或快捷方式，请将其移出 Orgenda 文件夹。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作區不支援 Google 文件或捷徑，請將其移出 Orgenda 資料夾。"
           }
         }
       }
@@ -7964,23 +7828,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "存在多個“%@”標題，請選擇唯一的記錄目標。"
-          }
-        }
-      }
-    },
-    "More than one Orgenda folder exists in Google Drive. Rename the duplicate folders and reconnect." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Google Drive 中存在多个 Orgenda 文件夹。请重命名重复的文件夹后重新连接。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Google Drive 中存在多個 Orgenda 資料夾。請重新命名重複的資料夾後重新連接。"
           }
         }
       }
@@ -12229,23 +12076,6 @@
         }
       }
     },
-    "Shortcuts to other OneDrive locations are not supported in the workspace." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作区不支持指向其他 OneDrive 位置的快捷方式。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作區不支援指向其他 OneDrive 位置的捷徑。"
-          }
-        }
-      }
-    },
     "Show document outline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12327,125 +12157,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "顯示此月份"
-          }
-        }
-      }
-    },
-    "Sign In Again" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新登录"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新登入"
-          }
-        }
-      }
-    },
-    "Sign in again to sync" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新登录以同步"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新登入以同步"
-          }
-        }
-      }
-    },
-    "Sign in again to sync. Your edits are saved on this device." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新登录即可同步。你的修改已保存在本机。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新登入即可同步。你的修改已儲存在本機。"
-          }
-        }
-      }
-    },
-    "Sign in to the account originally connected to this workspace. Your offline changes have not been moved." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请登录此工作区原来连接的账号。离线修改未被搬移。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "請登入此工作區原來連接的帳號。離線修改未被搬移。"
-          }
-        }
-      }
-    },
-    "Sign in to your Dropbox account" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登录 Dropbox 账号"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登入 Dropbox 帳號"
-          }
-        }
-      }
-    },
-    "Sign in to your Google account" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登录 Google 账号"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登入 Google 帳號"
-          }
-        }
-      }
-    },
-    "Sign in to your Microsoft account" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登录 Microsoft 账号"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登入 Microsoft 帳號"
           }
         }
       }
@@ -15376,6 +15087,40 @@
         }
       }
     },
+    "Update your WebDAV password to sync" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密码以同步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密碼以同步"
+          }
+        }
+      }
+    },
+    "Update your WebDAV password to sync. Your edits are saved on this device." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密码即可同步。你的修改已保存在本机。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密碼即可同步。你的修改已儲存在本機。"
+          }
+        }
+      }
+    },
     "Use Folder Versions…" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15970,23 +15715,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "工作區尚未就緒 · 連接資料夾"
-          }
-        }
-      }
-    },
-    "Workspace storage and cloud sync status" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作区存储和云同步状态"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作區儲存和雲同步狀態"
           }
         }
       }

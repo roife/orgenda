@@ -89,9 +89,10 @@ struct ConfigurationKeywordEditor: View {
                     Text("Appearance")
                 }
                 Section("State history") {
-                    rulePicker("On entering", selection: $keyword.log.enter)
-                    rulePicker("On leaving", selection: $keyword.log.leave)
+                    ConfigurationLogRulePicker(title: "On entering", selection: $keyword.log.enter)
+                    ConfigurationLogRulePicker(title: "On leaving", selection: $keyword.log.leave)
                 }
+                .pickerStyle(.navigationLink)
             }
             .disabled(isSaving)
             .tint(OrgendaTheme.accentText)
@@ -154,16 +155,6 @@ struct ConfigurationKeywordEditor: View {
         OrgWorkflowState(token: displayToken, terminal: terminal, label: keyword.label,
                          icon: keyword.icon, color: keyword.color,
                          enter: keyword.log.enter, leave: keyword.log.leave)
-    }
-
-    private func rulePicker(_ title: LocalizedStringKey,
-                            selection: Binding<WorkspaceConfiguration.LogRule>) -> some View {
-        Picker(title, selection: selection) {
-            Text("Don't log").tag(WorkspaceConfiguration.LogRule.none)
-            Text("Timestamp").tag(WorkspaceConfiguration.LogRule.time)
-            Text("Ask for a note").tag(WorkspaceConfiguration.LogRule.note)
-        }
-        .pickerStyle(.navigationLink)
     }
 
     private func confirm() async {

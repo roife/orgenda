@@ -117,6 +117,19 @@ final class OrgWorkflowOperationsTests: XCTestCase {
         ), source)
     }
 
+    func testReschedulingRejectsDuplicatePlanningInsideOneLine() throws {
+        let source = "* TODO Example\nSCHEDULED: <2026-09-12 Sat> SCHEDULED: <2026-09-13 Sun>\n"
+        var old = item(state: .todo)
+        old.scheduled = now
+        var changed = old
+        changed.scheduled = now.addingTimeInterval(2 * 86400)
+
+        XCTAssertThrowsError(try OrgWorkflowOperations.applyingLogs(
+            to: source, headingStartByte: 0, replacing: old, with: changed,
+            now: now, originalSource: source
+        )) { XCTAssertEqual($0 as? OrgWorkflowOperations.Failure, .ambiguousStructure) }
+    }
+
     func testAmbiguousOrUnclosedDrawerDoesNotWrite() throws {
         for suffix in [":LOGBOOK:\nunfinished\n", ":LOGBOOK:\n:END:\n:LOGBOOK:\n:END:\n"] {
             XCTAssertThrowsError(try OrgWorkflowOperations.applyingLogs(

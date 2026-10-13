@@ -10,13 +10,14 @@ struct OrgPreviewTable: View {
                     if row.type == "table_separator" {
                         Divider().gridCellColumns(columnCount).gridCellUnsizedAxes(.horizontal)
                     } else {
+                        let cells = cells(in: row)
                         GridRow {
                             ForEach(0..<columnCount, id: \.self) { column in
-                                let cells = cells(in: row)
+                                let cell = column < cells.count ? cells[column] : nil
                                 OrgPreviewRichText(
-                                    fragments: column < cells.count ? cells[column].map {
+                                    fragments: cell.map {
                                         OrgPreviewMarkup.fragments($0, trimSpaces: true)
-                                    } ?? [.text(AttributedString(" "))] : [.text(AttributedString(" "))],
+                                    } ?? [.text(AttributedString(" "))],
                                     textStyle: .subheadline
                                 )
                                 .font(.subheadline)

@@ -13,10 +13,6 @@ configs:
   Debug: debug
   Release: release
 
-configFiles:
-  Debug: Configurations/CloudOAuth.xcconfig
-  Release: Configurations/CloudOAuth.xcconfig
-
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -44,12 +40,6 @@ targets:
     productName: orgenda
     platform: iOS
     deploymentTarget: "27.0"
-    preBuildScripts:
-      - name: Validate Cloud Sign-In
-        script: 'xcrun python3 "$SRCROOT/Scripts/cloud_oauth.py" validate-build'
-        inputFiles:
-          - $(SRCROOT)/Scripts/cloud_oauth.py
-        basedOnDependencyAnalysis: false
     sources:
       - path: Orgenda
         excludes:

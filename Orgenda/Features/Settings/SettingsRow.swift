@@ -1,13 +1,11 @@
 import SwiftUI
 
 struct SettingsRow: View {
-    @ScaledMetric(relativeTo: .body) private var assetIconSize = 18.0
     let icon: String
     let color: Color
     let title: String
     var subtitle: String = ""
     var subtitleIcon: String? = nil
-    var iconAsset: String? = nil
 
     var body: some View {
         Label {
@@ -20,18 +18,9 @@ struct SettingsRow: View {
     }
 
     private var rowIcon: some View {
-        Group {
-            if let iconAsset {
-                Image(iconAsset)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: assetIconSize, height: assetIconSize)
-            } else {
-                Image(systemName: icon)
-            }
-        }
-        .foregroundStyle(color)
-        .accessibilityHidden(true)
+        Image(systemName: icon)
+            .foregroundStyle(color)
+            .accessibilityHidden(true)
     }
 
     private var text: some View {

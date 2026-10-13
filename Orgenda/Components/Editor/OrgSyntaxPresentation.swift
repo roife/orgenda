@@ -80,7 +80,7 @@ enum OrgSyntaxPresentation {
         case .timestamp:
             textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.syntaxTeal, range: range)
 
-        case .property:
+        case .property, .table:
             textStorage.addAttribute(.foregroundColor, value: UIColor.systemIndigo, range: range)
 
         case .drawer:
@@ -92,7 +92,7 @@ enum OrgSyntaxPresentation {
             textStorage.addAttribute(.foregroundColor, value: UIColor.systemIndigo, range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
-        case .clock:
+        case .clock, .listMarker:
             textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.syntaxTeal, range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
@@ -105,21 +105,17 @@ enum OrgSyntaxPresentation {
             ], range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
-        case .target:
+        case .target, .keyword:
             textStorage.addAttribute(.foregroundColor, value: UIColor.systemPurple, range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
-        case .macro:
+        case .macro, .verbatim:
             textStorage.addAttributes([
                 .foregroundColor: UIColor.systemBrown,
                 .backgroundColor: UIColor.tertiarySystemFill,
             ], range: range)
 
-        case .keyword:
-            textStorage.addAttribute(.foregroundColor, value: UIColor.systemPurple, range: range)
-            addFontTraits(.traitBold, to: textStorage, range: range)
-
-        case .comment:
+        case .comment, .quoteBlock:
             textStorage.addAttribute(.foregroundColor, value: UIColor.secondaryLabel, range: range)
             addFontTraits(.traitItalic, to: textStorage, range: range)
 
@@ -162,15 +158,6 @@ enum OrgSyntaxPresentation {
                 range: range
             )
 
-        case .verbatim:
-            textStorage.addAttributes(
-                [
-                    .foregroundColor: UIColor.systemBrown,
-                    .backgroundColor: UIColor.tertiarySystemFill,
-                ],
-                range: range
-            )
-
         case .sourceBlock:
             textStorage.addAttributes(
                 [
@@ -180,14 +167,6 @@ enum OrgSyntaxPresentation {
                 range: range
             )
 
-        case .quoteBlock:
-            textStorage.addAttribute(.foregroundColor, value: UIColor.secondaryLabel, range: range)
-            addFontTraits(.traitItalic, to: textStorage, range: range)
-
-        case .listMarker:
-            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.syntaxTeal, range: range)
-            addFontTraits(.traitBold, to: textStorage, range: range)
-
         case .checkbox:
             textStorage.addAttribute(
                 .foregroundColor,
@@ -195,9 +174,6 @@ enum OrgSyntaxPresentation {
                 range: range
             )
             addFontTraits(.traitBold, to: textStorage, range: range)
-
-        case .table:
-            textStorage.addAttribute(.foregroundColor, value: UIColor.systemIndigo, range: range)
 
         case .footnote:
             textStorage.addAttributes(

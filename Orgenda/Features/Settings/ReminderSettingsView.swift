@@ -86,7 +86,7 @@ enum ReminderTimingKind: String, Identifiable {
 
     var unit: String { self == .deadline ? String(localized: "Days") : String(localized: "Minutes") }
 
-    func label(for value: Int) -> String {
+    func label(for value: Int) -> String {                           
         if self == .advance && value == 0 { return String(localized: "At start") }
         if self == .deadline && value == 0 { return String(localized: "No lookahead") }
         return self == .deadline ? String(localized: "\(value) days") : String(localized: "\(value) min")

@@ -102,13 +102,13 @@ enum OrgCaptureTemplate: String, CaseIterable, Identifiable, Sendable {
         let state = self == .inboxNote || self == .calendarEvent ? "" : "\(item.state.rawValue) "
         var lines = ["\(String(repeating: "*", count: level)) \(state)\(priority)\(title)\(tagsText)"]
         if let scheduled = item.scheduled, self != .calendarEvent {
-            lines.append("SCHEDULED: \(Self.timestamp(scheduled, hasTime: item.hasTime, recurrence: item.recurrence))")
+            lines.append("SCHEDULED: \(scheduled.orgTimestamp(includesTime: item.hasTime, recurrence: item.recurrence))")
         }
         if let deadline = item.deadline {
-            lines.append("DEADLINE: \(Self.timestamp(deadline, hasTime: item.hasTime, recurrence: item.scheduled == nil ? item.recurrence : nil))")
+            lines.append("DEADLINE: \(deadline.orgTimestamp(includesTime: item.hasTime, recurrence: item.scheduled == nil ? item.recurrence : nil))")
         }
         var properties = item.properties
-        properties["CREATED"] = properties["CREATED"] ?? Self.timestamp(createdAt, hasTime: true, active: false)
+        properties["CREATED"] = properties["CREATED"] ?? createdAt.orgTimestamp(active: false, includesTime: true)
         if includesAppointmentWarning { properties["APPT_WARNTIME"] = properties["APPT_WARNTIME"] ?? "15" }
         lines.append(":PROPERTIES:")
         let keys = ["CREATED"] + properties.keys.filter { $0 != "CREATED" }.sorted()
@@ -118,7 +118,7 @@ enum OrgCaptureTemplate: String, CaseIterable, Identifiable, Sendable {
         }
         lines.append(":END:")
         if self == .calendarEvent, let date = item.eventDate ?? item.agendaDate {
-            lines.append(Self.timestamp(date, hasTime: item.hasTime, recurrence: item.recurrence))
+            lines.append(date.orgTimestamp(includesTime: item.hasTime, recurrence: item.recurrence))
         }
         if !item.body.isEmpty { lines.append(item.body) }
         if isProject { lines.append("** NEXT \(Self.singleLine(firstAction))") }
@@ -128,14 +128,5 @@ enum OrgCaptureTemplate: String, CaseIterable, Identifiable, Sendable {
     private static func singleLine(_ value: String) -> String {
         value.split(whereSeparator: \.isNewline).joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private static func timestamp(_ date: Date, hasTime: Bool, recurrence: String? = nil, active: Bool = true) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.dateFormat = hasTime ? "yyyy-MM-dd EEE HH:mm" : "yyyy-MM-dd EEE"
-        let repeatText = recurrence.map { " \($0)" } ?? ""
-        return "\(active ? "<" : "[")\(formatter.string(from: date))\(repeatText)\(active ? ">" : "]")"
     }
 }

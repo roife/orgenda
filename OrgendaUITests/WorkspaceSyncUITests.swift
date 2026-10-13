@@ -9,7 +9,7 @@ final class WorkspaceSyncUITests: XCTestCase {
         search.typeText("workflow")
         let result = app.buttons["search.document.inbox.org"]
         XCTAssertTrue(result.waitForExistence(timeout: 3))
-        XCTAssertFalse(app.buttons["search.setting.workflow"].exists)
+        XCTAssertTrue(app.buttons["search.setting.workflow"].exists)
         result.tap()
         let editor = app.textViews["Org source editor"]
         XCTAssertTrue(app.scrollViews["org.preview.scroll"].waitForExistence(timeout: 3))
@@ -25,6 +25,9 @@ final class WorkspaceSyncUITests: XCTestCase {
         XCTAssertTrue((editor.value as? String)?.contains("workflow revised") == true)
         app.navigationBars.buttons["Search"].tap()
         XCTAssertTrue(result.waitForExistence(timeout: 3))
+        // Reopen the native search field after returning from document navigation.
+        app.tabBars.buttons["Search"].tap()
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
         XCTAssertEqual(search.value as? String, "workflow")
     }
 
@@ -99,9 +102,10 @@ final class WorkspaceSyncUITests: XCTestCase {
         let choose = app.buttons["workspace.chooseFolder"]
         XCTAssertTrue(choose.waitForExistence(timeout: 5))
         choose.tap()
-        for provider in ["iCloud", "oneDrive", "googleDrive", "dropbox", "webDAV", "local"] {
+        for provider in ["webDAV", "local"] {
             XCTAssertTrue(app.buttons["storage.provider.\(provider)"].waitForExistence(timeout: 3))
         }
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'storage.provider.'")).count, 2)
         let local = app.buttons["storage.provider.local"]
         XCTAssertTrue(local.waitForExistence(timeout: 5))
         local.tap()
@@ -163,21 +167,31 @@ final class WorkspaceSyncUITests: XCTestCase {
         let originalConnection = connection.label
 
         app.buttons["workspace.chooseFolder"].tap()
-        let oneDrive = app.buttons["storage.provider.oneDrive"]
-        XCTAssertTrue(oneDrive.waitForExistence(timeout: 3))
-        oneDrive.tap()
+        let webDAV = app.buttons["storage.provider.webDAV"]
+        XCTAssertTrue(webDAV.waitForExistence(timeout: 3))
+        webDAV.tap()
+        let server = app.textFields["storage.webDAV.server"]
+        XCTAssertTrue(server.waitForExistence(timeout: 3))
+        server.tap()
+        server.typeText("https://dav.example.com")
+        app.textFields["storage.webDAV.username"].tap()
+        app.textFields["storage.webDAV.username"].typeText("alice")
+        app.secureTextFields["storage.webDAV.password"].tap()
+        app.secureTextFields["storage.webDAV.password"].typeText("test-password")
+        app.textFields["storage.webDAV.directory"].tap()
+        app.textFields["storage.webDAV.directory"].typeText("\n")
         let keepCopies = app.buttons["Keep Copies and Change Location"]
         XCTAssertTrue(keepCopies.waitForExistence(timeout: 3))
         let explanation = app.staticTexts.matching(NSPredicate(
             format: "label CONTAINS %@ AND label CONTAINS %@",
-            "Current location: WebDAV", "New location: OneDrive"
+            "Current location: WebDAV", "New location: https://dav.example.com/Orgenda"
         )).firstMatch
         XCTAssertTrue(explanation.exists)
         XCTAssertTrue(explanation.label.contains("Existing files stay where they are and will not be moved or copied."))
         XCTAssertTrue(explanation.label.contains("Unsynced edits will be kept in orgenda → Unsaved Edits"))
         XCTAssertTrue(explanation.label.contains("They will not be uploaded to the new location."))
 
-        // Cancel the confirmation without dismissing the provider picker below it.
+        // Cancel the confirmation without dismissing the connection form below it.
         let cancel = app.buttons.matching(NSPredicate(
             format: "label == 'Cancel' AND identifier != 'storage.cancel'"
         )).firstMatch
@@ -194,7 +208,9 @@ final class WorkspaceSyncUITests: XCTestCase {
             app.coordinate(withNormalizedOffset: .zero).withOffset(point).tap()
         }
         XCTAssertTrue(keepCopies.waitForNonExistence(timeout: 3))
-        XCTAssertTrue(oneDrive.isHittable)
+        XCTAssertTrue(app.navigationBars["Connect WebDAV"].exists)
+        app.navigationBars["Connect WebDAV"].buttons.firstMatch.tap()
+        XCTAssertTrue(webDAV.waitForExistence(timeout: 3))
         app.buttons["storage.cancel"].tap()
         XCTAssertTrue(app.navigationBars["Workspace & Sync"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["storage.provider.webDAV"].exists)

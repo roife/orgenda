@@ -10,7 +10,7 @@ extension WorkspaceStore {
                 let connection = try JSONDecoder().decode(StorageConnection.self, from: data)
                 if connection.provider.isRemote {
                     let backend: any RemoteWorkspaceBackend
-                    do { backend = try await CloudConnectionFactory.restore(connection) }
+                    do { backend = try await WebDAVConnectionFactory.restore(connection) }
                     catch { backend = UnavailableStorageBackend(reason: (error as? StorageError) ?? .configuration(error.localizedDescription)) }
                     let session = try WorkspaceSession(connection: connection, cacheDirectory: storageCacheDirectory, remote: backend)
                     try await restoreSession(session, connection: connection, folderURL: nil)
@@ -113,7 +113,7 @@ extension WorkspaceStore {
                 folderURL: access ? url : nil, defaults: defaults, remember: remember,
                 preservePending: preservePending)
             if let previous, previous.id != connection.id, previous.provider.isRemote {
-                try? CloudConnectionFactory.removeCredentials(for: previous)
+                try? WebDAVConnectionFactory.removeCredentials(for: previous)
             }
             await waitForWorkspaceIndex()
         } catch {
@@ -124,18 +124,12 @@ extension WorkspaceStore {
 
     func connectWebDAV(_ configuration: WebDAVConfiguration, preservePending: Bool = false) async -> Bool {
         await connectRemote(preservePending: preservePending) {
-            try await CloudConnectionFactory.prepareWebDAV(configuration: configuration)
-        }
-    }
-
-    func connectCloud(_ provider: StorageProvider, preservePending: Bool = false) async -> Bool {
-        await connectRemote(preservePending: preservePending) {
-            try await CloudConnectionFactory.prepareCloud(provider: provider)
+            try await WebDAVConnectionFactory.prepare(configuration: configuration)
         }
     }
 
     /// Renew access to the same account and root without rebinding its outbox.
-    func reconnectStorage(webDAVPassword: String? = nil) async -> Bool {
+    func reconnectStorage(webDAVPassword: String) async -> Bool {
         guard !isChangingStorage, !isSavingConfiguration, let original = storageConnection, original.provider.isRemote,
               let workspaceSession else { return false }
         isChangingStorage = true
@@ -143,7 +137,7 @@ extension WorkspaceStore {
         let identity = workspaceFileSessionID
         var candidate: PreparedRemoteConnection?
         do {
-            let refreshed = try await CloudConnectionFactory.reauthenticate(original, webDAVPassword: webDAVPassword)
+            let refreshed = try await WebDAVConnectionFactory.reauthenticate(original, password: webDAVPassword)
             candidate = refreshed
             guard identity == workspaceFileSessionID, refreshed.connection.identity == original.identity,
                   await waitForFileOperation() else { throw StorageError.rootUnavailable }
@@ -153,14 +147,14 @@ extension WorkspaceStore {
             connectionDefaults.set(try JSONEncoder().encode(refreshed.connection), forKey: Self.storageConnectionKey)
             storageConnection = refreshed.connection
             if original.credentialKey != refreshed.connection.credentialKey {
-                try? CloudConnectionFactory.removeCredentials(for: original)
+                try? WebDAVConnectionFactory.removeCredentials(for: original)
             }
             fileSyncError = nil
             await synchronizeFiles()
             return true
         } catch {
             if let candidate, candidate.connection.credentialKey != storageConnection?.credentialKey {
-                try? CloudConnectionFactory.removeCredentials(for: candidate.connection)
+                try? WebDAVConnectionFactory.removeCredentials(for: candidate.connection)
             }
             if !(error is CancellationError) { reportStorageError(error) }
             return false
@@ -181,13 +175,13 @@ extension WorkspaceStore {
             let previous = try await replaceStorageSession(session, connection: candidate.connection,
                                                            preservePending: preservePending)
             if let previous, previous.credentialKey != candidate.connection.credentialKey {
-                try? CloudConnectionFactory.removeCredentials(for: previous)
+                try? WebDAVConnectionFactory.removeCredentials(for: previous)
             }
             await waitForWorkspaceIndex()
             return true
         } catch {
             if let prepared, prepared.connection.credentialKey != storageConnection?.credentialKey {
-                try? CloudConnectionFactory.removeCredentials(for: prepared.connection)
+                try? WebDAVConnectionFactory.removeCredentials(for: prepared.connection)
             }
             if !(error is CancellationError) { reportStorageError(error) }
             return false
@@ -203,11 +197,11 @@ extension WorkspaceStore {
         guard storageConnection?.rootID == local.resolvingSymlinksInPath().standardizedFileURL.path,
               storageConnection?.provider == .local else { return false }
         connectionDefaults.removeObject(forKey: Self.storageConnectionKey)
-        if let previous { try? CloudConnectionFactory.removeCredentials(for: previous) }
+        if let previous { try? WebDAVConnectionFactory.removeCredentials(for: previous) }
         return true
     }
 
-    /// Both folder and cloud connections validate and preserve the old workspace
+    /// Both folder and WebDAV connections validate and preserve the old workspace
     /// before making the new session active. Credential cleanup stays with the caller.
     private func replaceStorageSession(
         _ session: WorkspaceSession, connection: StorageConnection, folderURL: URL? = nil,
@@ -506,12 +500,12 @@ private struct StorageReplacement {
     let sessionID: UUID
 }
 
-/// Cached data remains accessible even when its login configuration is missing.
+/// Cached data remains accessible even when credentials or folder access are unavailable.
 private struct UnavailableStorageBackend: RemoteWorkspaceBackend {
     let reason: StorageError
-    func scan(cursor: String?) async throws -> RemoteScan { throw reason }
+    func scan() async throws -> RemoteScan { throw reason }
     func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload { throw reason }
-    func upload(path: String, data: Data, existing: RemoteFile?, operationID: UUID) async throws -> RemoteFile { throw reason }
+    func upload(path: String, data: Data, existing: RemoteFile?) async throws -> RemoteFile { throw reason }
     func createDirectory(path: String) async throws -> RemoteFile { throw reason }
     func move(_ file: RemoteFile, to path: String) async throws -> RemoteFile { throw reason }
 }

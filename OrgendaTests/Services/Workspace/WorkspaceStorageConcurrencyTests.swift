@@ -122,14 +122,14 @@ private actor AwaitingFileActionBackend: RemoteWorkspaceBackend {
     init(started: @escaping @Sendable () -> Void) {
         self.started = started
         items = [
-            "inbox.org": Item(file: RemoteFile(id: "inbox-id", path: "inbox.org", isDirectory: false,
+            "inbox.org": Item(file: RemoteFile(id: "inbox.org", path: "inbox.org", isDirectory: false,
                 revision: "initial", size: 11), data: Data("* Original\n".utf8)),
-            "archive": Item(file: RemoteFile(id: "archive-id", path: "archive", isDirectory: true,
+            "archive": Item(file: RemoteFile(id: "archive", path: "archive", isDirectory: true,
                 revision: "initial"), data: Data())
         ]
     }
 
-    func scan(cursor: String?) -> RemoteScan { RemoteScan(files: items.values.map(\.file)) }
+    func scan() -> RemoteScan { RemoteScan(files: items.values.map(\.file)) }
 
     func download(_ file: RemoteFile, maxBytes: Int) throws -> RemoteDownload {
         guard let current = items[file.path] else { throw StorageError.http(404) }
@@ -137,12 +137,12 @@ private actor AwaitingFileActionBackend: RemoteWorkspaceBackend {
         return RemoteDownload(file: current.file, data: current.data)
     }
 
-    func upload(path: String, data: Data, existing: RemoteFile?, operationID: UUID) throws -> RemoteFile {
+    func upload(path: String, data: Data, existing: RemoteFile?) throws -> RemoteFile {
         let current = items[path]
         guard current?.file.id == existing?.id, current?.file.revision == existing?.revision else {
             throw StorageError.conflict(path)
         }
-        let file = RemoteFile(id: existing?.id ?? UUID().uuidString, path: path, isDirectory: false,
+        let file = RemoteFile(id: path, path: path, isDirectory: false,
                               revision: UUID().uuidString, size: Int64(data.count))
         items[path] = Item(file: file, data: data)
         return file
@@ -153,7 +153,7 @@ private actor AwaitingFileActionBackend: RemoteWorkspaceBackend {
             guard existing.file.isDirectory else { throw StorageError.conflict(path) }
             return existing.file
         }
-        let file = RemoteFile(id: UUID().uuidString, path: path, isDirectory: true, revision: UUID().uuidString)
+        let file = RemoteFile(id: path, path: path, isDirectory: true, revision: UUID().uuidString)
         items[path] = Item(file: file, data: Data())
         return file
     }
@@ -166,6 +166,7 @@ private actor AwaitingFileActionBackend: RemoteWorkspaceBackend {
         for (oldPath, var item) in items.filter({ WorkspaceFileTransfer.contains($0.key, in: file.path) }) {
             items.removeValue(forKey: oldPath)
             let destination = path + oldPath.dropFirst(file.path.count)
+            item.file.id = destination
             item.file.path = destination
             items[destination] = item
         }

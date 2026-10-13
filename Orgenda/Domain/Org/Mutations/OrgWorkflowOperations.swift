@@ -72,7 +72,7 @@ enum OrgWorkflowOperations {
             throw Failure.noteRequired
         }
         var entries: [String] = []
-        let stamp = timestamp(now, includesTime: true)
+        let stamp = now.orgTimestamp(active: false, includesTime: true)
         let escapedNote = cleanNote.components(separatedBy: .newlines).map {
             // An indented :END: still closes an Org drawer. Escape that
             // literal note line so the next edit sees the same logbook.
@@ -87,19 +87,23 @@ enum OrgWorkflowOperations {
             }
             entries.append(entry)
         }
-        for keyword in [OrgPlanningKeyword.scheduled, .deadline] {
-            guard (keyword == .scheduled ? logging.reschedule : logging.redeadline) != .none else { continue }
+        let oldPrimary: OrgPlanningKeyword = original.scheduled != nil ? .scheduled : .deadline
+        let newPrimary: OrgPlanningKeyword = item.scheduled != nil ? .scheduled : .deadline
+        let dateChanges = [OrgPlanningKeyword.scheduled, .deadline].compactMap { keyword -> (OrgPlanningKeyword, Date, Date?)? in
+            guard (keyword == .scheduled ? logging.reschedule : logging.redeadline) != .none else { return nil }
             let oldDate = keyword == .scheduled ? original.scheduled : original.deadline
             let newDate = keyword == .scheduled ? item.scheduled : item.deadline
-            let oldPrimary: OrgPlanningKeyword = original.scheduled != nil ? .scheduled : .deadline
-            let newPrimary: OrgPlanningKeyword = item.scheduled != nil ? .scheduled : .deadline
             let recurrenceChanged = oldPrimary == keyword && newPrimary == keyword && original.recurrence != item.recurrence
             guard let oldDate,
-                  oldDate != newDate || original.hasTime != item.hasTime || recurrenceChanged else { continue }
-            let oldStamp = try originalSource.flatMap {
+                  oldDate != newDate || original.hasTime != item.hasTime || recurrenceChanged else { return nil }
+            return (keyword, oldDate, newDate)
+        }
+        let originalStructure = try dateChanges.isEmpty ? nil : originalSource.map(Structure.init)
+        for (keyword, oldDate, newDate) in dateChanges {
+            let oldStamp = try originalStructure.flatMap {
                 try planningTimestamp(in: $0, headingStartByte: headingStartByte, keyword: keyword)
-            } ?? timestamp(oldDate, includesTime: original.hasTime,
-                           suffix: oldPrimary == keyword ? original.recurrence : nil)
+            } ?? oldDate.orgTimestamp(active: false, includesTime: original.hasTime,
+                                     recurrence: oldPrimary == keyword ? original.recurrence : nil)
             let action: String
             switch (keyword, newDate == nil) {
             case (.scheduled, false): action = "Rescheduled from"
@@ -146,7 +150,7 @@ enum OrgWorkflowOperations {
         let ancestors = structure.ancestors(of: heading) + [heading]
         let preambleEnd = structure.headings.first?.start ?? structure.byteCount
         let fileProperties = structure.lines.filter { $0.start < preambleEnd && !structure.isProtected($0.start) }
-            .compactMap { capture(#"^\s*#\+PROPERTY:\s+ARCHIVE\s+(.*?)\s*$"#, in: $0.text) }
+            .compactMap { capture(fileArchiveExpression, in: $0.text) }
         guard fileProperties.count <= 1 else { throw Failure.ambiguousStructure }
         var custom = fileProperties.first
         for ancestor in ancestors {
@@ -155,7 +159,7 @@ enum OrgWorkflowOperations {
             guard drawers.count <= 1 else { throw Failure.ambiguousStructure }
             if let drawer = drawers.first {
                 let properties = structure.lines.filter { $0.start >= drawer.contentStart && $0.start < drawer.closeStart }
-                let values = properties.compactMap { capture(#"^\s*:ARCHIVE:\s*(.*?)\s*$"#, in: $0.text) }
+                let values = properties.compactMap { capture(archivePropertyExpression, in: $0.text) }
                 guard values.count <= 1 else { throw Failure.ambiguousStructure }
                 if let value = values.first { custom = value }
             }
@@ -186,7 +190,7 @@ enum OrgWorkflowOperations {
         guard path.hasSuffix(".org") || path.hasSuffix(".org_archive") else { throw Failure.unsafeArchivePath }
         let outline = pieces[1].trimmingCharacters(in: .whitespaces)
         if !outline.isEmpty {
-            guard capture(#"^(\*+)[ \t]+\S.*$"#, in: outline) != nil,
+            guard matches(archiveHeadingExpression, in: outline),
                   !outline.contains("\n"), !outline.contains("\r") else { throw Failure.invalidTarget }
         }
         return OrgArchiveDestination(path: path, outline: outline.isEmpty ? nil : outline)
@@ -263,14 +267,14 @@ enum OrgWorkflowOperations {
         destination: WorkspaceDocument, targetHeadingStartByte: Int?
     ) throws -> OrgMovePlan {
         guard source.kind == .org, destination.kind == .org else { throw Failure.invalidTarget }
+        let sameFile = source.path == destination.path
+        guard !sameFile || source.contents == destination.contents else { throw Failure.invalidTarget }
         let from = try Structure(source.contents)
         let heading = try from.heading(at: headingStartByte)
         let end = from.subtreeEnd(of: heading)
-        let into = try Structure(destination.contents)
+        let into = try sameFile ? from : Structure(destination.contents)
         let target = try targetHeadingStartByte.map { try into.heading(at: $0) }
         let insertion = target.map { into.subtreeEnd(of: $0) } ?? destination.contents.utf8.count
-        let sameFile = source.path == destination.path
-        guard !sameFile || source.contents == destination.contents else { throw Failure.invalidTarget }
         if sameFile, let target, target.start >= heading.start && target.start < end { throw Failure.targetInsideSubtree }
         let levelChange = (target.map { $0.level + 1 } ?? 1) - heading.level
         var subtree = String(decoding: source.contents.utf8.dropFirst(heading.start).prefix(end - heading.start), as: UTF8.self)
@@ -299,22 +303,22 @@ enum OrgWorkflowOperations {
         return OrgMovePlan(source: newSource, destination: newDestination)
     }
 
-    private static func timestamp(_ date: Date, includesTime: Bool, suffix: String? = nil) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = includesTime ? "yyyy-MM-dd EEE HH:mm" : "yyyy-MM-dd EEE"
-        return "[" + formatter.string(from: date) + (suffix.map { " " + $0 } ?? "") + "]"
-    }
-
-    private static func planningTimestamp(in source: String, headingStartByte: Int, keyword: OrgPlanningKeyword) throws -> String? {
-        let structure = try Structure(source)
+    private static func planningTimestamp(in structure: Structure, headingStartByte: Int, keyword: OrgPlanningKeyword) throws -> String? {
         let heading = try structure.heading(at: headingStartByte)
         let end = structure.sectionEnd(of: heading)
         let candidates = structure.lines.filter {
             $0.start >= heading.end && $0.start < end && !structure.isProtected($0.start)
                 && matches(planningKeywordLineExpression, in: $0.text)
         }
-        let values = candidates.compactMap { capture("\\b\(keyword.rawValue):[ \\t]*(<[^>\\r\\n]+>|\\[[^\\]\\r\\n]+\\])", in: $0.text) }
+        let values = candidates.flatMap { line in
+            planningTimestampExpression.matches(in: line.text, range: NSRange(line.text.startIndex..., in: line.text))
+                .compactMap { match -> String? in
+                    guard let name = Range(match.range(at: 1), in: line.text),
+                          line.text[name].uppercased() == keyword.rawValue,
+                          let timestamp = Range(match.range(at: 2), in: line.text) else { return nil }
+                    return String(line.text[timestamp])
+                }
+        }
         guard values.count <= 1 else { throw Failure.ambiguousStructure }
         return values.first.map { "[" + $0.dropFirst().dropLast() + "]" }
     }
@@ -333,25 +337,27 @@ enum OrgWorkflowOperations {
         expression.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 
-    private static let captureExpressions: [String: NSRegularExpression] = {
-        let patterns = [
-            #"^\s*#\+PROPERTY:\s+ARCHIVE\s+(.*?)\s*$"#,
-            #"^\s*:ARCHIVE:\s*(.*?)\s*$"#,
-            #"^(\*+)[ \t]+\S.*$"#,
-            #"^\s*#\+END_([A-Z0-9_-]+)\s*$"#,
-            #"^\s*#\+BEGIN_([A-Z0-9_-]+)(?:\s|$)"#,
-            #"^\s*:([^:\r\n]+):\s*$"#,
-            #"^(\*+)[ \t]+\S"#,
-        ] + OrgPlanningKeyword.allCases.map {
-            "\\b\($0.rawValue):[ \\t]*(<[^>\\r\\n]+>|\\[[^\\]\\r\\n]+\\])"
-        }
-        return Dictionary(uniqueKeysWithValues: patterns.map {
-            ($0, try! NSRegularExpression(pattern: $0, options: [.caseInsensitive]))
-        })
-    }()
+    private static let fileArchiveExpression = try! NSRegularExpression(
+        pattern: #"^\s*#\+PROPERTY:\s+ARCHIVE\s+(.*?)\s*$"#, options: [.caseInsensitive]
+    )
+    private static let archivePropertyExpression = try! NSRegularExpression(
+        pattern: #"^\s*:ARCHIVE:\s*(.*?)\s*$"#, options: [.caseInsensitive]
+    )
+    private static let archiveHeadingExpression = try! NSRegularExpression(pattern: #"^\*+[ \t]+\S.*$"#)
+    private static let blockEndExpression = try! NSRegularExpression(
+        pattern: #"^\s*#\+END_([A-Z0-9_-]+)\s*$"#, options: [.caseInsensitive]
+    )
+    private static let blockBeginExpression = try! NSRegularExpression(
+        pattern: #"^\s*#\+BEGIN_([A-Z0-9_-]+)(?:\s|$)"#, options: [.caseInsensitive]
+    )
+    private static let drawerExpression = try! NSRegularExpression(pattern: #"^\s*:([^:\r\n]+):\s*$"#)
+    private static let headingExpression = try! NSRegularExpression(pattern: #"^(\*+)[ \t]+\S"#)
+    private static let planningTimestampExpression = try! NSRegularExpression(
+        pattern: #"\b(SCHEDULED|DEADLINE|CLOSED):[ \t]*(<[^>\r\n]+>|\[[^\]\r\n]+\])"#, options: [.caseInsensitive]
+    )
 
-    private static func capture(_ pattern: String, in source: String) -> String? {
-        guard let match = captureExpressions[pattern]!.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
+    private static func capture(_ expression: NSRegularExpression, in source: String) -> String? {
+        guard let match = expression.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
               let range = Range(match.range(at: 1), in: source) else { return nil }
         return String(source[range])
     }
@@ -410,7 +416,7 @@ enum OrgWorkflowOperations {
             for line in lines {
                 if let active = block {
                     let isDynamicEnd = active.name == ":" && matches(dynamicBlockEndExpression, in: line.text)
-                    if isDynamicEnd || capture(#"^\s*#\+END_([A-Z0-9_-]+)\s*$"#, in: line.text)?.uppercased() == active.name {
+                    if isDynamicEnd || capture(blockEndExpression, in: line.text)?.uppercased() == active.name {
                         protected.append(active.start..<line.end)
                         block = nil
                     }
@@ -425,15 +431,15 @@ enum OrgWorkflowOperations {
                     }
                     continue
                 }
-                if let name = capture(#"^\s*#\+BEGIN_([A-Z0-9_-]+)(?:\s|$)"#, in: line.text) {
+                if let name = capture(blockBeginExpression, in: line.text) {
                     block = (name.uppercased(), line.start)
                 } else if matches(dynamicBlockBeginExpression, in: line.text) {
                     block = (":", line.start)
-                } else if let name = capture(#"^\s*:([^:\r\n]+):\s*$"#, in: line.text),
+                } else if let name = capture(drawerExpression, in: line.text),
                           OrgDrawerName.isSupported(name) {
                     guard name.uppercased() != "END" else { throw Failure.ambiguousStructure }
                     drawer = (name.uppercased(), line.start, line.end)
-                } else if let marker = capture(#"^(\*+)[ \t]+\S"#, in: line.text) {
+                } else if let marker = capture(headingExpression, in: line.text) {
                     let title = String(line.text.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces)
                     headings.append(Heading(start: line.start, end: line.end, level: marker.count,
                                             title: title, rawTitle: line.text.trimmingCharacters(in: .whitespaces)))

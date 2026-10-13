@@ -28,14 +28,14 @@ extension WorkspaceStore {
         #+startup: overview
 
         * TODO [#A] Review quarterly roadmap :work:focus:
-        SCHEDULED: <\(WorkspaceStore.orgDateFormatter.string(from: at(0, hour: 9, minute: 30)))>
+        SCHEDULED: <\(at(0, hour: 9, minute: 30).orgDateText(includesTime: true))>
         Bring the product brief and parser performance notes.
 
         * TODO [#B] Write tree-sitter Org queries :dev:org:project:
-        DEADLINE: <\(WorkspaceStore.orgDateFormatter.string(from: at(0, hour: 14)))>
+        DEADLINE: <\(at(0, hour: 14).orgDateText(includesTime: true))>
 
         * TODO Evening walk :habit:health:
-        SCHEDULED: <\(WorkspaceStore.orgDateFormatter.string(from: at(0, hour: 19))) +1d>
+        SCHEDULED: <\(at(0, hour: 19).orgDateText(includesTime: true)) +1d>
 
         * TODO Plan iPad reading workflow :project:
         """
@@ -57,13 +57,13 @@ extension WorkspaceStore {
         #+title: Calendar
 
         * orgenda anniversary — 6 years :event:anniversary:
-        SCHEDULED: <\(WorkspaceStore.orgDayFormatter.string(from: at(0, hour: 0)))>
+        SCHEDULED: <\(at(0, hour: 0).orgDateText(includesTime: false))>
 
         * Weekend review :event:review:
-        SCHEDULED: <\(WorkspaceStore.orgDayFormatter.string(from: at(0, hour: 0)))>
+        SCHEDULED: <\(at(0, hour: 0).orgDateText(includesTime: false))>
 
         * Design sync :team:event:
-        SCHEDULED: <\(WorkspaceStore.orgDateFormatter.string(from: at(0, hour: 11)))>
+        SCHEDULED: <\(at(0, hour: 11).orgDateText(includesTime: true))>
         Weekly design review.
         """
 
@@ -71,7 +71,7 @@ extension WorkspaceStore {
         #+title: Personal
 
         * WAIT [#C] Renew library card :errands:
-        SCHEDULED: <\(WorkspaceStore.orgDateFormatter.string(from: at(-2, hour: 16)))>
+        SCHEDULED: <\(at(-2, hour: 16).orgDateText(includesTime: true))>
         Bring proof of address.
         """
 

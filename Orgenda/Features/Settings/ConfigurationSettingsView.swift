@@ -446,9 +446,9 @@ struct ConfigurationSettingsView: View {
     private var historySections: some View {
         Group {
             Section("History") {
-                rulePicker("On completion", value: draft.logging.done) { var next = draft; next.logging.done = $0; submit(next) }
-                rulePicker("Reschedule", value: draft.logging.reschedule) { var next = draft; next.logging.reschedule = $0; submit(next) }
-                rulePicker("Change deadline", value: draft.logging.redeadline) { var next = draft; next.logging.redeadline = $0; submit(next) }
+                ConfigurationLogRulePicker(title: "On completion", selection: binding(\.logging.done))
+                ConfigurationLogRulePicker(title: "Reschedule", selection: binding(\.logging.reschedule))
+                ConfigurationLogRulePicker(title: "Change deadline", selection: binding(\.logging.redeadline))
             }
             Section {
                 text("Log drawer", \.logging.drawer)
@@ -484,14 +484,6 @@ struct ConfigurationSettingsView: View {
 
     private func binding<Value>(_ path: WritableKeyPath<WorkspaceConfiguration, Value>) -> Binding<Value> {
         Binding(get: { draft[keyPath: path] }, set: { value in var next = draft; next[keyPath: path] = value; submit(next) })
-    }
-    private func rulePicker(_ title: String, value: WorkspaceConfiguration.LogRule,
-                            change: @escaping (WorkspaceConfiguration.LogRule) -> Void) -> some View {
-        Picker(LocalizedStringKey(title), selection: Binding(get: { value }, set: change)) {
-            Text("Don't log").tag(WorkspaceConfiguration.LogRule.none)
-            Text("Timestamp").tag(WorkspaceConfiguration.LogRule.time)
-            Text("Ask for a note").tag(WorkspaceConfiguration.LogRule.note)
-        }
     }
     private func submit(_ value: WorkspaceConfiguration) {
         draft = value

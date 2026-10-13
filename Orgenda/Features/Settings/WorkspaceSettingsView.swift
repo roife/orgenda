@@ -27,11 +27,10 @@ struct WorkspaceSettingsView: View {
             Section("Storage Location") {
                 if let connection = store.storageConnection {
                     SettingsRow(icon: connection.provider.symbol, color: OrgendaTheme.accentText,
-                                title: connection.providerSummary, subtitle: connection.storageSummary,
-                                iconAsset: connection.provider.iconAsset)
+                                title: connection.provider.title, subtitle: connection.storageSummary)
                         .accessibilityValue(connection.provider.title)
                         .accessibilityIdentifier("workspace.connection")
-                    if connection.provider == .webDAV, let account = connection.accountName {
+                    if connection.provider == .webDAV, let account = connection.accountID {
                         SettingsValueRow(title: String(localized: "Account"), value: account)
                     }
                     if connection.provider == .webDAV, let endpoint = connection.endpoint {
@@ -66,8 +65,7 @@ struct WorkspaceSettingsView: View {
                 }
             }
             Section {
-                if let connection = store.storageConnection, connection.provider.isRemote,
-                   store.syncState == .authenticationRequired || (connection.provider.usesEmailAccount && connection.emailAddress == nil) {
+                if store.storageConnection?.provider == .webDAV, store.syncState == .authenticationRequired {
                     StorageReconnectAction(store: store)
                 }
                 if store.isWorkspaceReady {

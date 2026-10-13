@@ -130,7 +130,7 @@ final class OrgEditorSession {
 
     func insertDate(_ date: Date) {
         guard let textView else { return }
-        let value = OrgSourceMutation.activeTimestampSource(date: date, hasTime: false, recurrence: nil)
+        let value = date.orgTimestamp(includesTime: false)
         let range = dateSelection ?? textView.selectedRange
         performEdit?(OrgTextEdit(range: range, replacement: value,
                                 selection: NSRange(location: range.location + value.utf16.count, length: 0)), String(localized: "Insert date"))

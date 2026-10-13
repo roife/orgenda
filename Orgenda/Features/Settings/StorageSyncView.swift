@@ -78,7 +78,7 @@ extension WorkspaceSyncState {
         case .pending: "arrow.up.circle"
         case .synced, .folderUpdated: "checkmark.circle.fill"
         case .offline: "wifi.slash"
-        case .authenticationRequired: "person.crop.circle.badge.exclamationmark"
+        case .authenticationRequired: "key.fill"
         case .conflict, .failed: "exclamationmark.triangle.fill"
         }
     }
@@ -93,48 +93,11 @@ extension WorkspaceSyncState {
     }
 }
 
-extension StorageProvider {
-    var iconAsset: String? {
-        switch self {
-        case .googleDrive: "StorageGoogleDrive"
-        case .oneDrive: "StorageOneDrive"
-        case .dropbox: "StorageDropbox"
-        default: nil
-        }
-    }
-}
-
 extension StorageConnection {
-    var providerSummary: String {
-        if provider.usesEmailAccount { return emailAddress ?? String(localized: "Email unavailable") }
-        return provider.title
-    }
-
     var storageSummary: String {
         if provider == .webDAV, let endpoint {
             return (endpoint.host ?? "WebDAV") + endpoint.path
         }
-        let prefix = provider.title + " · "
-        if provider.usesEmailAccount, displayName.hasPrefix(prefix) {
-            return String(displayName.dropFirst(prefix.count))
-        }
         return displayName
     }
-}
-
-#Preview("Cloud account emails") {
-    List {
-        ForEach([StorageProvider.googleDrive, .oneDrive, .dropbox]) { provider in
-            let connection = StorageConnection(provider: provider, displayName: "Orgenda",
-                                               accountEmail: "alice@example.com", rootID: "preview")
-            SettingsRow(icon: provider.symbol, color: OrgendaTheme.accentText,
-                        title: String(localized: "Workspace & Sync"), subtitle: connection.providerSummary,
-                        subtitleIcon: "checkmark.circle.fill", iconAsset: provider.iconAsset)
-        }
-        let missingEmail = StorageConnection(provider: .oneDrive, displayName: "Orgenda", rootID: "preview")
-        SettingsRow(icon: missingEmail.provider.symbol, color: OrgendaTheme.accentText,
-                    title: String(localized: "Workspace & Sync"), subtitle: missingEmail.providerSummary,
-                    iconAsset: missingEmail.provider.iconAsset)
-    }
-    .listStyle(.insetGrouped)
 }

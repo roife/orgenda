@@ -11,10 +11,6 @@ struct RemoteFile: Codable, Equatable, Sendable, Identifiable {
 
 struct RemoteScan: Sendable {
     var files: [RemoteFile]
-    var cursor: String? = nil
-    /// Incremental scans contain file additions/updates only. Deletions and
-    /// directory changes require a complete snapshot from the backend.
-    var isFullSnapshot: Bool = true
 }
 
 struct RemoteDownload: Sendable {
@@ -25,9 +21,9 @@ struct RemoteDownload: Sendable {
 /// All paths are relative to the persisted root. A scan must throw on any
 /// partial enumeration; upload and move must never silently overwrite.
 protocol RemoteWorkspaceBackend: Sendable {
-    func scan(cursor: String?) async throws -> RemoteScan
+    func scan() async throws -> RemoteScan
     func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload
-    func upload(path: String, data: Data, existing: RemoteFile?, operationID: UUID) async throws -> RemoteFile
+    func upload(path: String, data: Data, existing: RemoteFile?) async throws -> RemoteFile
     func createDirectory(path: String) async throws -> RemoteFile
     func move(_ file: RemoteFile, to path: String) async throws -> RemoteFile
 }
@@ -38,7 +34,7 @@ enum StorageError: Error, LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .authenticationRequired: String(localized: "Sign in again to sync. Your edits are saved on this device.")
+        case .authenticationRequired: String(localized: "Update your WebDAV password to sync. Your edits are saved on this device.")
         case .offline: String(localized: "Connect to the internet to sync. Your edits are saved on this device.")
         case .rootUnavailable: String(localized: "The storage folder is unavailable. Reconnect it; your local edits are safe.")
         case .conflict(let path): String(localized: "\(path) changed elsewhere. Both versions have been kept.")

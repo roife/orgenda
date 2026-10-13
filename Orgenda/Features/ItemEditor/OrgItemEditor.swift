@@ -370,7 +370,10 @@ struct OrgItemEditor: View {
         if !isNew && (store.usesEmacsConfiguration || store.hasWorkspaceConfiguration) {
             Section {
                 NavigationLink {
-                    refileDestinations
+                    OrgItemRefileDestinations(
+                        targets: store.refileTargets(for: originalDraft), items: store.items,
+                        isMoving: isMoving, onMove: { target in Task { await moveItem(to: target) } }
+                    )
                 } label: {
                     Label("Move to…", systemImage: "folder")
                 }
@@ -425,39 +428,6 @@ struct OrgItemEditor: View {
             get: { Int(draft.properties["APPT_WARNTIME"] ?? "15") ?? 15 },
             set: { draft.properties["APPT_WARNTIME"] = String($0) }
         )
-    }
-
-    private var refileDestinations: some View {
-        let targets = store.refileTargets(for: originalDraft)
-        return List {
-            ForEach(targets) { target in
-                let targetItem = store.items.first {
-                    $0.source.file == target.path && $0.source.startByte == target.headingStartByte
-                }
-                Button {
-                    Task { await moveItem(to: target) }
-                } label: {
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            if let item = targetItem, item.hasWorkflowState { OrgWorkflowIcon(item.state) }
-                            Text(target.outline.isEmpty ? target.title : target.outline)
-                                .foregroundStyle(targetItem?.workflowTitleColor ?? .primary)
-                        }
-                        Text(target.path).font(.subheadline).foregroundStyle(.secondary)
-                    }
-                }
-                .disabled(isMoving)
-            }
-        }
-        .overlay {
-            if targets.isEmpty {
-                ContentUnavailableView("No destinations yet", systemImage: "folder", description:
-                    Text("Create a heading in Actions, Projects, Routines, or Someday to use it as a destination."))
-                    .orgendaEmptyState()
-            }
-        }
-        .navigationTitle("Move to")
-        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func moveItem(to target: OrgRefileTarget?) async {

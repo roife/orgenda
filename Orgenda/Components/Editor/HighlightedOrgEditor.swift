@@ -3,6 +3,11 @@ import SwiftUI
 /// Owns the cancellable parser lifecycle while `OrgSyntaxTextEditor` owns the
 /// stable TextKit view. Fast typing cancels older revisions before they publish.
 struct HighlightedOrgEditor: View {
+    private struct HighlightRequest: Equatable {
+        let text: String
+        let workflow: WorkspaceConfiguration.Workflow
+    }
+
     @Environment(\.workspaceConfiguration) private var configuration
     @Binding private var text: String
     private let isEditable: Bool
@@ -31,7 +36,7 @@ struct HighlightedOrgEditor: View {
             isActive: isActive,
             externalRevision: externalRevision
         )
-        .task(id: text + String(describing: configuration.workflow)) {
+        .task(id: HighlightRequest(text: text, workflow: configuration.workflow)) {
             let revision = text
             try? await Task.sleep(for: .milliseconds(90))
             guard !Task.isCancelled else { return }

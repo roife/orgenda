@@ -232,12 +232,8 @@
     const state = { params: { ...defaults }, progress: .5, month: 8 };
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey));
-      if (saved?.version === 1 || saved?.version === 2) {
+      if (saved?.version === 2) {
         for (const [key, spec] of specs) if (Number.isFinite(saved.params?.[key])) state.params[key] = clamp(saved.params[key], spec[2], spec[3]);
-        // Preserve the previous curve's midpoint while changing its shape.
-        if (saved.version === 1 && Number.isFinite(saved.params?.opacityPower)) {
-          state.params.opacityMiddle = clamp(1-smooth(Math.pow(.5,saved.params.opacityPower)),.1,.95);
-        }
         if (Number.isFinite(saved.progress)) state.progress = clamp(saved.progress);
         if (Number.isInteger(saved.month)) state.month = clamp(saved.month, 0, 11);
       }
@@ -331,7 +327,7 @@
         cell.append(number);
         let dot = null;
         if (inMonth && [5,12,21,22,24].includes(date.getUTCDate())) { dot = document.createElement('i'); dot.className = 'event-dot'; cell.append(dot); }
-        cells.push({ cell, number, dot, selected, inMonth, weekend: [0,6].includes(date.getUTCDay()) }); fragment.append(cell);
+        cells.push({ number, dot, selected, inMonth, weekend: [0,6].includes(date.getUTCDay()) }); fragment.append(cell);
       }
       $('morph-month').replaceChildren(fragment);
       $('month-name').textContent = monthNames[state.month];
@@ -372,7 +368,6 @@
       updateGuide();
     }
     function updateGuide() {
-      if (!$('chart-guide')) return;
       const p = state.progress, value = curves(p), x = chartX(p);
       $('chart-guide').setAttribute('x1', x); $('chart-guide').setAttribute('x2', x);
       for (const key of ['opacity','blur','morph']) {
@@ -465,7 +460,7 @@
       if (handleDrag?.id === event.pointerId) setProgress(handleDrag.progress+(event.clientY-handleDrag.y)/117);
     });
     function releaseHandle(event) {
-      if (!handleDrag || (event.pointerId != null && handleDrag.id !== event.pointerId)) return;
+      if (handleDrag?.id !== event.pointerId) return;
       handleDrag = null; $('handle').classList.remove('dragging');
       animateTo(state.progress >= .5 ? 1 : 0,state.params.snapDuration,'snap');
     }
@@ -492,7 +487,6 @@
       const text = JSON.stringify(configuration(),null,2);
       const area=$('copy-fallback'); area.value=text; area.hidden=false;
       try {
-        if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
         await navigator.clipboard.writeText(text); $('message').textContent='参数已复制，可发回对话应用到 iOS。下方可查看完整配置。';
       } catch (_) {
         area.focus(); area.select();

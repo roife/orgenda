@@ -52,39 +52,7 @@ struct OrgendaRootView: View {
         }
         .allowsHitTesting(!store.isStartingWorkspace && !store.isPerformingFileAction)
         .sheet(item: $capture) { destination in
-            Group {
-                switch destination {
-                case .agenda(let date):
-                    if store.hasWorkspaceConfiguration, date == nil {
-                        ConfiguredCaptureView(store: store)
-                    } else {
-                    OrgItemEditor(
-                        store: store,
-                        draft: OrgItem(
-                            id: UUID(),
-                            title: "",
-                            state: store.hasWorkspaceConfiguration ? store.configuration.workflow.initial : .todo,
-                            kind: .task,
-                            priority: .none,
-                            tags: [],
-                            scheduled: date,
-                            deadline: nil,
-                            hasTime: false,
-                            durationMinutes: 30,
-                            recurrence: nil,
-                            body: "",
-                            source: SourceLocation(
-                                file: store.hasWorkspaceConfiguration ? store.configuration.files.inbox : store.usesEmacsConfiguration ? OrgCaptureTemplate.inboxTask.destinationPath : "inbox.org",
-                                startByte: 0,
-                                endByte: 0,
-                                startLine: 1
-                            ),
-                            habitHistory: []
-                        )
-                    )
-                    }
-                }
-            }
+            OrgItemCaptureSheet(store: store, date: destination.date)
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
@@ -148,7 +116,7 @@ private extension OrgendaRootView {
         switch action {
         case .newTask:
             selectDashboard()
-            capture = .agenda(nil)
+            capture = CaptureDestination(date: nil)
         case .today:
             store.selectedDate = .now.startOfDay
             calendarNavigationID = UUID()
@@ -222,7 +190,7 @@ private extension OrgendaRootView {
 
             Tab("Calendar", systemImage: "calendar", value: OrgendaTab.calendar) {
                 AgendaView(store: store, mode: .calendar, perspective: .constant(.agenda), onCapture: { date in
-                    capture = .agenda(date)
+                    capture = CaptureDestination(date: date)
                 }, onShowInFile: showInFile, onShowOverdue: showOverdue,
                    expectsConnectedWorkspace: !isUITestWorkspace)
                 .id(calendarNavigationID)
@@ -257,7 +225,7 @@ private extension OrgendaRootView {
 
     func dashboardContent(perspective: Binding<OrgAgendaPerspective>) -> some View {
         AgendaView(store: store, perspective: perspective, onCapture: { date in
-            capture = .agenda(date)
+            capture = CaptureDestination(date: date)
         }, onShowInFile: showInFile, onShowOverdue: showOverdue,
            expectsConnectedWorkspace: !isUITestWorkspace)
         .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
@@ -297,14 +265,9 @@ private extension OrgendaRootView {
     }
 }
 
-private enum CaptureDestination: Identifiable {
-    case agenda(Date?)
-
-    var id: String {
-        switch self {
-        case .agenda(let date): "agenda-\(date?.orgendaDayKey ?? "unscheduled")"
-        }
-    }
+private struct CaptureDestination: Identifiable {
+    let date: Date?
+    var id: String { date?.orgendaDayKey ?? "unscheduled" }
 }
 
 /// The system owns the toolbar's material, placement and content insets.

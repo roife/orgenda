@@ -100,6 +100,19 @@ struct ConfigurationFieldError: View {
     }
 }
 
+struct ConfigurationLogRulePicker: View {
+    let title: LocalizedStringKey
+    @Binding var selection: WorkspaceConfiguration.LogRule
+
+    var body: some View {
+        Picker(title, selection: $selection) {
+            Text("Don't log").tag(WorkspaceConfiguration.LogRule.none)
+            Text("Timestamp").tag(WorkspaceConfiguration.LogRule.time)
+            Text("Ask for a note").tag(WorkspaceConfiguration.LogRule.note)
+        }
+    }
+}
+
 /// Invalid text is reflected in the draft immediately, so Save cannot persist
 /// the previous number while the field visibly contains an invalid edit.
 struct ConfigurationIntegerField: View {

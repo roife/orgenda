@@ -46,22 +46,21 @@ actor OrgIndexService {
     private static func indexHeadings(_ blocks: [OrgSyntaxNode], path: String, root: ParsedOrgNode,
                                       workflow: WorkspaceConfiguration.Workflow) -> [IndexedOrgHeading] {
         var headings: [IndexedOrgHeading] = []
-        let semanticHeadings = Dictionary(uniqueKeysWithValues: root.children.filter { $0.type == "heading" }.map { ($0.startByte, $0) })
 
         for (index, node) in blocks.enumerated() where node.type == "heading" {
-            let following = blocks.dropFirst(index + 1).prefix { $0.type != "heading" }
-            let bodyBlocks = Array(root.children.dropFirst(index + 1).prefix { $0.type != "heading" })
+            // Normalization preserves the root's children and their order.
+            let semantic = root.children[index]
+            let following = Array(root.children.dropFirst(index + 1).prefix { $0.type != "heading" })
             let planning = following.filter { $0.type == "planning" }.map(\.text).joined(separator: "\n")
-            let body = OrgHeadingBody.editableNodes(in: bodyBlocks)
+            let body = OrgHeadingBody.editableNodes(in: following)
                 .map(\.text)
                 .joined(separator: "\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
-            let semantic = semanticHeadings[Int(node.startByte)]
-            let rawState = semantic?.todoNode?.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let rawState = semantic.todoNode?.text.trimmingCharacters(in: .whitespacesAndNewlines)
             let state = rawState.flatMap(workflow.state)
-            let priority = parsePriority(semantic?.child(ofType: "priority")?.text)
-            let title = (semantic?.child(ofType: "heading_title")?.text ?? String(localized: "Untitled"))
+            let priority = parsePriority(semantic.child(ofType: "priority")?.text)
+            let title = (semantic.child(ofType: "heading_title")?.text ?? String(localized: "Untitled"))
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             let tags = node.child(named: "tags")?.text.split(separator: ":")
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -72,17 +71,17 @@ actor OrgIndexService {
             let scheduled = scheduledMatch.flatMap(parseTimestamp)
             let deadline = deadlineMatch.flatMap(parseTimestamp)
             let closed = closedMatch.flatMap(parseTimestamp)
-            let eventMatch = OrgHeadingBody.firstActiveTimestamp(in: bodyBlocks)?.text
+            let eventMatch = OrgHeadingBody.firstActiveTimestamp(in: following)?.text
             let eventDate = eventMatch.flatMap(parseTimestamp)
             let primaryTimestamp = scheduledMatch ?? deadlineMatch ?? eventMatch ?? ""
             let recurrence = primaryTimestamp.firstMatch(of: #/(?:\+\+|\.\+|\+)\d+[hdwmy](?:/\d+[hdwmy])?/#)
                 .map { String($0.output) }
             let hasTime = primaryTimestamp.contains(#/\d{2}:\d{2}/#)
             let properties = following.filter { $0.type == "property_drawer" }
-                .flatMap(\.namedChildren).filter { $0.type == "property" }
+                .flatMap(\.children).filter { $0.type == "property" }
                 .reduce(into: [String: String]()) { result, property in
-                    guard let name = property.child(named: "name")?.text else { return }
-                    result[name.uppercased()] = property.child(named: "value")?.text
+                    guard let name = property.child(ofType: "property_name")?.text else { return }
+                    result[name.uppercased()] = property.child(ofType: "property_value")?.text
                         .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 }
 
@@ -102,7 +101,7 @@ actor OrgIndexService {
                     source: SourceLocation(
                         file: path,
                         startByte: Int(node.startByte),
-                        endByte: Int(following.last?.endByte ?? node.endByte),
+                        endByte: following.last?.endByte ?? Int(node.endByte),
                         startLine: Int(node.startPoint.row) + 1
                     ),
                     durationMinutes: timestampDuration(primaryTimestamp, hasTime: hasTime),

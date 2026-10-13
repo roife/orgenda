@@ -80,9 +80,8 @@ actor OrgSyntaxHighlighter {
             pending.append(contentsOf: node.namedChildren.reversed())
         }
 
-        // Replace hardcoded grammar metadata with configuration-aware ranges.
+        // Workflow metadata comes only from the configuration-aware headings.
         let workflow = OrgConfiguredHeading.workflow(in: source, base: configuration.workflow)
-        result.removeAll { $0.kind == .todo || $0.kind == .priority }
         for node in tree.rootNode.namedChildren where node.type == "heading" {
             let heading = OrgConfiguredHeading.normalize(ParsedOrgNode(node, path: "highlight.org"), workflow: workflow)
             for child in heading.children where child.type == "todo_keyword" || child.type == "priority" {
@@ -119,10 +118,6 @@ actor OrgSyntaxHighlighter {
         switch nodeType {
         case "heading_marker", "heading_title":
             return .heading
-        case "todo_keyword":
-            return .todo
-        case "priority":
-            return .priority
         case "tag_list":
             return .tag
         case "planning_keyword":

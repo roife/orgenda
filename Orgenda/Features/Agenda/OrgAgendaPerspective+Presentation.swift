@@ -37,16 +37,6 @@ extension OrgAgendaPerspective {
         }
     }
 
-    var workflowState: OrgWorkflowState? {
-        switch self {
-        case .urgent: .urgent
-        case .next: .next
-        case .waiting: .wait
-        case .someday: .someday
-        default: nil
-        }
-    }
-
     var controlID: String {
         switch self {
         case .dashboard: "dashboard"

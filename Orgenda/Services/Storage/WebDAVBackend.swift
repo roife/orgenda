@@ -8,7 +8,7 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
         self.rootURL = rootURL; self.transport = transport
     }
 
-    func scan(cursor: String?) async throws -> RemoteScan {
+    func scan() async throws -> RemoteScan {
         let root = try await properties(path: "", depth: 0)
         guard root.count == 1, root[0].path.isEmpty, root[0].isDirectory else { throw StorageError.rootUnavailable }
         var queue = [""], files: [RemoteFile] = [], visited = Set<String>()
@@ -27,9 +27,8 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
                 guard files.count <= StorageHTTP.maximumEntries else { throw StorageError.tooLarge }
             }
         }
-        // RFC 6578 is optional. A complete Depth:1 traversal is a safe fallback;
-        // failure in any child throws instead of publishing a partial snapshot.
-        return RemoteScan(files: files, isFullSnapshot: true)
+        // Failure in any child throws instead of publishing a partial snapshot.
+        return RemoteScan(files: files)
     }
 
     func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload {
@@ -51,7 +50,7 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
         throw StorageError.conflict(file.path)
     }
 
-    func upload(path: String, data: Data, existing: RemoteFile?, operationID: UUID) async throws -> RemoteFile {
+    func upload(path: String, data: Data, existing: RemoteFile?) async throws -> RemoteFile {
         try StorageError.validate(path: path)
         var headers = ["Content-Type": "application/octet-stream"]
         if let existing {

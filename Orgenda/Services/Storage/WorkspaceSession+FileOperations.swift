@@ -42,7 +42,8 @@ extension WorkspaceSession {
     }
 
     func deletedEntries() async throws -> [WorkspaceTrashEntry] {
-        if let folder {
+        switch source {
+        case .folder(let folder):
             do {
                 let entries = try await folder.deletedEntries()
                 var next = manifest
@@ -53,8 +54,12 @@ extension WorkspaceSession {
                 if manifest.initialized, Self.isUnavailable(error) { return manifest.trash }
                 throw error
             }
+        case .remote(let remote):
+            return try await remoteDeletedEntries(using: remote)
         }
-        guard let remote else { throw StorageError.rootUnavailable }
+    }
+
+    private func remoteDeletedEntries(using remote: any RemoteWorkspaceBackend) async throws -> [WorkspaceTrashEntry] {
         var entries: [WorkspaceTrashEntry] = []
         do {
             for metadata in manifest.entries.values where metadata.file.path.hasPrefix(".orgenda-trash/")
@@ -110,27 +115,33 @@ extension WorkspaceSession {
         var next = manifest
         next.fileOperation = operation
         try commit(next)
+        try await finishFileOperation()
+        // A committed move already updates the cached tree. A failed refresh
+        // must not report that successful move as a failed mutation.
+        try? await refreshFromSource()
+    }
+
+    func finishFileOperation() async throws {
+        guard let operation = manifest.fileOperation else { return }
         do {
-            try await finishFileOperation()
-            // A committed move already updates the cached tree. A failed refresh
-            // must not report that successful move as a failed mutation.
-            try? await refreshFromSource()
+            if operation.kind == .refile { try await finishRefile(operation); return }
+            switch source {
+            case .folder(let folder): try await finishFolderOperation(operation, folder: folder)
+            case .remote(let remote): try await finishRemoteOperation(operation, remote: remote)
+            }
         } catch {
+            // Definitive conflicts end an operation; uncertain outcomes remain
+            // journaled for recovery, whether this is the first try or a retry.
             if Self.isConflict(error) || error is WorkspaceFileActionError {
-                var latest = manifest
-                latest.fileOperation = nil
-                try commit(latest)
+                var next = manifest
+                next.fileOperation = nil
+                try commit(next)
             }
             throw error
         }
     }
 
-    func finishFileOperation() async throws {
-        guard let operation = manifest.fileOperation else { return }
-        if operation.kind == .refile { try await finishRefile(operation); return }
-        if let folder { try await finishFolderOperation(operation, folder: folder); return }
-        guard let remote else { throw StorageError.rootUnavailable }
-
+    private func finishRemoteOperation(_ operation: SyncFileOperation, remote: any RemoteWorkspaceBackend) async throws {
         let source = manifest.entries[operation.sourcePath]?.file
         let target = manifest.entries[operation.destinationPath]?.file
         if source == nil, let target, try await isCompletedMove(operation, target: target) {
@@ -143,9 +154,9 @@ extension WorkspaceSession {
             let current = try baselineDocuments(under: operation.sourcePath)
             guard WorkspaceFileTransfer.matches(current, operation.expected) else { throw StorageError.conflict(operation.sourcePath) }
         }
-        try await ensureRemoteParents(of: operation.destinationPath)
+        try await ensureRemoteParents(of: operation.destinationPath, using: remote)
         if operation.kind == .restore {
-            try await hydrateRestoredDocuments(operation)
+            try await hydrateRestoredDocuments(operation, remote: remote)
             source = manifest.entries[operation.sourcePath]?.file ?? source
         }
         if operation.kind == .trash, let entry = operation.trashEntry {
@@ -157,7 +168,7 @@ extension WorkspaceSession {
                     throw StorageError.conflict(metadataPath)
                 }
             } else {
-                let created = try await remote.upload(path: metadataPath, data: bytes, existing: nil, operationID: operation.id)
+                let created = try await remote.upload(path: metadataPath, data: bytes, existing: nil)
                 var next = manifest
                 next.entries[metadataPath] = SyncManifestEntry(file: created, blob: nil)
                 try commit(next)
@@ -169,10 +180,8 @@ extension WorkspaceSession {
     }
 
     func isCompletedMove(_ operation: SyncFileOperation, target: RemoteFile) async throws -> Bool {
-        if let original = operation.source, target.id == original.id { return true }
-        guard connection.provider == .webDAV || folder != nil,
-              target.isDirectory == operation.source?.isDirectory else { return false }
-        // Path-based providers have no stable ID across MOVE. Match the known
+        guard target.isDirectory == operation.source?.isDirectory else { return false }
+        // Files and WebDAV identify entries by path. Match the known
         // textual subtree, and never issue another mutation for this outcome.
         for expected in operation.expected {
             let path = operation.destinationPath + expected.path.dropFirst(operation.sourcePath.count)
@@ -182,7 +191,7 @@ extension WorkspaceSession {
             } else {
                 if let blob = current.blob {
                     guard try data(blob) == Data(expected.contents.utf8) else { return false }
-                } else if let remote {
+                } else if case .remote(let remote) = source {
                     let downloaded = try await remote.download(current.file, maxBytes: textLimit)
                     guard downloaded.data == Data(expected.contents.utf8) else { return false }
                 } else { return false }
@@ -197,7 +206,7 @@ extension WorkspaceSession {
         for (oldPath, var entry) in moved {
             next.entries.removeValue(forKey: oldPath)
             let path = operation.destinationPath + oldPath.dropFirst(operation.sourcePath.count)
-            if entry.file.id == oldPath { entry.file.id = path }
+            entry.file.id = path
             entry.file.path = path
             if oldPath == operation.sourcePath { entry.file = result }
             next.entries[path] = entry
@@ -213,7 +222,7 @@ extension WorkspaceSession {
                 guard next.pending[path] == nil else { continue }
                 next.pending.removeValue(forKey: oldPath)
                 if var base = draft.base {
-                    if base.id == oldPath { base.id = path }
+                    base.id = path
                     base.path = path
                     if oldPath == operation.sourcePath { base = result }
                     draft.base = base
@@ -298,8 +307,7 @@ extension WorkspaceSession {
         }
     }
 
-    func hydrateRestoredDocuments(_ operation: SyncFileOperation) async throws {
-        guard let remote else { return }
+    private func hydrateRestoredDocuments(_ operation: SyncFileOperation, remote: any RemoteWorkspaceBackend) async throws {
         var hydrated: [String: SyncManifestEntry] = [:]
         for (path, entry) in manifest.entries where WorkspaceFileTransfer.contains(path, in: operation.sourcePath) {
             let restoredPath = operation.destinationPath + path.dropFirst(operation.sourcePath.count)
@@ -334,7 +342,7 @@ extension WorkspaceSession {
                 guard current == operation.expectedDestination.map({ Data($0.utf8) }) else {
                     throw StorageError.conflict(operation.destinationPath)
                 }
-                try await writeOnline(path: operation.destinationPath, contents: destinationContents, operationID: operation.id)
+                try await writeOnline(path: operation.destinationPath, contents: destinationContents)
             }
             var next = manifest
             next.fileOperation?.destinationCommitted = true
@@ -349,7 +357,7 @@ extension WorkspaceSession {
                     try commit(next)
                     throw StorageError.unsupported(String(localized: "A copy was saved, but the source changed. Both copies have been kept."))
                 }
-                try await writeOnline(path: operation.sourcePath, contents: sourceContents, operationID: operation.id)
+                try await writeOnline(path: operation.sourcePath, contents: sourceContents)
             }
         }
         var next = manifest
@@ -358,18 +366,11 @@ extension WorkspaceSession {
         try commit(next)
     }
 
-    func writeOnline(path: String, contents: String, operationID: UUID) async throws {
+    func writeOnline(path: String, contents: String) async throws {
         let bytes = Data(contents.utf8)
         let original = manifest.entries[path]
-        let file: RemoteFile
-        if let remote {
-            try await ensureRemoteParents(of: path)
-            file = try await remote.upload(path: path, data: bytes, existing: original?.file, operationID: operationID)
-        } else if let folder {
-            try await folder.write(path: path, contents: contents, expectedContents: try original?.blob.map { try text($0) })
-            file = RemoteFile(id: path, path: path, isDirectory: false, revision: Self.digest(bytes), size: Int64(bytes.count))
-        } else { throw StorageError.rootUnavailable }
-        guard file.path == path else { throw StorageError.invalidResponse }
+        let file = try await upload(path: path, data: bytes, baseline: original?.file,
+                                    baselineBlob: original?.blob)
         let blob = try storeBlob(bytes)
         var next = manifest
         next.entries[path] = SyncManifestEntry(file: file, blob: blob)

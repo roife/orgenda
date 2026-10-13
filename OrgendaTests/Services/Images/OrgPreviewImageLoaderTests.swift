@@ -215,13 +215,13 @@ final class OrgPreviewImageLoaderTests: XCTestCase {
 private struct ImageWorkspaceBackend: RemoteWorkspaceBackend {
     let bytes: Data
     private var file: RemoteFile { RemoteFile(id: "image", path: "image.png", isDirectory: false, revision: "v1") }
-    func scan(cursor: String?) async throws -> RemoteScan { RemoteScan(files: [file]) }
+    func scan() async throws -> RemoteScan { RemoteScan(files: [file]) }
     func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload {
         guard file.path == "image.png" else { throw StorageError.http(404) }
         guard bytes.count <= maxBytes else { throw StorageError.tooLarge }
         return RemoteDownload(file: self.file, data: bytes)
     }
-    func upload(path: String, data: Data, existing: RemoteFile?, operationID: UUID) async throws -> RemoteFile {
+    func upload(path: String, data: Data, existing: RemoteFile?) async throws -> RemoteFile {
         throw StorageError.unsupported("Unexpected upload in image test")
     }
     func createDirectory(path: String) async throws -> RemoteFile { throw StorageError.unsupported("Unexpected mkdir in image test") }

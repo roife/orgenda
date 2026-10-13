@@ -194,9 +194,6 @@ private struct OrgPreviewRowView: View {
                     .font(.body.monospaced())
                     .textSelection(.enabled)
             }
-        case "blank_line":
-            Color.clear.frame(height: 2)
-                .accessibilityHidden(true)
         case "property_drawer", "drawer":
             OrgPreviewDrawer(node: row.node)
         case "comment", "comment_block":

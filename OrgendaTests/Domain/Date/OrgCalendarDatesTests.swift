@@ -13,6 +13,15 @@ final class OrgCalendarDatesTests: XCTestCase {
         calendar.date(from: DateComponents(year: year, month: month, day: day))!
     }
 
+    func testOrgTimestampSourceUsesGregorianDatesAndPreservesTimestampOptions() throws {
+        let date = try XCTUnwrap(Date.orgTimestamp(year: 2026, month: 9, day: 12, hour: 10, minute: 5))
+
+        XCTAssertEqual(date.orgDateText(includesTime: false), "2026-09-12 Sat")
+        XCTAssertEqual(date.orgTimestamp(includesTime: true), "<2026-09-12 Sat 10:05>")
+        XCTAssertEqual(date.orgTimestamp(active: false, includesTime: true), "[2026-09-12 Sat 10:05]")
+        XCTAssertEqual(date.orgTimestamp(includesTime: false, recurrence: ".+2d/3d"), "<2026-09-12 Sat .+2d/3d>")
+    }
+
     func testMonthGridRespectsFirstWeekdayAndCoversLeapDay() throws {
         for firstWeekday in [1, 2, 7] {
             let calendar = calendar(firstWeekday: firstWeekday)

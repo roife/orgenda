@@ -230,6 +230,52 @@ final class ConfigurationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Capture templates"].waitForExistence(timeout: 3))
     }
 
+    func testConfiguredCaptureInvalidatesPreviewAndSavesLatestTitle() {
+        let app = launchTestApp(["--workflow-settings-fixture"], workspace: "--ui-test-workspace")
+        app.selectRootTab("Dashboard")
+        let newTask = app.buttons["orgenda.capture"]
+        XCTAssertTrue(newTask.waitForExistence(timeout: 5))
+        newTask.tap()
+        let navigationBar = app.navigationBars["Capture"]
+        XCTAssertTrue(navigationBar.waitForExistence(timeout: 3))
+        let capture = navigationBar.buttons["Capture"]
+        XCTAssertFalse(capture.isEnabled)
+
+        let originalTitle = "Capture draft"
+        let latestTitle = "Capture saved"
+        // SwiftUI removes the placeholder identifier once this field has text.
+        let title = app.textFields.firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 3))
+        title.tap()
+        title.typeText(originalTitle)
+        reveal("Preview", in: app).tap()
+        let originalPreview = app.staticTexts.matching(NSPredicate(
+            format: "label BEGINSWITH %@", "* TODO " + originalTitle
+        )).firstMatch
+        XCTAssertTrue(originalPreview.waitForExistence(timeout: 3))
+        XCTAssertTrue(capture.isEnabled)
+
+        replaceText(in: title, with: latestTitle, app: app)
+        XCTAssertTrue(originalPreview.waitForNonExistence(timeout: 3))
+        XCTAssertFalse(capture.isEnabled, "Editing a prompt must require a fresh preview before capturing.")
+        reveal("Preview", in: app).tap()
+        let latestPreview = app.staticTexts.matching(NSPredicate(
+            format: "label BEGINSWITH %@", "* TODO " + latestTitle
+        )).firstMatch
+        XCTAssertTrue(latestPreview.waitForExistence(timeout: 3))
+        XCTAssertTrue(capture.isEnabled)
+        capture.tap()
+        XCTAssertTrue(navigationBar.waitForNonExistence(timeout: 5))
+
+        app.selectRootTab("Search")
+        let search = app.searchFields["Search orgenda"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        search.tap()
+        search.typeText("Capture")
+        XCTAssertTrue(app.staticTexts[latestTitle].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts[originalTitle].exists, "Capture must save the regenerated source, not the first preview.")
+    }
+
     func testFilesRemindersAndConfigAreDirectDestinations() throws {
         let app = launchTestApp(["--workflow-settings-fixture"], workspace: "--ui-test-workspace")
         XCTAssertTrue(app.tabBars.buttons["Files"].waitForExistence(timeout: 5))

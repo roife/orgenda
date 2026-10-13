@@ -866,14 +866,17 @@ final class MotionFlowUITests: XCTestCase {
         title.tap()
         title.typeText(draftTitle)
 
-        let keyboardDone = app.buttons["Done"]
-        if keyboardDone.exists && keyboardDone.isHittable {
-            keyboardDone.tap()
-        }
-
         let form = app.descendants(matching: .any)
             .matching(identifier: "item.editor.form").firstMatch
         XCTAssertTrue(form.waitForExistence(timeout: 3))
+        let keyboard = app.keyboards.firstMatch
+        if keyboard.exists {
+            // Start above the keyboard so it cannot consume the Form gesture.
+            form.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
+                .press(forDuration: 0.05, thenDragTo:
+                    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
+            XCTAssertTrue(keyboard.waitForNonExistence(timeout: 3))
+        }
         let previewButton = app.buttons["Preview Org"]
         for _ in 0..<12 {
             if previewButton.exists && previewButton.isHittable { break }

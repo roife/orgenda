@@ -3,7 +3,8 @@ import Foundation
 extension WorkspaceSession {
     func readImageData(path: String, maxBytes: Int = 20 * 1024 * 1024) async throws -> Data {
         guard maxBytes >= 0 else { throw WorkspaceFileStore.ImageReadFailure.invalidSizeLimit }
-        if let folder {
+        switch source {
+        case .folder(let folder):
             do {
                 let bytes = try await folder.readImageData(path: path, maxBytes: maxBytes)
                 let blob = try storeBlob(bytes)
@@ -17,8 +18,12 @@ extension WorkspaceSession {
                 }
                 throw error
             }
+        case .remote(let remote):
+            return try await readRemoteImageData(path: path, maxBytes: maxBytes, remote: remote)
         }
-        guard let remote else { throw StorageError.rootUnavailable }
+    }
+
+    private func readRemoteImageData(path: String, maxBytes: Int, remote: any RemoteWorkspaceBackend) async throws -> Data {
         let relative = try Self.attachmentPath(path)
         guard let file = manifest.entries[relative]?.file else { throw StorageError.http(404) }
         guard !file.isDirectory else { throw WorkspaceFileStore.ImageReadFailure.notRegularFile }

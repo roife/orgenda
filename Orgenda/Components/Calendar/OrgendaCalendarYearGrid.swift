@@ -10,7 +10,6 @@ struct OrgendaCalendarYearGrid: View {
     let yearRowHeight: CGFloat
     let monthLabelHeight: CGFloat
     let exposesAccessibility: Bool
-    var hiddenMonth: Date? = nil
     let onSelectMonth: (Date) -> Void
     private let calendar = Calendar.autoupdatingCurrent
 
@@ -47,7 +46,6 @@ struct OrgendaCalendarYearGrid: View {
                         selectionNamespace: selectionNamespace,
                         reduceMotion: reduceMotion
                     )
-                    .opacity(hiddenMonth.map { calendar.isDate($0, equalTo: month, toGranularity: .month) } == true ? 0 : 1)
                     .accessibilityHidden(true)
                 }
             }

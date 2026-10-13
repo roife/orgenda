@@ -29,6 +29,7 @@ struct OrgItemRow: View {
 
     @ViewBuilder
     private var interactiveRow: some View {
+        // An empty swipeActions modifier still intercepts calendar page drags.
         if allowsSwipeActions {
             swipeableRow
         } else {
@@ -40,7 +41,7 @@ struct OrgItemRow: View {
         rowContent
             .swipeActions(edge: .leading) {
                 if item.canComplete {
-                    Button(action: performToggle) {
+                    Button(action: onToggle) {
                         Label(completionLabel, systemImage: item.state.isTerminal ? "arrow.uturn.backward" : "checkmark")
                     }
                     .tint(.green)
@@ -63,7 +64,7 @@ struct OrgItemRow: View {
     private var contextActions: some View {
         if item.canComplete {
             let target: OrgWorkflowState = item.state.isTerminal ? .todo : .done
-            Button(action: performToggle) {
+            Button(action: onToggle) {
                 Label(completionLabel, systemImage: target.symbol)
             }
             .accessibilityLabel(completionLabel)
@@ -141,7 +142,7 @@ struct OrgItemRow: View {
                 .frame(width: 44, height: 44)
                 .accessibilityHidden(true)
         } else {
-            Button(action: performToggle) {
+            Button(action: onToggle) {
                 statusIcon
                     .offset(y: topPadding - 9)
                     .frame(width: 44, height: 44)
@@ -192,9 +193,8 @@ struct OrgItemRow: View {
         .accessibilityLabel("Habit history for the past seven days")
     }
 
-    @ViewBuilder
     private var statusIcon: some View {
-        let icon = Group {
+        Group {
             if item.hasWorkflowState {
                 OrgWorkflowIcon(item.state)
             } else {
@@ -204,17 +204,7 @@ struct OrgItemRow: View {
         }
             .font(.system(size: 21, weight: .medium))
             .frame(width: 20, height: 24)
-
-        if reduceMotion {
-            icon.contentTransition(.opacity)
-        } else {
-            icon
-                .contentTransition(.symbolEffect(.replace))
-        }
-    }
-
-    private func performToggle() {
-        onToggle()
+            .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace))
     }
 
     private var completesOccurrence: Bool {

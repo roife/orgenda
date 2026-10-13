@@ -13,7 +13,6 @@ struct SyncManifest: Codable, Sendable {
     var attachments: [String: SyncCachedAttachment] = [:]
     var trash: [WorkspaceTrashEntry] = []
     var fileOperation: SyncFileOperation?
-    var cursor: String?
     var lastSync: Date?
 }
 
@@ -26,7 +25,6 @@ struct SyncPendingWrite: Codable, Sendable {
     var blob: String
     var base: RemoteFile?
     var baseBlob: String?
-    var operationID: UUID = UUID()
     var generation: UUID = UUID()
     // A stale UI save must not become a new unconditional upload on retry.
     var requiresResolution = false
@@ -42,7 +40,6 @@ struct SyncCachedAttachment: Codable, Sendable {
 /// outcomes; it is not an offline queue of filesystem gestures.
 struct SyncFileOperation: Codable, Sendable {
     enum Kind: String, Codable, Sendable { case move, trash, restore, refile }
-    var id = UUID()
     var kind: Kind
     var sourcePath: String
     var destinationPath: String

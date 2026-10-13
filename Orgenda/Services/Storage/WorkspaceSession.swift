@@ -8,8 +8,12 @@ actor WorkspaceSession: WorkspaceFileAccess {
     nonisolated let connection: StorageConnection
     let directory: URL
     let recoveryDirectory: URL
-    var folder: WorkspaceFileStore?
-    var remote: (any RemoteWorkspaceBackend)?
+    enum Source: Sendable {
+        case folder(WorkspaceFileStore)
+        case remote(any RemoteWorkspaceBackend)
+    }
+
+    private(set) var source: Source
     var manifest: SyncManifest
     var isSynchronizing = false
     var isPerformingFileOperation = false
@@ -17,19 +21,26 @@ actor WorkspaceSession: WorkspaceFileAccess {
     var commitsSinceBlobCleanup = 0
     let textLimit = 64 * 1024 * 1024
 
-    init(connection: StorageConnection, cacheDirectory: URL,
-         folder: WorkspaceFileStore? = nil, remote: (any RemoteWorkspaceBackend)? = nil,
+    init(connection: StorageConnection, cacheDirectory: URL, folder: WorkspaceFileStore,
          recoveryDirectory: URL? = nil) throws {
+        try self.init(connection: connection, cacheDirectory: cacheDirectory,
+                      source: .folder(folder), recoveryDirectory: recoveryDirectory)
+    }
+
+    init(connection: StorageConnection, cacheDirectory: URL, remote: any RemoteWorkspaceBackend,
+         recoveryDirectory: URL? = nil) throws {
+        try self.init(connection: connection, cacheDirectory: cacheDirectory,
+                      source: .remote(remote), recoveryDirectory: recoveryDirectory)
+    }
+
+    private init(connection: StorageConnection, cacheDirectory: URL, source: Source,
+                 recoveryDirectory: URL?) throws {
         self.connection = connection
         self.recoveryIdentity = connection.identity
         self.directory = cacheDirectory.appendingPathComponent(connection.id.uuidString, isDirectory: true)
         self.recoveryDirectory = recoveryDirectory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Unsaved Edits", isDirectory: true)
-        self.folder = folder
-        self.remote = remote
-        guard (folder != nil) != (remote != nil) else {
-            throw StorageError.configuration("A workspace needs exactly one storage source.")
-        }
+        self.source = source
         let url = directory.appendingPathComponent("manifest.json")
         if FileManager.default.fileExists(atPath: url.path) {
             let saved = try JSONDecoder().decode(SyncManifest.self, from: Data(contentsOf: url))
@@ -44,9 +55,11 @@ actor WorkspaceSession: WorkspaceFileAccess {
     }
 
     func replaceRemoteBackend(_ backend: any RemoteWorkspaceBackend) throws {
-        guard connection.provider.isRemote, folder == nil else { throw StorageError.configuration("A folder connection cannot use a cloud backend.") }
+        guard connection.provider.isRemote, case .remote = source else {
+            throw StorageError.configuration("A folder connection cannot use a WebDAV backend.")
+        }
         guard !isSynchronizing, !isPerformingFileOperation else { throw StorageError.busy }
-        remote = backend
+        source = .remote(backend)
     }
 
     func replaceFolderBackend(_ backend: WorkspaceFileStore) throws {
@@ -54,8 +67,7 @@ actor WorkspaceSession: WorkspaceFileAccess {
             throw StorageError.configuration("Choose the original workspace folder to recover these pending edits.")
         }
         guard !isSynchronizing, !isPerformingFileOperation else { throw StorageError.busy }
-        folder = backend
-        remote = nil
+        source = .folder(backend)
     }
 
     func snapshot() throws -> WorkspaceSessionSnapshot {

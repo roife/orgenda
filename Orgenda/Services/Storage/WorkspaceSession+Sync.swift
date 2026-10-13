@@ -9,15 +9,7 @@ extension WorkspaceSession {
         if manifest.fileOperation != nil {
             isPerformingFileOperation = true
             defer { isPerformingFileOperation = false }
-            do { try await finishFileOperation() }
-            catch {
-                if Self.isConflict(error) || error is WorkspaceFileActionError {
-                    var next = manifest
-                    next.fileOperation = nil
-                    try commit(next)
-                }
-                throw error
-            }
+            try await finishFileOperation()
             try await refreshFromSource()
         }
         for path in manifest.pending.keys.sorted() {
@@ -25,19 +17,8 @@ extension WorkspaceSession {
             guard manifest.conflicts[path] == nil, let pending = manifest.pending[path] else { continue }
             let bytes = try data(pending.blob)
             do {
-                let uploaded: RemoteFile
-                if let remote {
-                    try await ensureRemoteParents(of: path)
-                    uploaded = try await remote.upload(path: path, data: bytes, existing: pending.base,
-                                                       operationID: pending.operationID)
-                } else if let folder {
-                    guard let contents = String(data: bytes, encoding: .utf8) else { throw StorageError.invalidResponse }
-                    try await folder.write(path: path, contents: contents,
-                                           expectedContents: try pending.baseBlob.map { try text($0) })
-                    uploaded = RemoteFile(id: path, path: path, isDirectory: false,
-                                          revision: Self.digest(bytes), size: Int64(bytes.count))
-                } else { throw StorageError.rootUnavailable }
-                guard uploaded.path == path, !uploaded.isDirectory else { throw StorageError.invalidResponse }
+                let uploaded = try await upload(path: path, data: bytes, baseline: pending.base,
+                    baselineBlob: pending.baseBlob)
                 var next = manifest
                 next.entries[path] = SyncManifestEntry(file: uploaded, blob: pending.blob)
                 if var latest = next.pending[path] {
@@ -49,7 +30,6 @@ extension WorkspaceSession {
                         // conditional on the exact bytes just acknowledged.
                         latest.base = uploaded
                         latest.baseBlob = pending.blob
-                        latest.operationID = UUID()
                         next.pending[path] = latest
                     }
                 }
@@ -75,21 +55,11 @@ extension WorkspaceSession {
     /// enumeration/download error leaves the previous complete snapshot intact.
     func refreshFromSource() async throws {
         var staged: [String: SyncManifestEntry] = [:]
-        var cursor: String?
-        if let remote {
-            let scan = try await remote.scan(cursor: manifest.cursor)
-            guard scan.isFullSnapshot || (manifest.initialized && scan.files.allSatisfy { !$0.isDirectory }) else {
-                throw StorageError.invalidResponse
-            }
-            var files = scan.isFullSnapshot ? [:] : manifest.entries.mapValues(\.file)
-            if !scan.isFullSnapshot {
-                let changedIDs = Set(scan.files.map(\.id))
-                files = files.filter { !changedIDs.contains($0.value.id) }
-            }
+        switch source {
+        case .remote(let remote):
+            let scan = try await remote.scan()
             try validateInventory(scan.files)
-            for file in scan.files { files[file.path] = file }
-            try validateInventory(Array(files.values), complete: true)
-            for file in files.values.sorted(by: { $0.path < $1.path }) {
+            for file in scan.files.sorted(by: { $0.path < $1.path }) {
                 try Task.checkCancellation()
                 let old = manifest.entries[file.path]
                 if !file.isDirectory, Self.isVisible(file.path), WorkspaceDocument.Kind(path: file.path) != nil {
@@ -113,36 +83,28 @@ extension WorkspaceSession {
                     staged[file.path] = SyncManifestEntry(file: file, blob: retained)
                 }
             }
-            cursor = scan.cursor
-        } else if let folder {
+        case .folder(let folder):
             let documents = try await folder.load()
             let files = documents.map { document in
                 RemoteFile(id: document.path, path: document.path, isDirectory: document.kind == .folder,
                     revision: document.kind == .folder ? nil : Self.digest(Data(document.contents.utf8)))
             }
-            try validateInventory(files, complete: true)
+            try validateInventory(files)
             for (document, file) in zip(documents, files) {
                 staged[file.path] = SyncManifestEntry(file: file,
                     blob: document.kind == .folder ? nil : try storeBlob(Data(document.contents.utf8)))
             }
-        } else { throw StorageError.rootUnavailable }
+        }
 
         // An actor can accept writes while awaiting downloads. Reconcile with
         // the latest manifest, never the manifest captured before an await.
         var next = manifest
         next.entries = staged
-        next.cursor = cursor
         next.initialized = true
         next.conflicts = next.conflicts.filter { next.pending[$0.key] != nil }
         for (path, pending) in next.pending {
             let incoming = staged[path]
-            if pending.requiresResolution {
-                next.conflicts[path] = WorkspaceConflict(path: path, localContents: try text(pending.blob),
-                    remoteContents: try incoming?.blob.map { try text($0) }, remoteRevision: incoming?.file.revision,
-                    detectedAt: next.conflicts[path]?.detectedAt ?? .now, remoteModifiedAt: incoming?.file.modifiedAt)
-                continue
-            }
-            if let incoming, !incoming.file.isDirectory, incoming.blob == pending.blob,
+            if !pending.requiresResolution, let incoming, !incoming.file.isDirectory, incoming.blob == pending.blob,
                pending.base == nil || incoming.file.id == pending.base?.id {
                 // Includes a successful upload whose response was lost.
                 next.pending.removeValue(forKey: path)
@@ -150,7 +112,9 @@ extension WorkspaceSession {
                 continue
             }
             let unchanged: Bool
-            if let baseline = pending.base {
+            if pending.requiresResolution {
+                unchanged = false
+            } else if let baseline = pending.base {
                 unchanged = incoming?.file.id == baseline.id && incoming?.blob == pending.baseBlob
                     && incoming?.file.isDirectory == false
             } else {
@@ -171,7 +135,7 @@ extension WorkspaceSession {
         try commit(next)
     }
 
-    func validateInventory(_ files: [RemoteFile], complete: Bool = false) throws {
+    func validateInventory(_ files: [RemoteFile]) throws {
         var seenPaths: [String: String] = [:]
         var seenIDs: Set<String> = []
         for file in files {
@@ -192,14 +156,29 @@ extension WorkspaceSession {
             var parent = (file.path as NSString).deletingLastPathComponent
             while !parent.isEmpty {
                 if paths[parent]?.isDirectory == false { throw StorageError.conflict(parent) }
-                if complete, paths[parent] == nil { throw StorageError.invalidResponse }
+                if paths[parent] == nil { throw StorageError.invalidResponse }
                 parent = (parent as NSString).deletingLastPathComponent
             }
         }
     }
 
-    func ensureRemoteParents(of path: String) async throws {
-        guard let remote else { return }
+    func upload(path: String, data bytes: Data, baseline: RemoteFile?, baselineBlob: String?) async throws -> RemoteFile {
+        switch source {
+        case .remote(let remote):
+            try await ensureRemoteParents(of: path, using: remote)
+            let file = try await remote.upload(path: path, data: bytes, existing: baseline)
+            guard file.path == path, !file.isDirectory else { throw StorageError.invalidResponse }
+            return file
+        case .folder(let folder):
+            guard let contents = String(data: bytes, encoding: .utf8) else { throw StorageError.invalidResponse }
+            try await folder.write(path: path, contents: contents,
+                                   expectedContents: try baselineBlob.map { try text($0) })
+            return RemoteFile(id: path, path: path, isDirectory: false,
+                              revision: Self.digest(bytes), size: Int64(bytes.count))
+        }
+    }
+
+    func ensureRemoteParents(of path: String, using remote: any RemoteWorkspaceBackend) async throws {
         let components = path.split(separator: "/").dropLast()
         var parent = ""
         for component in components {
@@ -240,7 +219,6 @@ extension WorkspaceSession {
                 var rebased = pending
                 rebased.base = next.entries[path]?.file
                 rebased.baseBlob = next.entries[path]?.blob
-                rebased.operationID = UUID()
                 rebased.generation = UUID()
                 rebased.requiresResolution = false
                 next.pending[path] = rebased

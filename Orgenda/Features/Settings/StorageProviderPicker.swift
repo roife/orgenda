@@ -6,42 +6,34 @@ struct StorageProviderPicker: View {
     let store: WorkspaceStore
     let preservePending: Bool
     @State private var isChoosingFolder = false
-    @State private var connectingProvider: StorageProvider?
+    @State private var isConnecting = false
     @State private var connectionError: String?
-    @State private var pendingConnection: PendingConnection?
-
-    private enum PendingConnection {
-        case folder(URL)
-        case cloud(StorageProvider)
-
-        var destination: String {
-            switch self {
-            case .folder(let url): url.path
-            case .cloud(let provider):
-                String(localized: "\(provider.title) · Orgenda folder in the account you choose next")
-            }
-        }
-    }
+    @State private var pendingFolder: URL?
 
     private var shouldPreservePending: Bool { preservePending || store.hasPendingStorageChanges }
 
     var body: some View {
         NavigationStack {
             List {
-                Section("Cloud Storage") {
-                    providerButton(.iCloud)
-                    providerButton(.oneDrive)
-                    providerButton(.googleDrive)
-                    providerButton(.dropbox)
+                Section {
+                    Button {
+                        connectionError = nil
+                        isChoosingFolder = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            providerRow(.local)
+                            if isConnecting {
+                                ProgressView().accessibilityLabel("Connecting…")
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("storage.provider.local")
                     NavigationLink {
                         StorageWebDAVView(store: store, preservePending: shouldPreservePending)
                     } label: {
                         providerRow(.webDAV)
                     }
                     .accessibilityIdentifier("storage.provider.webDAV")
-                }
-                Section {
-                    providerButton(.local)
                 }
                 if let connectionError {
                     Section("Could Not Connect") {
@@ -53,28 +45,28 @@ struct StorageProviderPicker: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .disabled(connectingProvider != nil)
+            .disabled(isConnecting)
             .navigationTitle("Choose Storage Location")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) { dismiss() }
-                        .disabled(connectingProvider != nil || store.isSynchronizing)
+                        .disabled(isConnecting || store.isSynchronizing)
                         .accessibilityIdentifier("storage.cancel")
                 }
             }
             .fileImporter(isPresented: $isChoosingFolder, allowedContentTypes: [.folder]) { result in
                 handleFolderSelection(result)
             }
-            .confirmationDialog("Change storage location?", item: $pendingConnection, titleVisibility: .visible) { selection in
+            .confirmationDialog("Change storage location?", item: $pendingFolder, titleVisibility: .visible) { folder in
                 Button(LocalizedStringKey(shouldPreservePending ? "Keep Copies and Change Location" : "Change Location")) {
-                    pendingConnection = nil
-                    connect(selection)
+                    pendingFolder = nil
+                    connect(folder)
                 }
-                Button("Cancel", role: .cancel) { pendingConnection = nil }
-            } message: { selection in
+                Button("Cancel", role: .cancel) { pendingFolder = nil }
+            } message: { folder in
                 if let current = store.storageConnection {
-                    Text(StorageLocationChange.message(current: current, destination: selection.destination,
+                    Text(StorageLocationChange.message(current: current, destination: folder.path,
                                                        preservePending: shouldPreservePending))
                 }
             }
@@ -84,77 +76,46 @@ struct StorageProviderPicker: View {
         }
         .presentationSizing(.page)
         .presentationDetents([.large])
-        .interactiveDismissDisabled(connectingProvider != nil || store.isSynchronizing)
-    }
-
-    private func providerButton(_ provider: StorageProvider) -> some View {
-        Button {
-            connectionError = nil
-            if provider == .iCloud || provider == .local {
-                isChoosingFolder = true
-            } else {
-                confirmOrConnect(.cloud(provider))
-            }
-        } label: {
-            HStack(spacing: 8) {
-                providerRow(provider)
-                if connectingProvider == provider {
-                    ProgressView().accessibilityLabel("Connecting…")
-                }
-            }
-        }
-        .accessibilityIdentifier("storage.provider.\(provider.rawValue)")
+        .interactiveDismissDisabled(isConnecting || store.isSynchronizing)
     }
 
     private func providerRow(_ provider: StorageProvider) -> some View {
         SettingsRow(icon: provider.symbol, color: provider == .webDAV ? .gray : OrgendaTheme.accent,
-                    title: provider.title, subtitle: "", iconAsset: provider.iconAsset)
+                    title: provider.title, subtitle: "")
     }
 
-    private func confirmOrConnect(_ selection: PendingConnection) {
+    private func confirmOrConnect(_ url: URL) {
         if let current = store.storageConnection {
-            if case .folder(let url) = selection,
-               !current.provider.isRemote,
+            if !current.provider.isRemote,
                current.rootID == url.resolvingSymlinksInPath().standardizedFileURL.path {
-                connect(selection)
+                connect(url)
             } else {
-                pendingConnection = selection
+                pendingFolder = url
             }
         } else {
-            connect(selection)
+            connect(url)
         }
     }
 
-    private func connect(_ selection: PendingConnection) {
+    private func connect(_ url: URL) {
         let preserve = shouldPreservePending
-        switch selection {
-        case .cloud(let provider):
-            connectingProvider = provider
-            Task {
-                let connected = await store.connectCloud(provider, preservePending: preserve)
-                connectingProvider = nil
-                if connected { dismiss() }
-                else { connectionError = store.fileSyncError }
-            }
-        case .folder(let url):
-            connectingProvider = .local
-            Task {
-                let previous = store.storageConnection?.id
-                await store.connectFolder(url, preservePending: preserve)
-                connectingProvider = nil
-                let selectedRoot = url.resolvingSymlinksInPath().standardizedFileURL.path
-                let isCurrentFolder = store.storageConnection?.provider.isRemote == false
-                    && store.storageConnection?.rootID == selectedRoot && store.fileSyncError == nil
-                if store.storageConnection?.id != previous || isCurrentFolder { dismiss() }
-                else { connectionError = store.fileSyncError }
-            }
+        isConnecting = true
+        Task {
+            let previous = store.storageConnection?.id
+            await store.connectFolder(url, preservePending: preserve)
+            isConnecting = false
+            let selectedRoot = url.resolvingSymlinksInPath().standardizedFileURL.path
+            let isCurrentFolder = store.storageConnection?.provider.isRemote == false
+                && store.storageConnection?.rootID == selectedRoot && store.fileSyncError == nil
+            if store.storageConnection?.id != previous || isCurrentFolder { dismiss() }
+            else { connectionError = store.fileSyncError }
         }
     }
 
     private func handleFolderSelection(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
-            confirmOrConnect(.folder(url))
+            confirmOrConnect(url)
         case .failure(let error):
             let error = error as NSError
             guard !(error.domain == NSCocoaErrorDomain && error.code == NSUserCancelledError) else { return }
@@ -163,11 +124,11 @@ struct StorageProviderPicker: View {
     }
 }
 
-/// Shared wording keeps the final decision consistent for folder, OAuth and WebDAV connections.
+/// Shared wording keeps the final decision consistent for Files and WebDAV connections.
 enum StorageLocationChange {
     static func message(current: StorageConnection, destination: String, preservePending: Bool) -> String {
         let location = current.provider.isRemote ? current.storageSummary : current.rootID
-        let currentLocation = "\(current.providerSummary) · \(location)"
+        let currentLocation = "\(current.provider.title) · \(location)"
         var message = String(localized: "Current location: \(currentLocation)\nNew location: \(destination)")
         message += "\n\n" + String(localized: "Orgenda will open the workspace at the new location. Existing files stay where they are and will not be moved or copied.")
         if preservePending {

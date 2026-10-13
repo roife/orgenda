@@ -9,7 +9,7 @@ extension WorkspaceStore {
         pendingDirtyPaths.removeAll()
 
         let started = CFAbsoluteTimeGetCurrent()
-        let parsed = OrgIndexService.parseSynchronously(documents, configuration: hasWorkspaceConfiguration ? configuration : .classic)
+        let parsed = OrgIndexService.parseSynchronously(documents, configuration: effectiveConfiguration)
 
         publish(
             parsed,
@@ -40,7 +40,7 @@ extension WorkspaceStore {
         parseTask?.cancel()
         parseGeneration &+= 1
         let generation = parseGeneration
-        let configuration = hasWorkspaceConfiguration ? self.configuration : .classic
+        let configuration = effectiveConfiguration
 
         let replacingAll = parsedDocuments.isEmpty
         let requestedPaths = replacingAll

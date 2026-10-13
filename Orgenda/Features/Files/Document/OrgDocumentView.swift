@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct OrgDocumentView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .subheadline) private var modePickerWidth: CGFloat = 190
@@ -67,9 +66,10 @@ struct OrgDocumentView: View {
             .toolbarRole(.editor)
             .toolbar(mode == .edit && editorSession.isKeyboardFocused ? .hidden : .visible, for: .tabBar)
             .toolbar {
-                if showsSelectionBackButton {
+                if horizontalSizeClass == .regular, let onBack {
                     ToolbarItem(placement: .topBarLeading) {
-                        backButton
+                        Button("Back to Files", systemImage: "chevron.left", action: onBack)
+                            .accessibilityIdentifier("org.document.back")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -151,20 +151,6 @@ struct OrgDocumentView: View {
 
     private var showsSelectionBackButton: Bool {
         onBack != nil && horizontalSizeClass == .regular
-    }
-
-    private var backButton: some View {
-        Button {
-            if let onBack {
-                onBack()
-            } else {
-                dismiss()
-            }
-        } label: {
-            Label("Back to Files", systemImage: "chevron.left")
-        }
-        .accessibilityLabel("Back to Files")
-        .accessibilityIdentifier("org.document.back")
     }
 
     @ViewBuilder

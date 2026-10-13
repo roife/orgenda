@@ -6,7 +6,7 @@ struct OrgendaCalendarResizeContent<Month: View, Year: View, Weekdays: View, Day
     let selectedWeekOffset: CGFloat
     let sizing: OrgendaCalendarSizing
     @ViewBuilder let monthGrid: () -> Month
-    @ViewBuilder let yearGrid: (Date?) -> Year
+    @ViewBuilder let yearGrid: () -> Year
     @ViewBuilder let weekdayHeader: () -> Weekdays
     @ViewBuilder let accessibleDays: (Bool) -> Days
 
@@ -51,7 +51,7 @@ struct OrgendaCalendarResizeContent<Month: View, Year: View, Weekdays: View, Day
                 ZStack(alignment: .topLeading) {
                     Group {
                         if sizing.usesAccessibilityText {
-                            yearGrid(nil)
+                            yearGrid()
                         } else {
                             OrgendaCalendarYearCanvas(snapshot: snapshot, rowHeight: sizing.yearRowHeight,
                                                       labelHeight: sizing.monthLabelHeight)
