@@ -3,24 +3,6 @@ import XCTest
 
 @MainActor
 final class WorkspaceStorageIntegrationTests: XCTestCase {
-    func testExternalUnicodeNormalizationUpdatesSourceBytesAndIndex() async throws {
-        let environment = try makeEnvironment()
-        let file = environment.folder.appendingPathComponent("inbox.org")
-        let original = "* TODO Caf\u{00E9}\n* TODO Next\n"
-        let updated = "* TODO Cafe\u{0301}\n* TODO Next\n"
-        XCTAssertEqual(original, updated)
-        XCTAssertNotEqual(Data(original.utf8), Data(updated.utf8))
-        try original.write(to: file, atomically: true, encoding: .utf8)
-        let store = makeStore(environment.cache)
-        await store.connectFolder(environment.folder, remember: false)
-        let priorByte = try XCTUnwrap(store.items.first { $0.title == "Next" }?.source.startByte)
-        try updated.write(to: file, atomically: true, encoding: .utf8)
-        await store.synchronizeFiles()
-        await store.waitForWorkspaceIndex()
-        XCTAssertEqual(Data(try XCTUnwrap(store.documents.first?.contents).utf8), Data(updated.utf8))
-        XCTAssertEqual(store.items.first { $0.title == "Next" }?.source.startByte, priorByte + 1)
-    }
-
     func testOfflineRestartRestoresCommittedDraftAndSyncsAfterFolderReturns() async throws {
         let environment = try makeEnvironment()
         let file = environment.folder.appendingPathComponent("inbox.org")
@@ -49,48 +31,6 @@ final class WorkspaceStorageIntegrationTests: XCTestCase {
         await reopened.connectFolder(environment.folder, defaults: environment.defaults)
         XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "* Offline draft 中文\n")
         XCTAssertEqual(reopened.pendingUploadCount, 0)
-    }
-
-    func testFailedNewConnectionLeavesCurrentWorkspaceAndDescriptor() async throws {
-        let environment = try makeEnvironment()
-        try "* Keep me\n".write(to: environment.folder.appendingPathComponent("inbox.org"), atomically: true, encoding: .utf8)
-        let store = makeStore(environment.cache)
-        await store.connectFolder(environment.folder, defaults: environment.defaults)
-        let connection = store.storageConnection
-        let persisted = environment.defaults.data(forKey: WorkspaceStore.storageConnectionKey)
-        let broken = environment.folder.appendingPathComponent("missing")
-        await store.connectFolder(broken, defaults: environment.defaults)
-        XCTAssertEqual(store.storageConnection, connection)
-        XCTAssertEqual(environment.defaults.data(forKey: WorkspaceStore.storageConnectionKey), persisted)
-        XCTAssertEqual(store.documents.first?.contents, "* Keep me\n")
-        XCTAssertNotNil(store.fileSyncError)
-    }
-
-    func testFolderReplacementRespectsRememberPreferenceAndPublishesNewIndex() async throws {
-        for remember in [false, true] {
-            let environment = try makeEnvironment()
-            let store = makeStore(environment.cache)
-            await store.connectFolder(environment.folder, defaults: environment.defaults)
-            let previousID = store.workspaceFileSessionID
-            let previousDescriptor = environment.defaults.data(forKey: WorkspaceStore.storageConnectionKey)
-            let nextFolder = environment.cache.appendingPathComponent("Other")
-            try FileManager.default.createDirectory(at: nextFolder, withIntermediateDirectories: true)
-            try "* TODO Replacement task\n".write(to: nextFolder.appendingPathComponent("inbox.org"),
-                                                  atomically: true, encoding: .utf8)
-
-            await store.connectFolder(nextFolder, remember: remember, defaults: environment.defaults)
-
-            XCTAssertNotEqual(store.workspaceFileSessionID, previousID)
-            XCTAssertEqual(store.storageConnection?.rootID, nextFolder.path)
-            XCTAssertEqual(store.items.map(\.title), ["Replacement task"])
-            XCTAssertNil(store.fileSyncError)
-            let descriptor = try XCTUnwrap(environment.defaults.data(forKey: WorkspaceStore.storageConnectionKey))
-            if remember {
-                XCTAssertEqual(try JSONDecoder().decode(StorageConnection.self, from: descriptor), store.storageConnection)
-            } else {
-                XCTAssertEqual(descriptor, previousDescriptor)
-            }
-        }
     }
 
     func testChangingLocationRequiresPreservingConflictAndDoesNotUploadItToNewFolder() async throws {

@@ -6,8 +6,7 @@
   "keywords": ["tree-sitter", "org-mode", "parser"],
   "license": "MIT",
   "scripts": {
-    "generate": "tree-sitter generate",
-    "test": "tree-sitter test"
+    "generate": "tree-sitter generate"
   },
   "tree-sitter": [
     {

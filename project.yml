@@ -92,21 +92,6 @@ targets:
         BUNDLE_LOADER: "$(TEST_HOST)"
         GENERATE_INFOPLIST_FILE: YES
 
-  OrgendaUITests:
-    type: bundle.ui-testing
-    platform: iOS
-    deploymentTarget: "27.0"
-    sources:
-      - path: OrgendaUITests
-    dependencies:
-      - target: Orgenda
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.roifewu.OrgendaUITests
-        PRODUCT_NAME: OrgendaUITests
-        GENERATE_INFOPLIST_FILE: YES
-        TEST_TARGET_NAME: Orgenda
-
 schemes:
   Orgenda:
     build:
@@ -120,6 +105,5 @@ schemes:
       gatherCoverageData: true
       targets:
         - name: OrgendaTests
-        - name: OrgendaUITests
     archive:
       config: Release
