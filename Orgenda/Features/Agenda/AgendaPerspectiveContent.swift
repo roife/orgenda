@@ -21,12 +21,14 @@ struct AgendaPerspectiveContent<Row: View>: View {
                     }
                     Text("Next 7 days")
                         .font(.headline)
+                        .listRowSeparator(.hidden)
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityIdentifier("agenda.dashboard.dateScope")
                     let dates = groups.filter { $0.isDateGroup && !$0.items.isEmpty }
                     if dates.isEmpty {
                         Text("Nothing scheduled in the next 7 days.")
                             .foregroundStyle(.secondary)
+                            .listRowSeparator(.hidden)
                     }
                     ForEach(dates) { configuredGroup($0) }
                     if !deadlines.isEmpty {
@@ -38,6 +40,7 @@ struct AgendaPerspectiveContent<Row: View>: View {
                         Section {
                             ForEach(group.items, content: row)
                         }
+                        .listSectionSeparator(.hidden)
                     }
                 }
             }
@@ -70,6 +73,7 @@ struct AgendaPerspectiveContent<Row: View>: View {
                     .accessibilityElement(children: .combine)
             }
         }
+        .listSectionSeparator(.hidden)
         .id(group.id)
     }
 }

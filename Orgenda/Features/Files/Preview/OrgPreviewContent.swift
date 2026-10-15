@@ -110,7 +110,7 @@ struct OrgPreviewContent: View {
                 .id(row.id)
             }
         }
-        .lineSpacing(4)
+        .lineSpacing(6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.top, 6)

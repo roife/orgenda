@@ -309,9 +309,12 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             let contentOffset = textView.contentOffset
             let textStorage = textView.textStorage
             let font = OrgSyntaxPresentation.bodyFont(compatibleWith: textView.traitCollection)
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = 2
             let baseAttributes: [NSAttributedString.Key: Any] = [
                 .font: font,
                 .foregroundColor: UIColor.label,
+                .paragraphStyle: paragraphStyle,
             ]
 
             isApplyingPresentation = true

@@ -13,6 +13,7 @@ struct AgendaTodoList<Row: View>: View {
                     } header: {
                         Label(file.replacingOccurrences(of: ".org", with: "").capitalized, systemImage: "doc.text")
                     }
+                    .listSectionSeparator(.hidden)
                 }
             }
         }
@@ -46,6 +47,7 @@ struct AgendaOverdueList<Row: View>: View {
                         Label(OrgendaDatePresentation.relativeDate(day), systemImage: "calendar.badge.exclamationmark")
                             .foregroundStyle(OrgendaTheme.overdue)
                     }
+                    .listSectionSeparator(.hidden)
                 }
             }
         }
@@ -68,6 +70,7 @@ struct AgendaOverdueList<Row: View>: View {
 extension View {
     func agendaListSurface() -> some View {
         listStyle(.plain)
+            .listSectionSpacing(8)
             .textCase(nil)
             .scrollContentBackground(.hidden)
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])

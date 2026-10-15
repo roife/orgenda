@@ -92,7 +92,7 @@ struct OrgItemRow: View {
             }
 
             Button(action: onOpen) {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         if item.priority != .none {
                             Text(item.priority.rawValue)

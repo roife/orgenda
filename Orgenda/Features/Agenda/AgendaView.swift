@@ -225,6 +225,8 @@ struct AgendaView: View {
            // Perspectives keep their scroll views alive. Remove just the
            // inactive rows' swipe hosts so returning starts with actions closed.
            allowsSwipeActions: mode != .calendar && perspective == option)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .listRowSeparator(.hidden)
     }
 
     private func toggle(_ item: OrgItem) {
