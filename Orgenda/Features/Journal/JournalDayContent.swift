@@ -2,24 +2,18 @@ import SwiftUI
 
 struct JournalDayContent: View {
     let entries: [JournalEntry]
-    let onCapture: () -> Void
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
-            if entries.isEmpty {
-                ContentUnavailableView {
-                    Label("A blank page", systemImage: "book.closed")
-                } actions: {
-                    Button("Write an Entry", systemImage: "square.and.pencil", action: onCapture)
-                        .buttonStyle(.glass)
-                        .foregroundStyle(OrgendaTheme.accentText)
-                        .padding(.top, 16)
-                }
-                .accessibilityIdentifier("journal.empty")
-            } else {
-                ForEach(entries) { entry in
-                    JournalTimelineEntry(entry: entry, isLast: entry.id == entries.last?.id)
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Journal · \(entries.count)")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 12)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("journal.day.heading")
+
+            ForEach(entries) { entry in
+                JournalTimelineEntry(entry: entry, isLast: entry.id == entries.last?.id)
             }
         }
     }

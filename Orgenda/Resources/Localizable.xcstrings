@@ -7084,6 +7084,23 @@
         }
       }
     },
+    "Journal · %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日记 · %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日記 · %lld"
+          }
+        }
+      }
+    },
     "Journal dates" : {
       "extractionState" : "manual",
       "localizations" : {

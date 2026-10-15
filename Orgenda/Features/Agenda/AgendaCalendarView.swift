@@ -22,13 +22,7 @@ struct AgendaCalendarView<Row: View>: View {
     @State private var timelineTopVisibleDayKey: String?
     @State private var timelineScrollSelection: Date?
     @State private var isScrollingTimeline = false
-    @State private var calendarPage: CalendarPage = .agenda
     @State private var journalCapture: JournalCapture?
-    @State private var journalScrollPosition = ScrollPosition(y: 0)
-
-    private enum CalendarPage: Hashable {
-        case agenda, journal
-    }
 
     private struct JournalCapture: Identifiable {
         let date: Date
@@ -46,7 +40,7 @@ struct AgendaCalendarView<Row: View>: View {
             .accessibilityIdentifier("calendar.layout")
             .accessibilityValue(usesColumns ? "Columns" : "Stacked")
             .onChange(of: usesColumns) { _, _ in
-                // AnyLayout keeps the pages alive while resizing. Re-anchor
+                // AnyLayout keeps the panels alive while resizing. Re-anchor
                 // the timeline to the selected day after its width changes.
                 timelineScrollSelection = nil
                 timelineScrollRequest &+= 1
@@ -98,77 +92,28 @@ struct AgendaCalendarView<Row: View>: View {
     }
 
     private var contentPanel: some View {
-        VStack(spacing: 0) {
-            Picker("Calendar", selection: $calendarPage) {
-                Text("Agenda").tag(CalendarPage.agenda)
-                Text("Journal").tag(CalendarPage.journal)
-            }
-            .pickerStyle(.tabs)
-            .frame(maxWidth: 360)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            .accessibilityIdentifier("calendar.content.picker")
-
-            switch calendarPage {
-            case .agenda:
-                agendaTimeline
-            case .journal:
-                journalTimeline
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("calendar.contentPanel")
-        .onChange(of: calendarPage) { _, _ in
-            isScrollingTimeline = false
-            timelineScrollSelection = nil
-        }
+        agendaTimeline
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("calendar.contentPanel")
     }
 
     private var calendar: some View {
         OrgendaCalendar(
             selectedDate: $store.selectedDate,
             density: $density,
-            markedDates: store.markedAgendaDays,
+            markedDates: store.markedAgendaDays.union(store.journalEntries.map { $0.date.orgendaDayKey }),
             showsNavigationControls: isActive,
             controlsInHeader: true,
-            onCapture: {
-                if calendarPage == .journal {
-                    journalCapture = JournalCapture(date: store.selectedDate)
-                } else {
-                    onCapture(store.selectedDate)
-                }
+            onCapture: { onCapture(store.selectedDate) },
+            onCaptureJournal: {
+                journalCapture = JournalCapture(date: store.selectedDate)
             },
-            captureLabel: calendarPage == .journal ? "New journal entry" : "New task",
             onScheduleTask: { transfer, date in onReschedule(transfer.item, date) },
             onReturnToday: {
                 timelineScrollSelection = nil
                 timelineScrollRequest &+= 1
             }
         )
-    }
-
-    private var journalTimeline: some View {
-        let journalEntries = store.journal(on: store.selectedDate)
-        return ScrollView {
-            JournalDayContent(entries: journalEntries) {
-                journalCapture = JournalCapture(date: store.selectedDate)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, journalEntries.isEmpty ? 0 : 16)
-            .padding(.bottom, journalEntries.isEmpty ? 0 : 24)
-            .frame(maxWidth: 760)
-            .frame(maxWidth: .infinity)
-        }
-        .defaultScrollAnchor(journalEntries.isEmpty ? .center : .top, for: .alignment)
-        .scrollPosition($journalScrollPosition)
-        .onChange(of: store.selectedDate) { _, _ in
-            journalScrollPosition.scrollTo(y: 0)
-        }
-        .scrollIndicators(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-        .accessibilityIdentifier("calendar.journal.timeline")
-        .accessibilityValue(OrgendaDatePresentation.relativeDate(store.selectedDate))
     }
 
     private var agendaTimeline: some View {
@@ -183,6 +128,7 @@ struct AgendaCalendarView<Row: View>: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 AgendaDayContent(
                                     date: day.date, dayItems: store.items(on: day.date),
+                                    journalEntries: store.journal(on: day.date),
                                     overdueCount: store.overdueCount,
                                     onToggle: onToggle, onOpen: onOpen,
                                     onShowInFile: onShowInFile, onShowOverdue: onShowOverdue,
@@ -225,8 +171,7 @@ struct AgendaCalendarView<Row: View>: View {
             .onChange(of: timelineAnchor) { _, anchor in
                 timelineDays = AgendaDay.days(around: anchor)
             }
-            .task(id: "\(store.selectedDate.timeIntervalSince1970)-\(timelineScrollRequest)-\(calendarPage)") {
-                guard calendarPage == .agenda else { return }
+            .task(id: "\(store.selectedDate.timeIntervalSince1970)-\(timelineScrollRequest)") {
                 let date = store.selectedDate
                 // A scroll-derived selection must not trigger a scroll back
                 // to the beginning of the day or interrupt deceleration.
@@ -238,7 +183,7 @@ struct AgendaCalendarView<Row: View>: View {
                 }
                 // Let a new date range enter the layout before resolving its ID.
                 await Task.yield()
-                guard !Task.isCancelled, !isScrollingTimeline, calendarPage == .agenda else { return }
+                guard !Task.isCancelled, !isScrollingTimeline else { return }
                 if reduceMotion {
                     proxy.scrollTo(date.orgendaDayKey, anchor: .top)
                 } else {
@@ -257,7 +202,7 @@ struct AgendaCalendarView<Row: View>: View {
     }
 
     private func selectTopTimelineDay() {
-        guard isActive, calendarPage == .agenda, isScrollingTimeline,
+        guard isActive, isScrollingTimeline,
               let key = timelineTopVisibleDayKey,
               let day = timelineDays.first(where: { $0.key == key }),
               day.date != store.selectedDate else { return }

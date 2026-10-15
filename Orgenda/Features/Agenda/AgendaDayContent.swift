@@ -3,6 +3,7 @@ import SwiftUI
 struct AgendaDayContent<Row: View>: View {
     let date: Date
     let dayItems: [OrgItem]
+    let journalEntries: [JournalEntry]
     let overdueCount: Int
     let onToggle: (OrgItem) -> Void
     let onOpen: (OrgItem) -> Void
@@ -86,7 +87,7 @@ struct AgendaDayContent<Row: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
 
-        if dayItems.isEmpty {
+        if dayItems.isEmpty && journalEntries.isEmpty {
             Text("No scheduled items")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -97,6 +98,12 @@ struct AgendaDayContent<Row: View>: View {
                 row(item)
                     .padding(.horizontal, 16)
             }
+        }
+
+        if !journalEntries.isEmpty {
+            JournalDayContent(entries: journalEntries)
+                .padding(.horizontal, 16)
+                .padding(.top, dayItems.isEmpty ? 0 : 8)
         }
     }
 

@@ -27,7 +27,7 @@ struct OrgendaCalendar: View {
     let showsNavigationControls: Bool
     let controlsInHeader: Bool
     let onCapture: (() -> Void)?
-    let captureLabel: LocalizedStringKey
+    let onCaptureJournal: (() -> Void)?
     let onScheduleTask: ((OrgTaskTransfer, Date) -> Void)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -63,7 +63,7 @@ struct OrgendaCalendar: View {
 
     init(selectedDate: Binding<Date>, density: Binding<Density>, markedDates: Set<String>, showsNavigationControls: Bool = true,
          controlsInHeader: Bool = false, onCapture: (() -> Void)? = nil,
-         captureLabel: LocalizedStringKey = "New task",
+         onCaptureJournal: (() -> Void)? = nil,
          onScheduleTask: ((OrgTaskTransfer, Date) -> Void)? = nil,
          onReturnToday: @escaping () -> Void = {}) {
         _selectedDate = selectedDate
@@ -73,7 +73,7 @@ struct OrgendaCalendar: View {
         self.showsNavigationControls = showsNavigationControls
         self.controlsInHeader = controlsInHeader
         self.onCapture = onCapture
-        self.captureLabel = captureLabel
+        self.onCaptureJournal = onCaptureJournal
         self.onScheduleTask = onScheduleTask
         let calendar = Calendar.autoupdatingCurrent
         let initialMonth = calendar.dateInterval(of: .month, for: selectedDate.wrappedValue)?.start
@@ -214,8 +214,14 @@ struct OrgendaCalendar: View {
                             .font(.system(size: 22, weight: .regular))
                             .frame(width: 30, height: 30)
                     }
+                    .highPriorityGesture(LongPressGesture().onEnded { _ in onCaptureJournal?() })
                     .foregroundStyle(OrgendaTheme.accentText)
-                    .accessibilityLabel(captureLabel)
+                    .accessibilityActions {
+                        if let onCaptureJournal {
+                            Button("New journal entry", action: onCaptureJournal)
+                        }
+                    }
+                    .accessibilityLabel("New task")
                     .accessibilityIdentifier("orgenda.capture")
                 }
             }
