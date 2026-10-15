@@ -12,6 +12,8 @@ struct AgendaTodoList<Row: View>: View {
                         ForEach(items, content: row)
                     } header: {
                         Label(file.replacingOccurrences(of: ".org", with: "").capitalized, systemImage: "doc.text")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(Color.primary.opacity(0.7))
                     }
                     .listSectionSeparator(.hidden)
                 }

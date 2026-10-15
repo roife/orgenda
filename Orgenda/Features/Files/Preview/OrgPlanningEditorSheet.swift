@@ -27,7 +27,10 @@ struct OrgPlanningEditorSheet: View {
                         if dynamicTypeSize.isAccessibilitySize {
                             planningTypePicker.pickerStyle(.menu)
                         } else {
-                            planningTypePicker.pickerStyle(.segmented)
+                            planningTypePicker
+                                .pickerStyle(.segmented)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets())
                         }
                     }
                 }
@@ -112,11 +115,6 @@ private struct OrgPlanningTimestampEditor: View {
     var body: some View {
         Section(title) {
             dayPicker
-            HStack {
-                previousDayButton
-                Spacer()
-                nextDayButton
-            }
 
             Toggle("Include time", isOn: $timestamp.includesTime)
                 .accessibilityIdentifier("org.preview.planning.\(identifierSuffix).includesTime")
@@ -167,31 +165,5 @@ private struct OrgPlanningTimestampEditor: View {
         DatePicker("Time", selection: $timestamp.date, displayedComponents: .hourAndMinute)
             .datePickerStyle(.compact)
             .accessibilityIdentifier("org.preview.planning.\(identifierSuffix).timePicker")
-    }
-
-    private var previousDayButton: some View {
-        Button {
-            timestamp.date = calendar.date(byAdding: .day, value: -1, to: timestamp.date)!
-        } label: {
-            Image(systemName: "chevron.left")
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-        .tint(OrgendaTheme.accentText)
-        .accessibilityLabel("Previous \(title.lowercased()) day")
-        .accessibilityIdentifier("org.preview.planning.\(identifierSuffix).previousDay")
-    }
-
-    private var nextDayButton: some View {
-        Button {
-            timestamp.date = calendar.date(byAdding: .day, value: 1, to: timestamp.date)!
-        } label: {
-            Image(systemName: "chevron.right")
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-        .tint(OrgendaTheme.accentText)
-        .accessibilityLabel("Next \(title.lowercased()) day")
-        .accessibilityIdentifier("org.preview.planning.\(identifierSuffix).nextDay")
     }
 }
