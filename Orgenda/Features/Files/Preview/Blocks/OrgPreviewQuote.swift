@@ -5,7 +5,7 @@ struct OrgPreviewQuote: View {
 
     var body: some View {
         OrgPreviewMathFlow(
-            fragments: OrgPreviewContainerMath.blockFragments(node),
+            nodes: OrgPreviewMarkup.contents(of: node),
             textStyle: .subheadline
         )
             .font(.subheadline.italic())

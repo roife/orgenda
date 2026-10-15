@@ -39,6 +39,8 @@ module.exports = grammar({
     $.dynamic_block_end,
     $._source_block_begin_marker,
     $.source_block_end,
+    $.latex_block,
+    $.latex_fragment,
   ],
 
   supertypes: $ => [
@@ -55,6 +57,7 @@ module.exports = grammar({
 
     _block: $ => choice(
       $.blank_line,
+      prec(PREC.structural, $.latex_block),
       $.source_block,
       $.quote_block,
       $.property_drawer,
@@ -162,7 +165,7 @@ module.exports = grammar({
     ),
     drawer_end: _ => token(prec(PREC.structural, /[ \t]*:[Ee][Nn][Dd]:[ \t]*/)),
     _drawer_element: $ => choice(
-      $.blank_line, $.clock, $.list, $.table, $.paragraph,
+      $.blank_line, prec(PREC.structural, $.latex_block), $.clock, $.list, $.table, $.paragraph,
       $.source_block, $.quote_block, $.example_block, $.export_block,
       $.comment_block, $.verse_block, $.center_block, $.dynamic_block,
       $.fixed_width, $.horizontal_rule, $.comment, $.keyword,
@@ -245,6 +248,7 @@ module.exports = grammar({
     table_pipe: _ => token(prec(PREC.structural, '|')),
     table_cell: $ => prec.right(repeat1($._table_inline)),
     _table_inline: $ => choice(
+      $.latex_fragment,
       $._extended_inline,
       $.link,
       $.footnote_reference,
@@ -260,12 +264,12 @@ module.exports = grammar({
       $.plain_text,
       $.table_symbol,
     ),
-    table_symbol: _ => token(prec(PREC.fallback, /[*\/_+~=\[\]<>{@("]/)),
+    table_symbol: _ => token(prec(PREC.fallback, /[*\/_+~=\[\]<>{@("$\\]/)),
 
     quote_block: $ => prec.right(seq(
       field('begin', $.quote_block_begin),
       $._newline,
-      repeat(choice($.quote_line, $.blank_line)),
+      repeat(choice(prec(PREC.structural, $.latex_block), $.quote_line, $.blank_line)),
       field('end', $.quote_block_end),
       $._line_end,
     )),
@@ -318,7 +322,7 @@ module.exports = grammar({
 
     dynamic_block: $ => seq(
       field('begin', $.dynamic_block_begin), $._newline,
-      repeat(choice($.table, $.list, $.paragraph, $.blank_line, $.keyword)),
+      repeat(choice(prec(PREC.structural, $.latex_block), $.table, $.list, $.paragraph, $.blank_line, $.keyword)),
       field('end', $.dynamic_block_end), $._line_end,
     ),
 
@@ -366,6 +370,8 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
 
     _inline: $ => choice(
+      $.latex_fragment,
+      $.latex_block,
       $._extended_inline,
       $.link,
       $.footnote_reference,
@@ -470,9 +476,16 @@ module.exports = grammar({
     whitespace: _ => /[ \t]+/,
     plain_text: _ => token(prec(
       PREC.fallback,
-      /[^ \t\r\n*\/_+~=\[\]<>|{@("]+/,
+      choice(
+        // Keep dollars attached to words literal, including common non-Latin scripts.
+        repeat1(choice(
+          seq(/[A-Za-z0-9\u00C0-\u02FF\u0370-\u052F\u0590-\u1FFF\u2C00-\u2DFF\u3040-\uD7AF\uF900-\uFAFF\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5A]/, repeat1('$')),
+          /[^ \t\r\n*\/_+~=\[\]<>|{@("$\\]/,
+        )),
+        /\\[^\r\n]/,
+      ),
     )),
-    inline_symbol: _ => token(prec(PREC.fallback, /[*\/_+~=\[\]<>|{@("]/)),
+    inline_symbol: _ => token(prec(PREC.fallback, /[*\/_+~=\[\]<>|{@("$\\]/)),
 
     _line_end: $ => choice($._newline, $._eof),
     _newline: _ => /\r?\n/,
@@ -480,9 +493,11 @@ module.exports = grammar({
 });
 
 function delimitedBlock($, name, line) {
+  const contents = [line, $.blank_line];
+  if (['verse', 'center'].includes(name)) contents.unshift(prec(PREC.structural, $.latex_block));
   return seq(
     field('begin', $[`${name}_block_begin`]), $._newline,
-    repeat(choice(line, $.blank_line)),
+    repeat(choice(...contents)),
     field('end', $[`${name}_block_end`]), $._line_end,
   );
 }

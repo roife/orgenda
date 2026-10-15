@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftMath
+import RaTeX
 import UIKit
 
 final class OrgMathCacheEntry: NSObject {
@@ -29,53 +29,37 @@ enum OrgMathRendering {
     ) -> OrgMathCacheEntry? {
         let fontSize = OrgPreviewFontMetrics.pointSize(for: textStyle, dynamicTypeSize: dynamicTypeSize)
         let scale = UIScreen.main.scale
-        let latex = compatibleLatex(expression.latex)
+        let latex = expression.latex
         let key = "\(expression.mode.rawValue)\u{0}\(colorScheme == .dark ? "dark" : "light")\u{0}\(fontSize)\u{0}\(scale)\u{0}\(latex)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
         let traits = UITraitCollection(userInterfaceStyle: colorScheme == .dark ? .dark : .light)
         let color = UIColor.label.resolvedColor(with: traits)
-        var renderer = MathImage(
-            latex: latex,
-            fontSize: expression.mode == .display ? fontSize * 1.08 : fontSize,
-            textColor: color,
-            labelMode: expression.mode == .display ? .display : .text,
-            textAlignment: .center
+        guard let displayList = try? RaTeXEngine.shared.parse(
+            latex, displayMode: expression.mode == .display, color: color
+        ) else { return nil }
+        let renderer = RaTeXRenderer(
+            displayList: displayList,
+            fontSize: expression.mode == .display ? fontSize * 1.08 : fontSize
         )
-        let (_, image, layout) = renderer.asImage()
-        guard let image, let layout else { return nil }
-        let entry = OrgMathCacheEntry(image: image, descent: layout.descent)
-        let cgImage = image.cgImage!
-        cache.setObject(entry, forKey: key, cost: cgImage.bytesPerRow * cgImage.height)
+        let size = CGSize(width: ceil(renderer.width), height: ceil(renderer.totalHeight))
+        guard size.width.isFinite, size.height.isFinite, size.width > 0, size.height > 0 else { return nil }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            renderer.draw(in: context.cgContext)
+        }
+        let entry = OrgMathCacheEntry(image: image, descent: renderer.depth)
+        if let cgImage = image.cgImage {
+            cache.setObject(entry, forKey: key, cost: cgImage.bytesPerRow * cgImage.height)
+        }
         return entry
     }
+}
 
-    static func compatibleLatex(_ latex: String) -> String {
-        _ = compatibilitySymbolsRegistered
-        return OrgLatexCompatibility.normalizeLatex(latex)
+enum OrgPreviewFontMetrics {
+    static func pointSize(for style: UIFont.TextStyle, dynamicTypeSize: DynamicTypeSize) -> CGFloat {
+        let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+        return UIFont.preferredFont(forTextStyle: style, compatibleWith: traits).pointSize
     }
-
-    private static let compatibilitySymbolsRegistered: Void = {
-        // Register the actual Unicode glyph with the correct atom class, rather
-        // than approximate double brackets, harpoons or definition relations.
-        let symbols: [(String, String, MTMathAtomType)] = [
-            ("llbracket", "⟦", .open), ("rrbracket", "⟧", .close),
-            // Latin Modern lacks U+2A74; these two supported glyphs spell
-            // the same double-colon equals relation without a missing-glyph box.
-            ("Coloneqq", "∷=", .relation), ("coloneqq", "≔", .relation),
-            ("rightharpoonup", "⇀", .relation), ("leftharpoonup", "↼", .relation),
-            ("rightharpoondown", "⇁", .relation), ("leftharpoondown", "↽", .relation),
-            ("vDash", "⊨", .relation), ("nrightarrow", "↛", .relation),
-            ("orgendaBullet", "•", .ordinary), ("orgendaAmpersand", "&", .ordinary),
-            ("orgendaHyphen", "-", .ordinary),
-            ("orgendaSubtype", "<:", .relation),
-        ]
-        for (name, glyph, type) in symbols {
-            let atom = MTMathAtomFactory.atom(forCharacter: "=")!
-            atom.nucleus = glyph
-            atom.type = type
-            MTMathAtomFactory.add(latexSymbol: name, value: atom)
-        }
-    }()
-
 }

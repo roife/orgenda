@@ -93,7 +93,7 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 
 界面改动使用 `--demo-workspace` 手动检查；涉及 iPad 布局时检查旋转、窄窗口与辅助大字体。
 
-解析器仅保留嵌入空字符与源码块结束边界的回归测试，可以独立验证：
+解析器覆盖嵌入空字符、源码块结束边界，以及公式定界符、环境嵌套和字面量保护，可以独立验证：
 
 ```sh
 swift test --package-path Packages/OrgTreeSitter

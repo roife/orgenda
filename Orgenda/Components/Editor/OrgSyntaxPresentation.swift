@@ -109,7 +109,7 @@ enum OrgSyntaxPresentation {
             textStorage.addAttribute(.foregroundColor, value: UIColor.systemPurple, range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
-        case .macro, .verbatim:
+        case .math, .macro, .verbatim:
             textStorage.addAttributes([
                 .foregroundColor: UIColor.systemBrown,
                 .backgroundColor: UIColor.tertiarySystemFill,

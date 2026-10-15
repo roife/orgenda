@@ -8,17 +8,13 @@ let package = Package(
     products: [
         .library(name: "OrgTreeSitter", targets: ["OrgTreeSitter"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/tree-sitter/tree-sitter", exact: "0.26.3"),
+    ],
     targets: [
         .target(
-            name: "CTreeSitter",
-            path: "Vendor/tree-sitter",
-            sources: ["src/lib.c"],
-            publicHeadersPath: "include",
-            cSettings: [.headerSearchPath("src")]
-        ),
-        .target(
             name: "COrgTreeSitter",
-            dependencies: ["CTreeSitter"],
+            dependencies: [.product(name: "TreeSitter", package: "tree-sitter")],
             path: "src",
             sources: ["parser.c", "scanner.c"],
             publicHeadersPath: "include",
@@ -26,7 +22,7 @@ let package = Package(
         ),
         .target(
             name: "OrgTreeSitter",
-            dependencies: ["CTreeSitter", "COrgTreeSitter"]
+            dependencies: [.product(name: "TreeSitter", package: "tree-sitter"), "COrgTreeSitter"]
         ),
         .testTarget(name: "OrgTreeSitterTests", dependencies: ["OrgTreeSitter"]),
     ]

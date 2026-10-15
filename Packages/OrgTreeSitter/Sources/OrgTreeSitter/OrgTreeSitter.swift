@@ -1,5 +1,5 @@
 import COrgTreeSitter
-import CTreeSitter
+import TreeSitter
 import Foundation
 
 /// Metadata and low-level entry points for the bundled Org grammar.

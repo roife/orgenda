@@ -77,6 +77,7 @@ struct OrgPreviewReadOnlyContent: View {
             ForEach(nodes) { node in
                 switch node.type {
                 case "clock": OrgPreviewClock(node: node)
+                case "latex_block": OrgPreviewMathBlock(expression: OrgMathExpression(node))
                 case "property":
                     VStack(alignment: .leading, spacing: 2) {
                         Text(node.child(ofType: "property_name")?.text ?? "")
@@ -242,7 +243,7 @@ struct OrgPreviewTextBlock: View {
             }
         } else {
             OrgPreviewMathFlow(
-                fragments: OrgPreviewContainerMath.blockFragments(node),
+                nodes: OrgPreviewMarkup.contents(of: node),
                 centered: node.type == "center_block"
             )
                 .font(.body)

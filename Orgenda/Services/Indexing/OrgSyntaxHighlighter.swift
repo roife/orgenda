@@ -34,6 +34,7 @@ enum OrgHighlightKind: String, CaseIterable, Hashable, Sendable {
     case progress
     case target
     case macro
+    case math
 }
 
 /// A presentation-independent highlight over an Org document's UTF-16 text.
@@ -57,9 +58,6 @@ actor OrgSyntaxHighlighter {
         let tree = parser.parse(source)
 
         let rangeMap = UTF16RangeMap(source)
-        let mathRanges = OrgMathParser.matches(in: source).compactMap {
-            rangeMap.range(startByte: $0.startByte, endByte: $0.endByte)
-        }
         var result: [OrgHighlightSpan] = []
         var pending = [tree.rootNode]
 
@@ -71,7 +69,7 @@ actor OrgSyntaxHighlighter {
                let range = rangeMap.range(
                    startByte: Int(node.startByte),
                    endByte: Int(node.endByte)
-               ), !Self.isOrgMarkup(kind, inside: mathRanges, range: range) {
+               ) {
                 result.append(OrgHighlightSpan(range: range, kind: kind))
             }
 
@@ -138,6 +136,8 @@ actor OrgSyntaxHighlighter {
              "verse_block_begin", "verse_block_end", "center_block_begin", "center_block_end",
              "dynamic_block_begin", "dynamic_block_end":
             return .keyword
+        case "latex_block", "latex_fragment":
+            return .math
         case "macro", "export_snippet":
             return .macro
         case "comment", "comment_block":
@@ -177,16 +177,6 @@ actor OrgSyntaxHighlighter {
         }
     }
 
-    private nonisolated static func isOrgMarkup(
-        _ kind: OrgHighlightKind,
-        inside mathRanges: [NSRange],
-        range: NSRange
-    ) -> Bool {
-        guard [.bold, .italic, .underline, .strikethrough, .code, .verbatim].contains(kind) else {
-            return false
-        }
-        return mathRanges.contains { NSIntersectionRange($0, range).length == range.length }
-    }
 }
 
 /// A linear-time map from UTF-8 byte boundaries to UTF-16 offsets. A `nil`

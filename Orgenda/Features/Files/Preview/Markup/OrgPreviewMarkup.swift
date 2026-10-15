@@ -25,14 +25,6 @@ enum OrgPreviewMarkup {
         trimmed(renderFragments(node, replacement: replacement), spaces: trimSpaces)
     }
 
-    static func mathLiteralRanges(in node: ParsedOrgNode) -> [Range<Int>] {
-        if ["code", "verbatim", "link", "angle_link", "plain_link", "macro", "export_snippet",
-            "target", "radio_target", "footnote_reference", "inline_footnote"].contains(node.type) {
-            return [node.startByte..<node.endByte]
-        }
-        return node.children.flatMap { mathLiteralRanges(in: $0) }
-    }
-
     /// Drawer history is display-only, so its timestamps can use the same
     /// readable current-year elision as the rest of Preview without changing
     /// the underlying Org source.
@@ -178,111 +170,36 @@ enum OrgPreviewMarkup {
         if let replaced = replacement?(node) { return [.text(replaced)] }
 
         switch node.type {
+        case "latex_fragment", "latex_block":
+            return [.math(OrgMathExpression(node))]
         case "bold", "italic", "underline", "strikethrough":
-            return styledFragments(render(node, replacement: nil))
+            return [.text(render(node, replacement: nil))]
         case "code", "verbatim", "statistics_cookie", "target", "radio_target", "macro",
              "export_snippet", "footnote_reference", "inline_footnote", "footnote_definition_marker",
              "description_tag", "timestamp", "timestamp_range", "active_timestamp", "inactive_timestamp":
             return [.text(render(node, replacement: nil))]
         case "link", "angle_link", "plain_link":
             if let image = OrgPreviewImageReference.from(node) { return [.image(image)] }
-            return styledFragments(render(node, replacement: nil))
+            return [.text(render(node, replacement: nil))]
         default:
-            guard !node.children.isEmpty else { return fragments(in: node.text) }
-
+            guard !node.children.isEmpty else { return [.text(AttributedString(node.text))] }
             let bytes = Array(node.text.utf8)
-            let math = OrgMathParser.matches(
-                in: node.text,
-                literalRanges: mathLiteralRanges(in: node).map {
-                    ($0.lowerBound - node.startByte)..<($0.upperBound - node.startByte)
-                }
-            )
             var result: [OrgPreviewInlineFragment] = []
             var cursor = 0
-            var childIndex = 0
-            var mathIndex = 0
-
-            while cursor < bytes.count {
-                while childIndex < node.children.count,
-                      node.children[childIndex].endByte - node.startByte <= cursor {
-                    childIndex += 1
+            for child in node.children {
+                let start = child.startByte - node.startByte
+                let end = child.endByte - node.startByte
+                if cursor < start {
+                    result.append(.text(AttributedString(String(decoding: bytes[cursor..<start], as: UTF8.self))))
                 }
-                while mathIndex < math.count, math[mathIndex].endByte <= cursor {
-                    mathIndex += 1
-                }
-
-                let child = childIndex < node.children.count ? node.children[childIndex] : nil
-                let childStart = child.map { $0.startByte - node.startByte }
-                let childEnd = child.map { $0.endByte - node.startByte }
-                let match = mathIndex < math.count ? math[mathIndex] : nil
-
-                if let match, match.startByte == cursor {
-                    result.append(.math(match.expression))
-                    cursor = match.endByte
-                    mathIndex += 1
-                    continue
-                }
-
-                if let child, let childStart, let childEnd, childStart == cursor {
-                    if let match, match.startByte > cursor, match.startByte < childEnd {
-                        result.append(.text(AttributedString(String(decoding: bytes[cursor..<match.startByte], as: UTF8.self))))
-                        cursor = match.startByte
-                        continue
-                    }
-                    result.append(contentsOf: renderFragments(child, replacement: replacement))
-                    cursor = childEnd
-                    childIndex += 1
-                    continue
-                }
-
-                if let childStart, let childEnd,
-                   childStart < cursor, cursor < childEnd {
-                    // A formula can finish inside a larger Org text node. Stop
-                    // at the next formula instead of consuming the whole tail.
-                    let end = min(childEnd, match?.startByte ?? bytes.count)
-                    result.append(.text(AttributedString(String(decoding: bytes[cursor..<end], as: UTF8.self))))
-                    cursor = end
-                    if cursor == childEnd { childIndex += 1 }
-                    continue
-                }
-
-                let nextChild = childStart ?? bytes.count
-                let nextMath = match?.startByte ?? bytes.count
-                let end = min(nextChild, nextMath)
-                result.append(.text(AttributedString(String(decoding: bytes[cursor..<end], as: UTF8.self))))
+                result.append(contentsOf: renderFragments(child, replacement: replacement))
                 cursor = end
+            }
+            if cursor < bytes.count {
+                result.append(.text(AttributedString(String(decoding: bytes[cursor...], as: UTF8.self))))
             }
             return result
         }
-    }
-
-    private static func styledFragments(_ source: AttributedString) -> [OrgPreviewInlineFragment] {
-        let attributes = source.runs.first?.attributes ?? AttributeContainer()
-        return fragments(in: String(source.characters)).map { fragment in
-            guard case .text(var value) = fragment else { return fragment }
-            value.mergeAttributes(attributes)
-            return .text(value)
-        }
-    }
-
-    private static func fragments(in source: String) -> [OrgPreviewInlineFragment] {
-        let bytes = Array(source.utf8)
-        let matches = OrgMathParser.matches(in: source)
-        guard !matches.isEmpty else { return [.text(AttributedString(source))] }
-
-        var result: [OrgPreviewInlineFragment] = []
-        var cursor = 0
-        for match in matches {
-            if cursor < match.startByte {
-                result.append(.text(AttributedString(String(decoding: bytes[cursor..<match.startByte], as: UTF8.self))))
-            }
-            result.append(.math(match.expression))
-            cursor = match.endByte
-        }
-        if cursor < bytes.count {
-            result.append(.text(AttributedString(String(decoding: bytes[cursor...], as: UTF8.self))))
-        }
-        return result
     }
 
     private static func trimmed(

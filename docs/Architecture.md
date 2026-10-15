@@ -12,7 +12,7 @@ Org 文件是工作区的内容来源。界面、索引和存储围绕同一份�
 | `Orgenda/DesignSystem` | 颜色、字体、日期展示、布局、动效与触觉反馈 |
 | `Orgenda/Domain` | 数据模型、配置校验、Org 日期规则与源码变更 |
 | `Orgenda/Services` | 工作区状态、索引、文件访问、同步、图片加载与通知 |
-| `Packages/OrgTreeSitter` | Org 语法、外部 scanner、Tree-sitter 运行时与 Swift 封装 |
+| `Packages/OrgTreeSitter` | Org 语法、外部 scanner 与 Swift 封装；运行时依赖官方 TreeSitter 包 |
 
 ## 状态与数据流
 
@@ -40,6 +40,8 @@ Org 文件是工作区的内容来源。界面、索引和存储围绕同一份�
 
 页面专用代码放在对应 feature；多个页面实际复用后再移到 `Components`。领域规则和源码处理放在 `Domain`，文件与网络操作放在 `Services`。数据安全回归放在 `OrgendaTests`，导航和手势通过 `--demo-workspace` 手动验证。
 
-修改语法时编辑 `grammar.js` 或 `src/scanner.c`；`src/parser.c`、`src/grammar.json` 和 `src/node-types.json` 由 Tree-sitter 生成。第三方运行时位于 `Vendor/tree-sitter`，来源与许可证见包内 `THIRD_PARTY_NOTICES.md`。
+数学公式由语法树的 `latex_fragment`（`$…$`、`\(…\)`）和 `latex_block`（`$$…$$`、`\[…\]`、白名单环境）识别。外部 scanner 匹配完整公式和同名嵌套环境，公式内的 Org 标记保持 TeX 原文；源码块、行内 code/verbatim 和链接仍按字面量处理。预览从节点构造表达式，去除数学定界符，保留环境命令，由固定版本的 RaTeX 解析并通过 Core Graphics 绘制；不再改写 LaTeX。图片按模式、主题、字号、屏幕缩放和原始 LaTeX 缓存，行内基线采用 RaTeX 的 depth × 字号。编辑器也直接遍历数学节点进行高亮。
+
+修改语法时编辑 `grammar.js` 或 `src/scanner.c`，在包目录执行 `npm ci && npm run generate`。CLI 固定为与运行时一致的 0.26.3，生成 ABI 15 的 `src/parser.c`，并保留生成器需要的 `src/grammar.json` 规则；不保留未使用的 `node-types.json`。运行时通过 SwiftPM 从官方 `tree-sitter/tree-sitter` 仓库解析，不再随源码维护副本。本地 `src/tree_sitter/` 是生成 parser/scanner 使用的支持头文件，来源与许可证见包内 `THIRD_PARTY_NOTICES.md`。
 
 `project.yml` 是 Xcode 工程配置的来源。新增、删除或移动源码后使用 XcodeGen 重新生成工程，并运行 README 中相应的应用或解析器测试。

@@ -16,3 +16,7 @@ __pycache__/
 *.py[cod]
 /artifacts/
 /References/qa/
+
+# Grammar tooling
+node_modules/
+/Packages/OrgTreeSitter/src/node-types.json

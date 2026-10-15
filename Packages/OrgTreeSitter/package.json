@@ -6,7 +6,10 @@
   "keywords": ["tree-sitter", "org-mode", "parser"],
   "license": "MIT",
   "scripts": {
-    "generate": "tree-sitter generate"
+    "generate": "node scripts/generate.js"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.26.3"
   },
   "tree-sitter": [
     {

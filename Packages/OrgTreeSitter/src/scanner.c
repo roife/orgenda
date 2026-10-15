@@ -23,6 +23,8 @@ enum TokenType {
   DYNAMIC_BLOCK_END,
   SOURCE_BLOCK_BEGIN_MARKER,
   SOURCE_BLOCK_END,
+  LATEX_BLOCK,
+  LATEX_FRAGMENT,
 };
 
 static bool horizontal_space(int32_t c) { return c == ' ' || c == '\t'; }
@@ -150,6 +152,110 @@ static bool scan_block_boundary(TSLexer *lexer, const bool *valid_symbols) {
   return false;
 }
 
+// Consume a complete formula as one token so Org markup and blank lines in
+// TeX never become separate Org nodes. Failed/incomplete openers remain text.
+static bool scan_latex(TSLexer *lexer, const bool *valid_symbols) {
+  bool dollar = lexer->lookahead == '$';
+  bool display = false;
+  char closing = 0;
+  char environment[16] = {0};
+  if (dollar) {
+    lexer->advance(lexer, false);
+    display = lexer->lookahead == '$';
+    if (display) lexer->advance(lexer, false);
+    else if (lexer->lookahead == ' ' || lexer->lookahead == '\t' || line_end(lexer)) return false;
+    closing = '$';
+  } else {
+    lexer->advance(lexer, false); // backslash
+    if (lexer->lookahead == '(' || lexer->lookahead == '[') {
+      display = lexer->lookahead == '[';
+      closing = display ? ']' : ')';
+      lexer->advance(lexer, false);
+    } else {
+      const char *begin = "begin{";
+      for (unsigned i = 0; begin[i]; i++) {
+        if (lexer->lookahead != begin[i]) return false;
+        lexer->advance(lexer, false);
+      }
+      unsigned length = 0;
+      while (lexer->lookahead != '}') {
+        if (line_end(lexer) || length >= sizeof(environment) - 1) return false;
+        environment[length++] = (char)lexer->lookahead;
+        lexer->advance(lexer, false);
+      }
+      lexer->advance(lexer, false);
+      static const char *const names[] = {
+        "equation", "equation*", "displaymath", "align", "align*", "aligned",
+        "alignat", "alignat*", "alignedat", "gather", "gather*", "multline",
+        "multline*", "eqnarray", "eqnarray*", "cases", "array", "matrix",
+        "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix",
+      };
+      bool allowed = false;
+      for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        if (strcmp(environment, names[i]) == 0) allowed = true;
+      }
+      if (!allowed) return false;
+      display = true;
+    }
+  }
+  unsigned symbol = display ? LATEX_BLOCK : LATEX_FRAGMENT;
+  if (!valid_symbols[symbol]) return false;
+  unsigned depth = 1;
+  bool closed = false;
+  while (!lexer->eof(lexer)) {
+    // Dollar fragments are single-line; explicit TeX delimiters may span lines.
+    if (dollar && !display && line_end(lexer)) return false;
+    if (lexer->lookahead == '\\') {
+      lexer->advance(lexer, false);
+      if (!dollar && closing && lexer->lookahead == closing) {
+        lexer->advance(lexer, false);
+        closed = true;
+        break;
+      }
+      if (environment[0] && (lexer->lookahead == 'b' || lexer->lookahead == 'e')) {
+        bool opening = lexer->lookahead == 'b';
+        const char *word = opening ? "begin{" : "end{";
+        unsigned i = 0;
+        while (word[i] && lexer->lookahead == word[i]) {
+          lexer->advance(lexer, false);
+          i++;
+        }
+        if (word[i]) continue;
+        i = 0;
+        while (environment[i] && lexer->lookahead == environment[i]) {
+          lexer->advance(lexer, false);
+          i++;
+        }
+        if (environment[i] || lexer->lookahead != '}') continue;
+        lexer->advance(lexer, false);
+        if (opening) depth++;
+        else if (--depth == 0) { closed = true; break; }
+        continue;
+      }
+      // An escaped delimiter (or backslash) cannot end/open a formula.
+      if (!lexer->eof(lexer)) lexer->advance(lexer, false);
+    } else if (dollar && lexer->lookahead == '$') {
+      lexer->advance(lexer, false);
+      if (display) {
+        if (lexer->lookahead != '$') continue;
+        lexer->advance(lexer, false);
+      } else {
+        lexer->mark_end(lexer);
+        if ((lexer->lookahead >= '0' && lexer->lookahead <= '9') || lexer->lookahead == '$') return false;
+      }
+      closed = true;
+      break;
+    } else {
+      lexer->advance(lexer, false);
+    }
+    if (lexer->eof(lexer)) return false;
+  }
+  if (!closed) return false;
+  lexer->mark_end(lexer);
+  lexer->result_symbol = symbol;
+  return true;
+}
+
 static bool is_todo_keyword(const char *word, size_t length) {
   static const char *const keywords[] = {
     "TODO",
@@ -210,8 +316,17 @@ bool tree_sitter_org_external_scanner_scan(
     return true;
   }
 
+  if (valid_symbols[LATEX_BLOCK] || valid_symbols[LATEX_FRAGMENT]) {
+    if (lexer->lookahead == '$' || lexer->lookahead == '\\') {
+      return scan_latex(lexer, valid_symbols);
+    }
+  }
+
   if (lexer->get_column(lexer) == 0) {
     while (horizontal_space(lexer->lookahead)) lexer->advance(lexer, false);
+    if (valid_symbols[LATEX_BLOCK] && (lexer->lookahead == '$' || lexer->lookahead == '\\')) {
+      return scan_latex(lexer, valid_symbols);
+    }
     if (lexer->lookahead == ':' &&
         (valid_symbols[DRAWER_BEGIN] || valid_symbols[FIXED_WIDTH_MARKER])) {
       return scan_colon_line(lexer, valid_symbols);

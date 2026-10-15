@@ -5,8 +5,7 @@
       "camelcase": "Org",
       "scope": "source.org",
       "path": ".",
-      "file-types": ["org"],
-      "highlights": "queries/highlights.scm"
+      "file-types": ["org"]
     }
   ],
   "metadata": {

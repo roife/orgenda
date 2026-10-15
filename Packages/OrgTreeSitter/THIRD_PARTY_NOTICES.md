@@ -1,15 +1,13 @@
 # Third-party notices
 
-## tree-sitter
+The TreeSitter runtime is resolved by Swift Package Manager from the official
+<https://github.com/tree-sitter/tree-sitter> repository at version 0.26.3 (MIT).
+Its source is no longer vendored in this package.
 
-- Project: <https://github.com/tree-sitter/tree-sitter>
-- Version: 0.26.3 (`cd4b6e2`)
-- License: MIT (`Vendor/tree-sitter/LICENSE`)
+The generated parser and external scanner use the local `src/tree_sitter/parser.h`
+header from Tree-sitter 0.26.3, licensed under MIT. The license is retained in
+`src/tree_sitter/LICENSE`. These parser support headers are independent of the
+runtime dependency.
 
-The C runtime under `Vendor/tree-sitter` is redistributed and linked into the
-Swift package. The Org grammar itself is original to this package and does not
-copy the source of `tree-sitter-markdown` or another Org grammar.
-
-The unused `src/wasm` support files are omitted; this package does not enable
-`TREE_SITTER_FEATURE_WASM`. The runtime’s disabled-Wasm stubs and Unicode
-decoders are retained because native parsing depends on them.
+The Org grammar is original to this package and does not copy the source of
+`tree-sitter-markdown` or another Org grammar.
