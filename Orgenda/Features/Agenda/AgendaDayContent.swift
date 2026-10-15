@@ -15,15 +15,21 @@ struct AgendaDayContent<Row: View>: View {
         let allDayEvents = dayItems.filter { $0.kind == .event && !$0.hasTime }
         let regularItems = dayItems.filter { !($0.kind == .event && !$0.hasTime) }
         if Calendar.autoupdatingCurrent.isDateInToday(date), overdueCount > 0 {
-            Button("\(overdueCount) overdue", systemImage: "exclamationmark.circle.fill", action: onShowOverdue)
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
-            .tint(OrgendaTheme.overdue)
-            .font(.caption.weight(.semibold))
-            .controlSize(.small)
+            Button(action: onShowOverdue) {
+                Text("\(overdueCount) overdue")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(OrgendaTheme.overdue)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(OrgendaTheme.overdue.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             .accessibilityIdentifier("agenda.showOverdue")
             .padding(.horizontal, 16)
-            .padding(.bottom, 3)
         }
 
         ForEach(allDayEvents) { item in

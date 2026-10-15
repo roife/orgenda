@@ -7,8 +7,6 @@ struct AgendaTodoList<Row: View>: View {
     var body: some View {
         List {
             if !items.isEmpty {
-                Text("Unscheduled · \(items.count) open")
-                    .foregroundStyle(.secondary)
                 ForEach(groupedTodos, id: \.0) { file, items in
                     Section {
                         ForEach(items, content: row)
@@ -41,8 +39,6 @@ struct AgendaOverdueList<Row: View>: View {
     var body: some View {
         List {
             if !items.isEmpty {
-                Text("Overdue · \(items.count) open")
-                    .foregroundStyle(.secondary)
                 ForEach(groupedOverdue, id: \.0) { day, items in
                     Section {
                         ForEach(items, content: row)

@@ -78,12 +78,12 @@ struct AgendaCalendarView<Row: View>: View {
             AgendaCalendarTabletLayout(usesColumns: usesColumns, availableSize: availableSize) {
                 calendarPanel
             } detail: {
-                contentPanel(usesColumns: usesColumns)
+                contentPanel
             }
         } else {
             VStack(spacing: 0) {
                 calendarPanel
-                contentPanel(usesColumns: false)
+                contentPanel
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -97,22 +97,32 @@ struct AgendaCalendarView<Row: View>: View {
             .accessibilityIdentifier("calendar.datePanel")
     }
 
-    private func contentPanel(usesColumns: Bool) -> some View {
+    private var contentPanel: some View {
         VStack(spacing: 0) {
-            if usesColumns {
-                Picker("Calendar", selection: $calendarPage) {
-                    Text("Agenda").tag(CalendarPage.agenda)
-                    Text("Journal").tag(CalendarPage.journal)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .accessibilityIdentifier("calendar.content.picker")
+            Picker("Calendar", selection: $calendarPage) {
+                Text("Agenda").tag(CalendarPage.agenda)
+                Text("Journal").tag(CalendarPage.journal)
             }
-            calendarPages
+            .pickerStyle(.tabs)
+            .frame(maxWidth: 360)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("calendar.content.picker")
+
+            switch calendarPage {
+            case .agenda:
+                agendaTimeline
+            case .journal:
+                journalTimeline
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("calendar.contentPanel")
+        .onChange(of: calendarPage) { _, _ in
+            isScrollingTimeline = false
+            timelineScrollSelection = nil
+        }
     }
 
     private var calendar: some View {
@@ -138,43 +148,27 @@ struct AgendaCalendarView<Row: View>: View {
         )
     }
 
-    private var calendarPages: some View {
+    private var journalTimeline: some View {
         let journalEntries = store.journal(on: store.selectedDate)
-        return TabView(selection: $calendarPage) {
-            agendaTimeline
-                .tag(CalendarPage.agenda)
-                .accessibilityHidden(calendarPage != .agenda)
-
-            ScrollView {
-                JournalDayContent(entries: journalEntries) {
-                    journalCapture = JournalCapture(date: store.selectedDate)
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, journalEntries.isEmpty ? 0 : 16)
-                .padding(.bottom, journalEntries.isEmpty ? 0 : 24)
-                .frame(maxWidth: 760)
-                .frame(maxWidth: .infinity)
+        return ScrollView {
+            JournalDayContent(entries: journalEntries) {
+                journalCapture = JournalCapture(date: store.selectedDate)
             }
-            .defaultScrollAnchor(journalEntries.isEmpty ? .center : .top, for: .alignment)
-            // Keep page identity stable as agenda scrolling selects dates.
-            // Replacing a page here rebuilds the pager during deceleration.
-            .scrollPosition($journalScrollPosition)
-            .onChange(of: store.selectedDate) { _, _ in
-                journalScrollPosition.scrollTo(y: 0)
-            }
-            .scrollIndicators(.hidden)
-            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-            .accessibilityIdentifier("calendar.journal.timeline")
-            .accessibilityValue(OrgendaDatePresentation.relativeDate(store.selectedDate))
-            .tag(CalendarPage.journal)
-            .accessibilityHidden(calendarPage != .journal)
+            .padding(.horizontal, 20)
+            .padding(.top, journalEntries.isEmpty ? 0 : 16)
+            .padding(.bottom, journalEntries.isEmpty ? 0 : 24)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .accessibilityAction(named: Text("Agenda")) { calendarPage = .agenda }
-        .accessibilityAction(named: Text("Journal")) { calendarPage = .journal }
-        .onChange(of: calendarPage) { _, _ in
-            isScrollingTimeline = false
+        .defaultScrollAnchor(journalEntries.isEmpty ? .center : .top, for: .alignment)
+        .scrollPosition($journalScrollPosition)
+        .onChange(of: store.selectedDate) { _, _ in
+            journalScrollPosition.scrollTo(y: 0)
         }
+        .scrollIndicators(.hidden)
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+        .accessibilityIdentifier("calendar.journal.timeline")
+        .accessibilityValue(OrgendaDatePresentation.relativeDate(store.selectedDate))
     }
 
     private var agendaTimeline: some View {
@@ -329,8 +323,7 @@ private struct AgendaCalendarTabletLayout<CalendarPanel: View, Detail: View>: Vi
                         }
                     }
 
-                // A page-style TabView needs a finite proposal inside a scroll
-                // view. Leave a usable agenda viewport below the full calendar.
+                // Leave a usable agenda viewport below the full calendar.
                 detail()
                     .frame(maxWidth: .infinity)
                     .frame(height: detailHeight)

@@ -37,8 +37,6 @@ struct AgendaPerspectiveContent<Row: View>: View {
                     ForEach(groups) { group in
                         Section {
                             ForEach(group.items, content: row)
-                        } header: {
-                            Text("\(group.items.count) open")
                         }
                     }
                 }

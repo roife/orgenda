@@ -188,8 +188,8 @@ struct AgendaView: View {
     @ViewBuilder
     private func perspectiveContent(_ option: Perspective) -> some View {
         switch option {
-        // Keep Calendar's fixed date header separate from its timeline. Other
-        // views extend beneath the system bars for the progressive edge blur.
+        // Keep Calendar's fixed date header separate from its timeline, while
+        // allowing its scroll views to extend beneath the system tab bar.
         case .agenda:
             AgendaCalendarView(
                 store: store, isActive: perspective == .agenda,
@@ -199,7 +199,6 @@ struct AgendaView: View {
                 onShowOverdue: onShowOverdue,
                 row: { configuredItem($0, in: option) }
             )
-            .clipped()
         case .overdue:
             AgendaOverdueList(items: store.overdueItems) { configuredItem($0, in: option) }
         case .todos:

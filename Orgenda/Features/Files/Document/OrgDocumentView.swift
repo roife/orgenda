@@ -80,6 +80,8 @@ struct OrgDocumentView: View {
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("org.document.header")
                 }
+                .sharedBackgroundVisibility(.hidden)
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
                 ToolbarItem(placement: .topBarTrailing) {
                     outlineButton
                 }
