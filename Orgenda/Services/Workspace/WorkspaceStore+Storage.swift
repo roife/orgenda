@@ -5,15 +5,18 @@ extension WorkspaceStore {
     static let storageConnectionKey = "storageConnection.v1"
 
     func finishStorageBeforeSuspending() async {
-        guard isWorkspaceReady else { return }
-        let finishing = Task { await synchronizeFiles() }
+        guard isWorkspaceReady, let localStore else { return }
+        let engine = engineForCurrentSession(localStore)
+        let finishing = Task { await synchronizeFiles(pushOnly: true) }
         let identifier = UIApplication.shared.beginBackgroundTask(withName: "Save workspace") {
             finishing.cancel()
+            Task { await engine.cancelCurrent() }
         }
         await withTaskCancellationHandler {
             await finishing.value
         } onCancel: {
             finishing.cancel()
+            Task { await engine.cancelCurrent() }
         }
         if identifier != .invalid { UIApplication.shared.endBackgroundTask(identifier) }
     }
@@ -27,7 +30,7 @@ extension WorkspaceStore {
                     let backend: any RemoteWorkspaceBackend
                     do { backend = try await WebDAVConnectionFactory.restore(connection) }
                     catch { backend = UnavailableStorageBackend(reason: (error as? StorageError) ?? .configuration(error.localizedDescription)) }
-                    let session = try WorkspaceSession(connection: connection, cacheDirectory: storageCacheDirectory, remote: backend)
+                    let session = try LocalStore(connection: connection, cacheDirectory: storageCacheDirectory, remote: backend)
                     try await restoreSession(session, connection: connection, folderURL: nil)
                 } else {
                     var stale = false
@@ -43,7 +46,7 @@ extension WorkspaceStore {
                         // A revoked bookmark cannot prevent reading the last
                         // complete snapshot. This backend never accesses the URL.
                         let unavailable = UnavailableStorageBackend(reason: .configuration(error.localizedDescription))
-                        let session = try WorkspaceSession(connection: connection, cacheDirectory: storageCacheDirectory, remote: unavailable)
+                        let session = try LocalStore(connection: connection, cacheDirectory: storageCacheDirectory, remote: unavailable)
                         try await restoreSession(session, connection: connection, folderURL: nil)
                         return
                     }
@@ -55,7 +58,7 @@ extension WorkspaceStore {
                             restored.bookmark = try url.bookmarkData(options: .minimalBookmark,
                                 includingResourceValuesForKeys: nil, relativeTo: nil)
                         }
-                        let session = try WorkspaceSession(connection: restored, cacheDirectory: storageCacheDirectory, folder: folder)
+                        let session = try LocalStore(connection: restored, cacheDirectory: storageCacheDirectory, folder: folder)
                         try await restoreSession(session, connection: restored, folderURL: access ? url : nil)
                         if stale { defaults.set(try JSONEncoder().encode(restored), forKey: Self.storageConnectionKey) }
                     } catch {
@@ -75,7 +78,7 @@ extension WorkspaceStore {
         } catch { if !(error is CancellationError) { reportStorageError(error) } }
     }
 
-    private func restoreSession(_ session: WorkspaceSession, connection: StorageConnection, folderURL: URL?) async throws {
+    private func restoreSession(_ session: LocalStore, connection: StorageConnection, folderURL: URL?) async throws {
         if let cached = try? await session.snapshot() {
             try Task.checkCancellation()
             activateSession(session, connection: connection, snapshot: cached, folderURL: folderURL)
@@ -98,9 +101,9 @@ extension WorkspaceStore {
         do {
             let root = url.resolvingSymlinksInPath().standardizedFileURL.path
             if var connection = storageConnection, connection.rootID == root, !connection.provider.isRemote,
-               let workspaceSession {
+               let localStore {
                 await persistFileEdits()
-                try await workspaceSession.replaceFolderBackend(WorkspaceFileStore(rootURL: url))
+                try await localStore.replaceFolderBackend(WorkspaceFileStore(rootURL: url))
                 if remember {
                     connection.bookmark = try url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
                     defaults.set(try JSONEncoder().encode(connection), forKey: Self.storageConnectionKey)
@@ -112,7 +115,7 @@ extension WorkspaceStore {
                 return
             }
             let cloud = (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]).isUbiquitousItem) == true
-            let digest = WorkspaceSession.digest(Data(root.utf8))
+            let digest = LocalStore.digest(Data(root.utf8))
             let hex = Array(digest.prefix(32))
             let uuidString = String(hex[0..<8]) + "-" + String(hex[8..<12]) + "-" + String(hex[12..<16])
                 + "-" + String(hex[16..<20]) + "-" + String(hex[20..<32])
@@ -122,7 +125,7 @@ extension WorkspaceStore {
             if remember {
                 connection.bookmark = try url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
             }
-            let session = try WorkspaceSession(connection: connection, cacheDirectory: storageCacheDirectory,
+            let session = try LocalStore(connection: connection, cacheDirectory: storageCacheDirectory,
                                                folder: WorkspaceFileStore(rootURL: url))
             let previous = try await replaceStorageSession(session, connection: connection,
                 folderURL: access ? url : nil, defaults: defaults, remember: remember,
@@ -146,7 +149,7 @@ extension WorkspaceStore {
     /// Renew access to the same account and root without rebinding its outbox.
     func reconnectStorage(webDAVPassword: String) async -> Bool {
         guard !isChangingStorage, !isSavingConfiguration, let original = storageConnection, original.provider.isRemote,
-              let workspaceSession else { return false }
+              let localStore else { return false }
         isChangingStorage = true
         defer { isChangingStorage = false }
         let identity = workspaceFileSessionID
@@ -158,7 +161,7 @@ extension WorkspaceStore {
                   await waitForFileOperation() else { throw StorageError.rootUnavailable }
             await persistFileEdits()
             guard identity == workspaceFileSessionID else { throw StorageError.rootUnavailable }
-            try await workspaceSession.replaceRemoteBackend(refreshed.backend)
+            try await localStore.replaceRemoteBackend(refreshed.backend)
             connectionDefaults.set(try JSONEncoder().encode(refreshed.connection), forKey: Self.storageConnectionKey)
             storageConnection = refreshed.connection
             if original.credentialKey != refreshed.connection.credentialKey {
@@ -185,7 +188,7 @@ extension WorkspaceStore {
         do {
             let candidate = try await prepare()
             prepared = candidate
-            let session = try WorkspaceSession(connection: candidate.connection, cacheDirectory: storageCacheDirectory,
+            let session = try LocalStore(connection: candidate.connection, cacheDirectory: storageCacheDirectory,
                                                remote: candidate.backend)
             let previous = try await replaceStorageSession(session, connection: candidate.connection,
                                                            preservePending: preservePending)
@@ -219,7 +222,7 @@ extension WorkspaceStore {
     /// Both folder and WebDAV connections validate and preserve the old workspace
     /// before making the new session active. Credential cleanup stays with the caller.
     private func replaceStorageSession(
-        _ session: WorkspaceSession, connection: StorageConnection, folderURL: URL? = nil,
+        _ session: LocalStore, connection: StorageConnection, folderURL: URL? = nil,
         defaults: UserDefaults? = nil, remember: Bool = true, preservePending: Bool
     ) async throws -> StorageConnection? {
         try await session.synchronize()
@@ -243,27 +246,23 @@ extension WorkspaceStore {
 
     private func prepareStorageReplacement(preservePending: Bool) async throws -> StorageReplacement {
         guard await waitForFileOperation() else { throw CancellationError() }
-        isSynchronizing = true
-        defer { isSynchronizing = false }
         await persistFileEdits()
         guard dirtyFilePaths.isEmpty else { throw StorageError.configuration(String(localized: "Save changes on this device before replacing this connection.")) }
         guard hasPendingStorageChanges else {
             return StorageReplacement(retiredSession: nil, generation: storageContentGeneration, sessionID: workspaceFileSessionID)
         }
         if !preservePending {
-            isSynchronizing = false
             await synchronizeFiles()
-            isSynchronizing = true
             guard !hasPendingStorageChanges else {
                 throw StorageError.configuration(String(localized: "Sync pending edits first, or keep a local copy before changing storage."))
             }
-        } else if let workspaceSession {
+        } else if let localStore {
             let originalDocuments = documents
-            try await workspaceSession.archiveUnsynced()
+            try await localStore.archiveUnsynced()
             guard dirtyFilePaths.isEmpty, documents == originalDocuments else {
                 throw StorageError.configuration(String(localized: "The workspace changed while keeping a copy. Finish editing and try again."))
             }
-            return StorageReplacement(retiredSession: workspaceSession, generation: storageContentGeneration, sessionID: workspaceFileSessionID)
+            return StorageReplacement(retiredSession: localStore, generation: storageContentGeneration, sessionID: workspaceFileSessionID)
         }
         return StorageReplacement(retiredSession: nil, generation: storageContentGeneration, sessionID: workspaceFileSessionID)
     }
@@ -275,14 +274,14 @@ extension WorkspaceStore {
         }
     }
 
-    private func activateSession(_ session: WorkspaceSession, connection: StorageConnection,
-                                 snapshot: WorkspaceSessionSnapshot, folderURL: URL?) {
+    private func activateSession(_ session: LocalStore, connection: StorageConnection,
+                                 snapshot: WorkspaceSnapshot, folderURL: URL?) {
         folderAccessURL?.stopAccessingSecurityScopedResource()
         folderAccessURL = folderURL
         fileSaveTask?.cancel()
         fileSaveTask = nil
         workspaceFileSessionID = UUID()
-        workspaceSession = session
+        localStore = session
         appliedStorageRevision = 0
         storageConnection = connection
         isFolderConnected = true
@@ -301,9 +300,14 @@ extension WorkspaceStore {
         demoDeletedFiles = [:]
         fileSaveErrors = [:]
         fileSyncError = nil
-        automaticSyncRetryAt = nil
-        serverSyncRetryAt = nil
-        syncFailureCount = 0
+        storageObservationTask?.cancel()
+        syncStatusTask?.cancel()
+        folderMonitor?.stop()
+        if let previousEngine = syncEngine { Task { await previousEngine.stop() } }
+        syncEngine = nil
+        syncRetryAt = nil
+        let engine = engineForCurrentSession(session)
+        Task { await engine.setForeground(self.isStorageForeground) }
         dirtyFilePaths = []
         externalDocumentRevisions = [:]
         resetWorkspaceIndex()
@@ -314,34 +318,43 @@ extension WorkspaceStore {
         scheduleWorkspaceParse()
     }
 
-    func applyStorageSnapshot(_ snapshot: WorkspaceSessionSnapshot) {
+    func applyStorageSnapshot(_ snapshot: WorkspaceSnapshot) {
         guard snapshot.revision >= appliedStorageRevision else { return }
         appliedStorageRevision = snapshot.revision
         pendingUploadPaths = snapshot.pendingPaths
+        pathSyncErrors = snapshot.uploadErrors
         hasPendingStorageOperation = snapshot.hasPendingOperation
         syncConflicts = snapshot.conflicts
         lastFileSync = snapshot.lastSync
         // This baseline describes the local durable copy, not cloud contents.
-        let previousBaseline = persistedContents
-        persistedContents = Dictionary(uniqueKeysWithValues: snapshot.documents.filter { $0.kind != .folder }.map { ($0.path, $0.contents) })
+        let previousBaseline = Dictionary(uniqueKeysWithValues: dirtyFilePaths.compactMap { path in persistedBlobs[path].map { (path, $0) } })
+        let retired = snapshot.isComplete ? Set(documentsByPath.keys).subtracting(snapshot.documents.map(\.path)) : snapshot.removedPaths
+        for path in retired { retiredBlobs[path] = persistedBlobs[path] }
+        if snapshot.isComplete { persistedBlobs = snapshot.blobHashes }
+        else {
+            for path in snapshot.removedPaths { persistedBlobs.removeValue(forKey: path) }
+            persistedBlobs.merge(snapshot.blobHashes) { _, new in new }
+        }
         // An editor's uncommitted bytes still belong to the baseline it saw.
         // Advancing that baseline would authorize overwriting an unseen update
         // on the next save retry. Session.write records this race as a conflict.
-        for path in dirtyFilePaths { persistedContents[path] = previousBaseline[path] }
-        let configChanged = acceptConfiguration(snapshot.documents.first { $0.path == "config.json" }?.contents)
-        acceptDiskDocuments(snapshot.documents)
+        for path in dirtyFilePaths { persistedBlobs[path] = previousBaseline[path] }
+        let hasConfiguration = snapshot.isComplete || snapshot.removedPaths.contains("config.json") || snapshot.documents.contains { $0.path == "config.json" }
+        let configChanged = hasConfiguration && acceptConfiguration(snapshot.documents.first { $0.path == "config.json" }?.contents)
+        if snapshot.isComplete { acceptDiskDocuments(snapshot.documents) }
+        else { acceptStorageDelta(snapshot) }
         if configChanged { scheduleWorkspaceParse() }
         if !syncConflicts.isEmpty { syncState = .conflict(syncConflicts.count) }
         else if !dirtyFilePaths.isEmpty { syncState = .saving }
-        else if !pendingUploadPaths.isEmpty { syncState = .pending(pendingUploadPaths.count) }
+        else if !pendingUploadPaths.isEmpty || hasPendingStorageOperation { syncState = .pending(max(1, pendingUploadPaths.count)) }
         else { syncState = storageConnection?.provider.isRemote == true ? .synced : .folderUpdated }
     }
 
     func queueFileSave(paths: Set<String>) {
         guard isWorkspaceReady else { return }
         for path in paths {
-            if let document = documents.first(where: { $0.path == path }), document.kind != .folder,
-               !document.contents.utf8.elementsEqual((persistedContents[path] ?? "").utf8) || persistedContents[path] == nil {
+            if let document = documentsByPath[path], document.kind != .folder,
+               LocalStore.digest(Data(document.contents.utf8)) != persistedBlobs[path] {
                 dirtyFilePaths.insert(path)
             }
         }
@@ -353,28 +366,34 @@ extension WorkspaceStore {
             guard !Task.isCancelled else { return }
             await self?.persistFileEdits()
             guard !Task.isCancelled else { return }
-            await self?.synchronizeFiles(automatic: true)
+            await self?.synchronizeFiles(automatic: true, pushOnly: true)
         }
     }
 
     /// Local commits are independent of network synchronization. Actor
     /// reentrancy lets a new edit be saved even while an upload is in flight.
     func persistFileEdits() async {
-        while isPersistingEdits {
-            do { try await Task.sleep(for: .milliseconds(10)) } catch { return }
+        if let persistenceTask { await persistenceTask.value; return }
+        let barrier = Task { [weak self] in
+            guard let self else { return }
+            await self.commitFileEdits()
         }
-        guard let workspaceSession, !dirtyFilePaths.isEmpty else { return }
-        isPersistingEdits = true
-        defer { isPersistingEdits = false }
+        persistenceTask = barrier
+        await barrier.value
+        persistenceTask = nil
+    }
+
+    private func commitFileEdits() async {
+        guard let localStore, !dirtyFilePaths.isEmpty else { return }
         let identity = workspaceFileSessionID
         for path in dirtyFilePaths.sorted() {
-            guard let contents = documents.first(where: { $0.path == path })?.contents else { continue }
+            guard let contents = documentsByPath[path]?.contents else { continue }
             do {
-                try await workspaceSession.write(path: path, contents: contents, expectedContents: persistedContents[path])
+                try await localStore.write(path: path, contents: contents, expectedBlob: persistedBlobs[path])
                 guard identity == workspaceFileSessionID else { return }
-                persistedContents[path] = contents
+                persistedBlobs[path] = LocalStore.digest(Data(contents.utf8))
                 fileSaveErrors.removeValue(forKey: path)
-                if documents.first(where: { $0.path == path })?.contents.utf8.elementsEqual(contents.utf8) == true {
+                if documentsByPath[path]?.contents.utf8.elementsEqual(contents.utf8) == true {
                     dirtyFilePaths.remove(path)
                 }
             } catch {
@@ -382,78 +401,104 @@ extension WorkspaceStore {
                 fileSaveErrors[path] = error.localizedDescription
                 fileSyncError = error.localizedDescription
                 syncState = .failed(error.localizedDescription)
-                try? await workspaceSession.preserveUnsaved(contents, path: path)
+                try? await localStore.preserveUnsaved(contents, path: path)
             }
         }
-        if let snapshot = try? await workspaceSession.snapshot(), identity == workspaceFileSessionID {
+        if let snapshot = try? await localStore.snapshot(since: appliedStorageRevision), identity == workspaceFileSessionID {
             applyStorageSnapshot(snapshot)
         }
     }
 
-    func synchronizeFiles(automatic: Bool = false) async {
+    func synchronizeFiles(automatic: Bool = false, pushOnly: Bool = false) async {
         await persistFileEdits()
-        guard !isSynchronizing, let workspaceSession, !Task.isCancelled else { return }
+        guard let localStore, !Task.isCancelled else { return }
         if automatic && isChangingStorage { return }
-        if let serverSyncRetryAt, serverSyncRetryAt > .now { return }
-        if automatic, let automaticSyncRetryAt, automaticSyncRetryAt > .now { return }
-        isSynchronizing = true
+        let engine = engineForCurrentSession(localStore)
         let identity = workspaceFileSessionID
-        defer { if identity == workspaceFileSessionID { isSynchronizing = false } }
-        syncState = .syncing
-        var failure: Error?
         do {
-            try await workspaceSession.synchronize()
-            let snapshot = try await workspaceSession.snapshot()
+            try await engine.request(pushOnly ? .push : .full, automatic: automatic)
             guard identity == workspaceFileSessionID else { return }
-            applyStorageSnapshot(snapshot)
-        } catch { failure = error }
-        guard identity == workspaceFileSessionID else { return }
-        if let failure {
-            if let snapshot = try? await workspaceSession.snapshot(), identity == workspaceFileSessionID {
-                applyStorageSnapshot(snapshot)
-            }
-            guard identity == workspaceFileSessionID else { return }
-            syncFailureCount = min(syncFailureCount + 1, 8)
-            let delay = min(300, pow(2, Double(syncFailureCount)) * 2)
-            automaticSyncRetryAt = .now.addingTimeInterval(delay)
-            reportStorageError(failure)
-        }
-        else if !syncConflicts.isEmpty { fileSyncError = String(localized: "Resolve the conflicting files to finish syncing.") }
-        else {
-            syncFailureCount = 0
-            automaticSyncRetryAt = nil
-            serverSyncRetryAt = nil
+            applyStorageSnapshot(try await localStore.snapshot(since: appliedStorageRevision))
             fileSyncError = fileSaveErrors.values.first
+        } catch {
+            guard identity == workspaceFileSessionID else { return }
+            if let snapshot = try? await localStore.snapshot(since: appliedStorageRevision) { applyStorageSnapshot(snapshot) }
+            reportStorageError(error)
         }
-        if fileSyncError != nil {
-            for path in dirtyFilePaths.union(pendingUploadPaths) {
-                if let contents = documents.first(where: { $0.path == path })?.contents {
-                    try? await workspaceSession.preserveUnsaved(contents, path: path)
+    }
+
+    func engineForCurrentSession(_ session: LocalStore) -> SyncEngine {
+        if let syncEngine { return syncEngine }
+        let engine = SyncEngine(store: session)
+        syncEngine = engine
+        observeStorage(session, engine: engine)
+        return engine
+    }
+
+    private func observeStorage(_ session: LocalStore, engine: SyncEngine) {
+        let identity = workspaceFileSessionID
+        storageObservationTask = Task { [weak self] in
+            for await _ in await session.deltas() {
+                guard !Task.isCancelled, let self, identity == self.workspaceFileSessionID else { return }
+                if let delta = try? await session.snapshot(since: self.appliedStorageRevision) { self.applyStorageSnapshot(delta) }
+            }
+        }
+        syncStatusTask = Task { [weak self] in
+            await engine.start()
+            for await status in await engine.updates() {
+                guard !Task.isCancelled, let self, identity == self.workspaceFileSessionID else { return }
+                self.isSynchronizing = status.isSynchronizing
+                self.syncRetryAt = status.retryAt
+                if status.isSynchronizing { self.syncState = .syncing }
+                else if let error = status.storageError { self.reportStorageError(error) }
+                else if let message = status.error { self.fileSyncError = message; self.syncState = .failed(message) }
+                else if let snapshot = try? await session.snapshot(since: self.appliedStorageRevision) {
+                    self.applyStorageSnapshot(snapshot)
+                    self.fileSyncError = self.fileSaveErrors.values.first
                 }
             }
         }
+        if let url = folderAccessURL ?? (storageConnection?.provider.isRemote == false ? URL(fileURLWithPath: session.connection.rootID) : nil) {
+            folderMonitor = WorkspaceFolderMonitor(root: url, ubiquitous: session.connection.provider == .iCloud) { [weak engine] paths in
+                Task { try? await engine?.sourceChanged(paths: paths) }
+            }
+        }
+    }
+
+    func setStorageForeground(_ active: Bool) async {
+        isStorageForeground = active
+        guard let localStore else { return }
+        await engineForCurrentSession(localStore).setForeground(active)
+    }
+
+    func stopStorageObservation() async {
+        fileSaveTask?.cancel()
+        storageObservationTask?.cancel()
+        syncStatusTask?.cancel()
+        folderMonitor?.stop()
+        folderMonitor = nil
+        await syncEngine?.stop()
+        await localStore?.close()
     }
 
     func resolveSyncConflict(path: String, resolution: WorkspaceConflictResolution,
                              expectedConflict: WorkspaceConflict? = nil) async {
         await persistFileEdits()
-        guard let workspaceSession, await waitForFileOperation() else { return }
+        guard let localStore, await waitForFileOperation() else { return }
         if let expectedConflict, syncConflicts.first(where: { $0.path == path }) != expectedConflict {
             reportStorageError(StorageError.conflict(path))
             return
         }
         let identity = workspaceFileSessionID
-        isSynchronizing = true
-        defer { if identity == workspaceFileSessionID { isSynchronizing = false } }
         do {
-            try await workspaceSession.resolveConflict(path: path, resolution: resolution)
+            try await engineForCurrentSession(localStore).resolveConflict(path: path, resolution: resolution)
             guard identity == workspaceFileSessionID else { return }
-            applyStorageSnapshot(try await workspaceSession.snapshot())
+            applyStorageSnapshot(try await localStore.snapshot(since: appliedStorageRevision))
             fileSyncError = syncConflicts.isEmpty ? nil : String(localized: "Resolve the conflicting files to finish syncing.")
             await waitForWorkspaceIndex()
         } catch {
             guard identity == workspaceFileSessionID else { return }
-            if let snapshot = try? await workspaceSession.snapshot() { applyStorageSnapshot(snapshot) }
+            if let snapshot = try? await localStore.snapshot(since: appliedStorageRevision) { applyStorageSnapshot(snapshot) }
             reportStorageError(error)
         }
     }
@@ -461,10 +506,10 @@ extension WorkspaceStore {
     @discardableResult
     func adoptFolderVersions() async -> Bool {
         await persistFileEdits()
-        guard let workspaceSession else { return false }
+        guard let localStore else { return false }
         for path in dirtyFilePaths.union(pendingUploadPaths) {
-            if let document = documents.first(where: { $0.path == path }) {
-                do { try await workspaceSession.preserveUnsaved(document.contents, path: path) }
+            if let document = documentsByPath[path] {
+                do { try await localStore.preserveUnsaved(document.contents, path: path) }
                 catch { reportStorageError(error); return false }
             }
         }
@@ -474,7 +519,7 @@ extension WorkspaceStore {
         for conflict in syncConflicts {
             await resolveSyncConflict(path: conflict.path, resolution: .useRemote)
         }
-        if let snapshot = try? await workspaceSession.snapshot() { applyStorageSnapshot(snapshot) }
+        if let snapshot = try? await localStore.snapshot(since: appliedStorageRevision) { applyStorageSnapshot(snapshot) }
         return !hasPendingStorageChanges && fileSyncError == nil
     }
 
@@ -483,8 +528,7 @@ extension WorkspaceStore {
         switch error {
         case StorageError.authenticationRequired: syncState = .authenticationRequired
         case StorageError.offline: syncState = .offline
-        case StorageError.throttled(let delay):
-            serverSyncRetryAt = .now.addingTimeInterval(delay)
+        case StorageError.throttled:
             syncState = .failed(error.localizedDescription)
         case let url as URLError where [.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost, .cannotFindHost].contains(url.code):
             syncState = .offline
@@ -494,7 +538,7 @@ extension WorkspaceStore {
 }
 
 private struct StorageReplacement {
-    let retiredSession: WorkspaceSession?
+    let retiredSession: LocalStore?
     let generation: UInt64
     let sessionID: UUID
 }

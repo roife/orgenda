@@ -69,19 +69,24 @@ struct WorkspaceConflict: Codable, Equatable, Sendable, Identifiable {
     var remoteRevision: String?
     var detectedAt: Date
     var remoteModifiedAt: Date?
+    var isOperation = false
 }
 
 enum WorkspaceConflictResolution: String, CaseIterable, Sendable {
     case keepBoth, useLocal, useRemote
 }
 
-struct WorkspaceSessionSnapshot: Sendable {
+struct WorkspaceSnapshot: Sendable {
     var documents: [WorkspaceDocument]
     var pendingPaths: Set<String>
     var conflicts: [WorkspaceConflict]
     var lastSync: Date?
     var hasPendingOperation: Bool = false
     var revision: UInt64 = 0
+    var blobHashes: [String: String] = [:]
+    var removedPaths: Set<String> = []
+    var isComplete = true
+    var uploadErrors: [String: String] = [:]
 }
 
 struct WebDAVConfiguration: Sendable {

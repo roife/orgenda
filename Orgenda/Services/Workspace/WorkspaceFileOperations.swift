@@ -24,7 +24,7 @@ extension WorkspaceStore {
             guard !self.documents.contains(where: { WorkspaceFileTransfer.contains($0.path, in: destination) }) else {
                 throw WorkspaceFileActionError.nameExists
             }
-            if let disk = self.workspaceSession {
+            if let disk = self.localStore {
                 try await disk.move(path: source, to: destination, expected: transfer.snapshot)
             }
             var moved = self.documents.map { document in
@@ -45,7 +45,7 @@ extension WorkspaceStore {
             for index in self.journalEntries.indices where WorkspaceFileTransfer.contains(self.journalEntries[index].source.file, in: source) {
                 self.journalEntries[index].source.file = destination + self.journalEntries[index].source.file.dropFirst(source.count)
             }
-            if let session = self.workspaceSession {
+            if let session = self.localStore {
                 // Edits can finish while the provider is moving an item. Keep
                 // those unsaved bytes and their original baseline at its new
                 // path; a later save must never recreate the old source path.
@@ -54,7 +54,7 @@ extension WorkspaceStore {
                     let target = destination + path.dropFirst(source.count)
                     self.dirtyFilePaths.remove(path)
                     self.dirtyFilePaths.insert(target)
-                    self.persistedContents[target] = self.persistedContents.removeValue(forKey: path)
+                    self.persistedBlobs[target] = self.persistedBlobs.removeValue(forKey: path)
                     self.fileSaveErrors[target] = self.fileSaveErrors.removeValue(forKey: path)
                 }
                 self.documents = moved
@@ -63,7 +63,7 @@ extension WorkspaceStore {
             } else {
                 self.acceptFileActionDocuments(moved)
             }
-            if let document = self.documents.first(where: { $0.path == destination }) {
+            if let document = self.documentsByPath[destination] {
                 self.fileUndo = .move(self.fileTransfer(document), originalFolder: (source as NSString).deletingLastPathComponent)
             }
         }
@@ -74,7 +74,7 @@ extension WorkspaceStore {
         await performFileAction {
             try self.validateFileTransfer(transfer)
             let entry: WorkspaceTrashEntry
-            if let disk = self.workspaceSession {
+            if let disk = self.localStore {
                 entry = try await disk.trash(document: transfer.document, expected: transfer.snapshot)
             } else {
                 entry = WorkspaceTrashEntry(id: UUID(), originalPath: transfer.document.path,
@@ -85,7 +85,7 @@ extension WorkspaceStore {
                 !WorkspaceFileTransfer.contains($0.path, in: transfer.document.path)
             }
             self.keepDemoParentFolders(of: transfer.document.path, in: &remaining)
-            if let session = self.workspaceSession {
+            if let session = self.localStore {
                 // A draft that arrived during deletion keeps its old baseline.
                 // Committing it against the now-missing item records a deletion
                 // conflict instead of silently resurrecting the source file.
@@ -106,7 +106,7 @@ extension WorkspaceStore {
             guard !self.documents.contains(where: { WorkspaceFileTransfer.contains($0.path, in: entry.originalPath) }) else {
                 throw WorkspaceFileActionError.nameExists
             }
-            if let disk = self.workspaceSession {
+            if let disk = self.localStore {
                 try await disk.restore(entry)
                 // The move already succeeded. Even if the next provider read fails,
                 // do not offer a second restore or report the payload as deleted.
@@ -138,7 +138,7 @@ extension WorkspaceStore {
     }
 
     func reloadDeletedFiles() async {
-        guard let disk = workspaceSession else { return }
+        guard let disk = localStore else { return }
         let session = workspaceFileSessionID
         do {
             let entries = try await disk.deletedEntries()
@@ -159,18 +159,16 @@ extension WorkspaceStore {
         isPerformingFileAction = true
         defer { isPerformingFileAction = false }
         fileActionError = nil
-        await synchronizeFiles()
-        guard !isSynchronizing, !hasPendingStorageChanges, fileSyncError == nil, !Task.isCancelled else {
+        await persistFileEdits()
+        guard dirtyFilePaths.isEmpty, fileSaveErrors.isEmpty, !Task.isCancelled else {
             fileActionError = WorkspaceFileActionError.busy.localizedDescription
             return false
         }
-        isSynchronizing = true
-        defer { isSynchronizing = false }
         do {
             try await operation()
             await persistFileEdits()
             await waitForWorkspaceIndex()
-            lastFileSync = .now
+            Task { await self.synchronizeFiles(automatic: true, pushOnly: true) }
             return true
         } catch {
             fileActionError = error.localizedDescription
@@ -181,7 +179,7 @@ extension WorkspaceStore {
     private func acceptFileActionDocuments(_ next: [WorkspaceDocument]) {
         fileSaveTask?.cancel()
         fileSaveTask = nil
-        persistedContents = Dictionary(uniqueKeysWithValues: next.filter { $0.kind != .folder }.map { ($0.path, $0.contents) })
+        persistedBlobs = Dictionary(uniqueKeysWithValues: next.filter { $0.kind != .folder }.map { ($0.path, LocalStore.digest(Data($0.contents.utf8))) })
         acceptDiskDocuments(next)
         scheduleWorkspaceParse()
     }
@@ -189,7 +187,7 @@ extension WorkspaceStore {
     /// Demo documents may start in implicit directories. A filesystem move or
     /// deletion leaves those parents in place, even when their last child leaves.
     private func keepDemoParentFolders(of path: String, in next: inout [WorkspaceDocument]) {
-        guard workspaceSession == nil else { return }
+        guard localStore == nil else { return }
         var parent = (path as NSString).deletingLastPathComponent
         while !parent.isEmpty {
             if !next.contains(where: { $0.path == parent }) {

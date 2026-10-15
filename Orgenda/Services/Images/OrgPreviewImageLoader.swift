@@ -62,7 +62,7 @@ actor OrgPreviewImageLoader {
         self.maxPixelDimension = maxPixelDimension
     }
 
-    func load(candidates: [String], workspaceSession: WorkspaceSession?) async throws -> UIImage {
+    func load(candidates: [String], localStore: LocalStore?) async throws -> UIImage {
         try Task.checkCancellation()
         for candidate in candidates {
             try Task.checkCancellation()
@@ -72,9 +72,9 @@ actor OrgPreviewImageLoader {
                 guard OrgImageRedirectDelegate.isAllowed(url) else { throw Failure.invalidURL }
                 data = try await remoteData(from: url)
             } else {
-                guard let workspaceSession else { throw Failure.workspaceUnavailable }
+                guard let localStore else { throw Failure.workspaceUnavailable }
                 do {
-                    data = try await workspaceSession.readImageData(path: candidate, maxBytes: maxBytes)
+                    data = try await localStore.readImageData(path: candidate, maxBytes: maxBytes)
                 } catch {
                     try Task.checkCancellation()
                     // Alternate attachment locations may be tried only when a

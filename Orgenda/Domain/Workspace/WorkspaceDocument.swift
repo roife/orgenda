@@ -1,7 +1,8 @@
 import Foundation
 
 struct WorkspaceDocument: Identifiable, Hashable, Codable, Sendable {
-    var id: String { path }
+    var id: String { fileID?.uuidString ?? path }
+    var fileID: UUID? = nil
     var path: String
     var title: String
     var contents: String

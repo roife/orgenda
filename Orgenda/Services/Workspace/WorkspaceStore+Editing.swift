@@ -201,7 +201,7 @@ extension WorkspaceStore {
     func exactSource(for item: OrgItem) -> String? {
         let current = items.first(where: { $0.id == item.id }) ?? item
         guard let resolved = resolvedHeading(for: current),
-              let source = documents.first(where: { $0.path == current.source.file })?.contents
+              let source = documentsByPath[current.source.file]?.contents
         else { return nil }
         return String(decoding: source.utf8.dropFirst(resolved.heading.source.startByte)
             .prefix(resolved.heading.source.endByte - resolved.heading.source.startByte), as: UTF8.self)
@@ -242,9 +242,16 @@ extension WorkspaceStore {
     }
 
     func updateDocument(path: String, contents: String) {
-        guard let index = documents.firstIndex(where: { $0.path == path }) else { return }
-        guard documents[index].contents != contents else { return }
-        documents[index].contents = contents
+        var document: WorkspaceDocument
+        if let existing = documentsByPath[path] { document = existing }
+        else if let baseline = retiredBlobs[path], let kind = WorkspaceDocument.Kind(path: path) {
+            document = WorkspaceDocument(path: path, title: (path as NSString).lastPathComponent, contents: "", kind: kind)
+            persistedBlobs[path] = baseline
+        } else { return }
+        guard !document.contents.utf8.elementsEqual(contents.utf8) else { return }
+        document.contents = contents
+        documentsByPath[path] = document
+        storageContentGeneration &+= 1
         scheduleWorkspaceRefresh(changedPaths: [path], debounce: .milliseconds(400))
     }
 
@@ -375,7 +382,7 @@ extension WorkspaceStore {
         document: ParsedOrgDocument, heading: IndexedOrgHeading,
         node: ParsedOrgNode, following: [ParsedOrgNode]
     )? {
-        guard let source = documents.first(where: { $0.path == item.source.file }) else { return nil }
+        guard let source = documentsByPath[item.source.file] else { return nil }
         let parsed: ParsedOrgDocument?
         if let cached = parsedDocuments[source.path], cached.root.text == source.contents {
             parsed = cached
@@ -476,7 +483,7 @@ extension WorkspaceStore {
 
     private func appendCapture(_ item: OrgItem, template: OrgCaptureTemplate, firstAction: String?) -> Bool {
         let path = template.destinationPath
-        let old = documents.first(where: { $0.path == path })?.contents ?? ""
+        let old = documentsByPath[path]?.contents ?? ""
         let source = template.source(for: item, firstAction: firstAction ?? "")
         var insertion = old.utf8.count
         var fragment = source

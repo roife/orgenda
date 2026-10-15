@@ -3,48 +3,95 @@ import Foundation
 actor WebDAVBackend: RemoteWorkspaceBackend {
     let rootURL: URL
     let transport: any StorageHTTPTransport
+    private var activeRequests = 0
+    private var requestWaiters: [(UUID, CheckedContinuation<Void, Error>)] = []
 
     init(rootURL: URL, transport: any StorageHTTPTransport) {
         self.rootURL = rootURL; self.transport = transport
+    }
+
+    private var isNutstore: Bool { rootURL.host?.lowercased() == "dav.jianguoyun.com" }
+
+    private func conditionalETag(_ value: String?) -> String? {
+        if let strong = StorageHTTP.strongETag(value) { return strong }
+        // Nutstore returns bare version identifiers. Preserve them exactly;
+        // verifyWritable exercises real stale-version rejection before setup.
+        guard isNutstore, let value, !value.isEmpty, !value.uppercased().hasPrefix("W/"),
+              value.utf8.allSatisfy({ (0x21...0x7E).contains($0) && ![0x22, 0x2A, 0x2C].contains($0) }) else { return nil }
+        return value
     }
 
     func scan() async throws -> RemoteScan {
         let root = try await properties(path: "", depth: 0)
         guard root.count == 1, root[0].path.isEmpty, root[0].isDirectory else { throw StorageError.rootUnavailable }
         var queue = [""], files: [RemoteFile] = [], visited = Set<String>()
+        var unavailable: [String: String] = [:]
         while !queue.isEmpty {
             try Task.checkCancellation()
-            let parent = queue.removeFirst()
-            let listing = try await properties(path: parent, depth: 1)
-            let selfEntries = listing.filter { $0.path == parent }
-            guard selfEntries.count == 1, selfEntries[0].isDirectory else { throw StorageError.conflict(parent) }
-            for file in listing where file.path != parent {
-                guard (file.path as NSString).deletingLastPathComponent == parent, visited.insert(file.path).inserted else {
-                    throw StorageError.invalidResponse
+            let parents = Array(queue.prefix(4))
+            queue.removeFirst(parents.count)
+            let listings = await withTaskGroup(of: (String, Result<[RemoteFile], Error>).self) { group in
+                for parent in parents { group.addTask {
+                    do { return (parent, .success(try await self.properties(path: parent, depth: 1))) }
+                    catch { return (parent, .failure(error)) }
+                } }
+                var result: [(String, Result<[RemoteFile], Error>)] = []
+                for await listing in group { result.append(listing) }
+                return result
+            }
+            for (parent, result) in listings {
+                let listing: [RemoteFile]
+                switch result {
+                case .success(let value): listing = value
+                case .failure(let error):
+                    if parent.isEmpty || error is CancellationError || LocalStore.isUnavailable(error) { throw error }
+                    if case StorageError.throttled = error { throw error }
+                    unavailable[parent] = error.localizedDescription
+                    continue
                 }
-                files.append(file)
-                if file.isDirectory { queue.append(file.path) }
-                guard files.count <= StorageHTTP.maximumEntries else { throw StorageError.tooLarge }
+                let selfEntries = listing.filter { $0.path == parent }
+                guard selfEntries.count == 1, selfEntries[0].isDirectory else {
+                    if parent.isEmpty { throw StorageError.invalidResponse }
+                    unavailable[parent] = StorageError.invalidResponse.localizedDescription
+                    continue
+                }
+                var paths = Set<String>()
+                let children = listing.filter { $0.path != parent }
+                guard children.allSatisfy({ ($0.path as NSString).deletingLastPathComponent == parent && paths.insert($0.path).inserted && !visited.contains($0.path) }) else {
+                    if parent.isEmpty { throw StorageError.invalidResponse }
+                    unavailable[parent] = StorageError.invalidResponse.localizedDescription
+                    continue
+                }
+                for file in children {
+                    visited.insert(file.path)
+                    files.append(file)
+                    if file.isDirectory { queue.append(file.path) }
+                    guard files.count <= StorageHTTP.maximumEntries else { throw StorageError.tooLarge }
+                }
             }
         }
-        // Failure in any child throws instead of publishing a partial snapshot.
-        return RemoteScan(files: files)
+        return RemoteScan(files: files, unavailablePaths: unavailable)
     }
 
     func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload {
         guard !file.isDirectory else { throw StorageError.invalidResponse }
         for _ in 0..<3 {
             let before = try await metadata(file.path)
-            guard let revision = StorageHTTP.strongETag(before.revision) else {
-                throw StorageError.unsupported(String(localized: "This WebDAV server does not provide strong file ETags."))
-            }
+            let revision = conditionalETag(before.revision)
             let response = try await send("GET", path: file.path,
-                                          headers: ["If-Match": revision], limit: maxBytes)
+                                          headers: revision.map { ["If-Match": $0] } ?? [:], limit: maxBytes)
             if response.status == 412 { continue }
             _ = try response.checked(path: file.path)
-            if let returned = response.headers["etag"], returned != revision { continue }
-            let after = try await metadata(file.path)
-            guard after.revision == revision else { continue }
+            if let revision, let returned = response.headers["etag"], returned != revision { continue }
+            let returned = conditionalETag(response.headers["etag"])
+            guard let downloadedRevision = returned ?? revision else {
+                throw StorageError.unsupported(String(localized: "This WebDAV server does not provide reliable file version identifiers."))
+            }
+            var after = try await metadata(file.path)
+            let current = conditionalETag(after.revision)
+            guard current == downloadedRevision || (current == nil && returned != nil) else { continue }
+            // GET can provide the version even when PROPFIND and HEAD omit it.
+            after.revision = downloadedRevision
             return RemoteDownload(file: after, data: response.data)
         }
         throw StorageError.conflict(file.path)
@@ -52,23 +99,40 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
 
     func upload(path: String, data: Data, existing: RemoteFile?) async throws -> RemoteFile {
         try StorageError.validate(path: path)
-        var headers = ["Content-Type": "application/octet-stream"]
-        if let existing {
-            guard existing.path == path, !existing.isDirectory,
-                  let etag = StorageHTTP.strongETag(existing.revision) else {
-                throw StorageError.conflict(path)
+        if existing == nil && isNutstore {
+            try await createWithoutReplacing(path: path, data: data)
+        } else {
+            var headers = ["Content-Type": "application/octet-stream"]
+            if let existing {
+                guard existing.path == path, !existing.isDirectory,
+                      let etag = conditionalETag(existing.revision) else { throw StorageError.conflict(path) }
+                headers["If-Match"] = etag
+            } else { headers["If-None-Match"] = "*" }
+            let response = try await send("PUT", path: path, headers: headers, body: data).checked(path: path)
+            // A strong response ETag identifies the representation the server
+            // stored. Later external edits remain protected by the next If-Match.
+            if let revision = StorageHTTP.strongETag(response.headers["etag"]) {
+                return RemoteFile(id: path, path: path, isDirectory: false, revision: revision, size: Int64(data.count))
             }
-            headers["If-Match"] = etag
-        } else { headers["If-None-Match"] = "*" }
-        _ = try await send("PUT", path: path, headers: headers, body: data).checked(path: path)
-        let file = try await metadata(path)
-        guard StorageHTTP.strongETag(file.revision) != nil else {
-            throw StorageError.unsupported(String(localized: "This WebDAV server did not return a strong ETag after saving."))
         }
         // Do not claim success if another writer won immediately after our PUT.
-        let downloaded = try await download(file, maxBytes: max(data.count, 1))
+        let downloaded = try await download(.init(id: path, path: path, isDirectory: false), maxBytes: max(data.count, 1))
         guard downloaded.data == data else { throw StorageError.conflict(path) }
         return downloaded.file
+    }
+
+    private func createWithoutReplacing(path: String, data: Data) async throws {
+        let parent = (path as NSString).deletingLastPathComponent
+        let name = ".orgenda-upload-" + UUID().uuidString.lowercased()
+        let temporary = parent.isEmpty ? name : parent + "/" + name
+        do {
+            _ = try await send("PUT", path: temporary, headers: ["Content-Type": "application/octet-stream"], body: data).checked(path: temporary)
+            _ = try await send("MOVE", path: temporary,
+                               headers: ["Destination": try url(path).absoluteString, "Overwrite": "F"]).checked(path: path)
+        } catch {
+            try? await deleteTemporaryFile(temporary)
+            throw error
+        }
     }
 
     func createDirectory(path: String) async throws -> RemoteFile {
@@ -88,7 +152,7 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
         guard path != file.path, !path.hasPrefix(file.path + "/") else { throw StorageError.unsafePath(path) }
         var headers = ["Destination": try url(path).absoluteString, "Overwrite": "F"]
         if !file.isDirectory {
-            guard let etag = StorageHTTP.strongETag(file.revision) else { throw StorageError.conflict(file.path) }
+            guard let etag = conditionalETag(file.revision) else { throw StorageError.conflict(file.path) }
             headers["If-Match"] = etag
         }
         _ = try await send("MOVE", path: file.path, headers: headers).checked(path: path)
@@ -96,8 +160,15 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
     }
 
     func metadata(_ path: String) async throws -> RemoteFile {
-        guard let item = try await properties(path: path, depth: 0).first(where: { $0.path == path }) else {
+        guard var item = try await properties(path: path, depth: 0).first(where: { $0.path == path }) else {
             throw StorageError.rootUnavailable
+        }
+        if !item.isDirectory, conditionalETag(item.revision) == nil {
+            let response = try await send("HEAD", path: path)
+            if response.status != 405 && response.status != 501 {
+                _ = try response.checked(path: path)
+                item.revision = conditionalETag(response.headers["etag"])
+            }
         }
         return item
     }
@@ -109,38 +180,37 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
         guard root.isDirectory else { throw StorageError.rootUnavailable }
         let path = ".orgenda-probe-" + UUID().uuidString.lowercased()
         let original = Data("Orgenda connection check".utf8)
-        var created = false
         do {
-            let create = try await send("PUT", path: path, headers: ["If-None-Match": "*"], body: original)
-            _ = try create.checked(path: path); created = true
-            let file = try await metadata(path)
-            guard let etag = StorageHTTP.strongETag(file.revision) else {
-                throw StorageError.unsupported(String(localized: "Safe synchronization requires strong ETags from this WebDAV server."))
-            }
-            let duplicate = try await send("PUT", path: path, headers: ["If-None-Match": "*"], body: Data("unexpected".utf8))
-            guard duplicate.status == 412 else {
+            let file = try await upload(path: path, data: original, existing: nil)
+            guard let etag = conditionalETag(file.revision) else { throw StorageError.invalidResponse }
+            do {
+                _ = try await upload(path: path, data: Data("unexpected".utf8), existing: nil)
                 throw StorageError.unsupported(String(localized: "This WebDAV server does not enforce create-only writes."))
+            } catch StorageError.conflict(let conflicted) where conflicted == path {
+                // The same create path used by real uploads must refuse replacement.
             }
-            let stale = try await send("PUT", path: path, headers: ["If-Match": "\"orgenda-stale-\(UUID().uuidString)\""], body: Data("unexpected".utf8))
-            guard stale.status == 412 else {
+            let updated = try await upload(path: path, data: Data("Verified".utf8), existing: file)
+            guard updated.revision != etag else {
                 throw StorageError.unsupported(String(localized: "This WebDAV server does not reject conflicting changes."))
             }
-            let read = try await download(file, maxBytes: 1024)
-            guard read.data == original else { throw StorageError.invalidResponse }
-            _ = try await send("PUT", path: path, headers: ["If-Match": etag], body: Data("Verified".utf8)).checked(path: path)
-            try await deleteProbe(path)
-            created = false
+            let oldVersion = try await send("PUT", path: path, headers: ["If-Match": etag], body: original)
+            guard oldVersion.status == 412 else {
+                throw StorageError.unsupported(String(localized: "This WebDAV server does not reject conflicting changes."))
+            }
+            let verified = try await download(updated, maxBytes: 1024)
+            guard verified.data == Data("Verified".utf8) else { throw StorageError.invalidResponse }
+            try await deleteTemporaryFile(path)
         } catch {
-            if created { try? await deleteProbe(path) }
+            try? await deleteTemporaryFile(path)
             throw error
         }
     }
 
-    private func deleteProbe(_ path: String) async throws {
-        // This private method only receives the unique file created above.
+    private func deleteTemporaryFile(_ path: String) async throws {
+        // This private method only receives our own unique probe/upload paths.
         let file = try await metadata(path)
         var headers: [String: String] = [:]
-        if let etag = StorageHTTP.strongETag(file.revision) { headers["If-Match"] = etag }
+        if let etag = conditionalETag(file.revision) { headers["If-Match"] = etag }
         _ = try await send("DELETE", path: path, headers: headers).checked(path: path)
     }
 
@@ -174,7 +244,32 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
         var request = URLRequest(url: try url(path))
         request.httpMethod = method; request.httpBody = body
         headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+        try await acquireRequest()
+        defer { releaseRequest() }
+        try Task.checkCancellation()
         return try await transport.send(request, maxBytes: limit)
+    }
+
+    private func acquireRequest() async throws {
+        try Task.checkCancellation()
+        if activeRequests < 4 { activeRequests += 1; return }
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { requestWaiters.append((id, $0)) }
+        } onCancel: {
+            Task { await self.cancelRequest(id) }
+        }
+    }
+
+    private func cancelRequest(_ id: UUID) {
+        if let index = requestWaiters.firstIndex(where: { $0.0 == id }) {
+            requestWaiters.remove(at: index).1.resume(throwing: CancellationError())
+        }
+    }
+
+    private func releaseRequest() {
+        if requestWaiters.isEmpty { activeRequests -= 1 }
+        else { requestWaiters.removeFirst().1.resume() }
     }
 }
 

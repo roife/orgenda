@@ -12,14 +12,14 @@ struct WorkspaceGestureUndo {
 extension WorkspaceStore {
     func gestureChange(for item: OrgItem, label: String, perform: () -> Void) -> WorkspaceGestureUndo? {
         operationError = nil
-        guard let before = documents.first(where: { $0.path == item.source.file })?.contents else {
+        guard let before = documentsByPath[item.source.file]?.contents else {
             operationError = String(localized: "The file is no longer available.")
             return nil
         }
         let previousItems = items.filter { $0.source.file == item.source.file }
         perform()
         guard operationError == nil,
-              let after = documents.first(where: { $0.path == item.source.file })?.contents,
+              let after = documentsByPath[item.source.file]?.contents,
               after != before else { return nil }
         return WorkspaceGestureUndo(label: label, path: item.source.file, before: before,
                                     after: after, previousItems: previousItems)
@@ -54,7 +54,7 @@ extension WorkspaceStore {
 
     @discardableResult
     func undoGesture(_ change: WorkspaceGestureUndo) -> Bool {
-        guard let contents = documents.first(where: { $0.path == change.path })?.contents,
+        guard let contents = documentsByPath[change.path]?.contents,
               contents.utf8.elementsEqual(change.after.utf8) else {
             operationError = String(localized: "The file changed after this action. Undo would overwrite newer edits.")
             return false
@@ -83,12 +83,12 @@ extension WorkspaceStore {
     }
 
     private func performMove(_ baseline: OrgItem, target: OrgRefileTarget?) async -> Bool {
-        await synchronizeFiles()
+        await persistFileEdits()
         await waitForWorkspaceIndex()
-        guard pendingFileCount == 0, !isSynchronizing, fileSyncError == nil,
+        guard dirtyFilePaths.isEmpty, fileSaveErrors.isEmpty,
               let current = items.first(where: { $0.id == baseline.id }),
               current.hasSameEditableValues(as: baseline),
-              let source = documents.first(where: { $0.path == current.source.file }) else {
+              let source = documentsByPath[current.source.file] else {
             operationError = String(localized: "The item changed or has unsaved file changes. Reopen it before moving.")
             return false
         }
@@ -97,7 +97,7 @@ extension WorkspaceStore {
             let destinationPath = try target?.path ?? OrgWorkflowOperations.archiveDestination(
                 sourcePath: source.path, source: source.contents, headingStartByte: current.source.startByte,
                 defaultLocation: hasWorkspaceConfiguration ? configuration.files.archive : nil).path
-            let existingDestination = documents.first(where: { $0.path == destinationPath })
+            let existingDestination = documentsByPath[destinationPath]
             let destination = existingDestination ?? WorkspaceDocument(path: destinationPath,
                 title: URL(fileURLWithPath: destinationPath).lastPathComponent, contents: "", kind: .org)
             let plan: OrgMovePlan
@@ -109,19 +109,18 @@ extension WorkspaceStore {
                 plan = try OrgWorkflowOperations.archive(source: source, headingStartByte: current.source.startByte,
                     destination: destination, defaultLocation: hasWorkspaceConfiguration ? configuration.files.archive : nil)
             }
-            if let workspaceSession {
-                isSynchronizing = true
-                defer { isSynchronizing = false }
-                let disk = try await workspaceSession.load()
+            if let localStore {
+                let diskSource = try await localStore.document(at: source.path)
+                let diskDestination = try await localStore.document(at: destination.path)
                 guard documents == originalDocuments,
-                      disk.first(where: { $0.path == source.path })?.contents == source.contents,
-                      disk.first(where: { $0.path == destination.path })?.contents == existingDestination?.contents else {
+                      diskSource?.contents == source.contents,
+                      diskDestination?.contents == existingDestination?.contents else {
                     operationError = String(localized: "The source or destination changed. Refresh and try again.")
                     return false
                 }
-                try await workspaceSession.commitOnlineMove(source: plan.source, destination: plan.destination,
+                try await localStore.refile(source: plan.source, destination: plan.destination,
                     expectedSource: source.contents, expectedDestination: existingDestination?.contents)
-                applyStorageSnapshot(try await workspaceSession.snapshot())
+                applyStorageSnapshot(try await localStore.snapshot())
             } else {
                 var next = documents.filter { $0.path != plan.source.path && $0.path != plan.destination.path }
                 next.append(plan.destination)
@@ -130,6 +129,7 @@ extension WorkspaceStore {
             }
             operationError = nil
             await waitForWorkspaceIndex()
+            Task { await self.synchronizeFiles(automatic: true, pushOnly: true) }
             return true
         } catch {
             operationError = error.localizedDescription

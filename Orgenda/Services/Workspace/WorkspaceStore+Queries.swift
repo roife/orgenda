@@ -87,7 +87,7 @@ extension WorkspaceStore {
     func saveStatus(for path: String) -> DocumentSaveStatus {
         guard documents.contains(where: { $0.path == path }) else { return .unavailable }
         guard isFolderConnected else { return .unavailable }
-        if let error = fileSaveErrors[path] { return .failed(error) }
+        if let error = fileSaveErrors[path] ?? pathSyncErrors[path] { return .failed(error) }
         if dirtyFilePaths.contains(path) { return .saving }
         if syncConflicts.contains(where: { $0.path == path }) { return .conflict }
         if pendingUploadPaths.contains(path) { return .pendingSync }

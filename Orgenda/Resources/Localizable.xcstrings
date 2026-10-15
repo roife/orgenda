@@ -11200,23 +11200,6 @@
         }
       }
     },
-    "Safe synchronization requires strong ETags from this WebDAV server." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "安全同步需要此 WebDAV 服务器提供强 ETag。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "安全同步需要此 WebDAV 伺服器提供強 ETag。"
-          }
-        }
-      }
-    },
     "Save" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13349,6 +13332,9 @@
         }
       }
     },
+    "The folder operation could not be completed. Keep the existing folders, then choose another destination and try again." : {
+
+    },
     "The heading changed. Reload it before trying again." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14233,23 +14219,6 @@
         }
       }
     },
-    "This WebDAV server did not return a strong ETag after saving." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 服务器在保存后未返回强 ETag。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 WebDAV 伺服器在儲存後未傳回強 ETag。"
-          }
-        }
-      }
-    },
     "This WebDAV server does not enforce create-only writes." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14267,19 +14236,19 @@
         }
       }
     },
-    "This WebDAV server does not provide strong file ETags." : {
+    "This WebDAV server does not provide reliable file version identifiers." : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此 WebDAV 服务器不提供文件强 ETag。"
+            "value" : "此 WebDAV 服务器未提供安全同步所需的可靠文件版本标识。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此 WebDAV 伺服器不提供檔案強 ETag。"
+            "value" : "此 WebDAV 伺服器未提供安全同步所需的可靠檔案版本識別碼。"
           }
         }
       }
@@ -14934,6 +14903,40 @@
         }
       }
     },
+    "Update your WebDAV password to sync" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密码以同步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密碼以同步"
+          }
+        }
+      }
+    },
+    "Update your WebDAV password to sync. Your edits are saved on this device." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密码即可同步。你的修改已保存在本机。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新 WebDAV 密碼即可同步。你的修改已儲存在本機。"
+          }
+        }
+      }
+    },
     "Updating files…" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15134,40 +15137,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "請使用 version 為 1 的 Orgenda 設定。"
-          }
-        }
-      }
-    },
-    "Update your WebDAV password to sync" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新 WebDAV 密码以同步"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新 WebDAV 密碼以同步"
-          }
-        }
-      }
-    },
-    "Update your WebDAV password to sync. Your edits are saved on this device." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新 WebDAV 密码即可同步。你的修改已保存在本机。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新 WebDAV 密碼即可同步。你的修改已儲存在本機。"
           }
         }
       }

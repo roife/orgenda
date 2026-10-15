@@ -51,10 +51,7 @@ extension WorkspaceStore {
     }
 
     func waitForFileOperation() async -> Bool {
-        while isSynchronizing {
-            do { try await Task.sleep(for: .milliseconds(25)) }
-            catch { return false }
-        }
+        if let syncEngine { try? await syncEngine.waitUntilIdle() }
         return !Task.isCancelled
     }
 }

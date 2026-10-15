@@ -4,6 +4,26 @@ import XCTest
 
 @MainActor
 final class WorkspaceStorageConcurrencyTests: XCTestCase {
+    func testCoordinatedExternalWriteNotifiesFolderPresenter() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("FolderObserver-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("inbox.org")
+        try Data("* Before\n".utf8).write(to: file)
+        let changed = expectation(description: "The folder presenter observed the external write")
+        changed.assertForOverFulfill = false
+        let monitor = WorkspaceFolderMonitor(root: root, ubiquitous: false) { _ in changed.fulfill() }
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+        var error: NSError?
+        coordinator.coordinate(writingItemAt: file, options: [], error: &error) { url in
+            do { try Data("* After\n".utf8).write(to: url, options: .atomic) }
+            catch { XCTFail(error.localizedDescription) }
+        }
+        XCTAssertNil(error)
+        await fulfillment(of: [changed], timeout: 3)
+        monitor.stop()
+    }
+
     func testMoveKeepsUIEditArrivingDuringRemoteAwaitAtDestination() async throws {
         let started = expectation(description: "Remote MOVE is waiting")
         let fixture = try await makeFixture(moveStarted: started)
@@ -13,11 +33,12 @@ final class WorkspaceStorageConcurrencyTests: XCTestCase {
         let moving = Task { await store.moveFile(transfer, to: "archive") }
         await fulfillment(of: [started], timeout: 5)
 
-        store.updateDocument(path: "inbox.org", contents: "* Edited while moving\n")
+        store.updateDocument(path: "archive/inbox.org", contents: "* Edited while moving\n")
         store.fileSaveTask?.cancel()
-        XCTAssertEqual(store.dirtyFilePaths, ["inbox.org"])
+        XCTAssertEqual(store.dirtyFilePaths, ["archive/inbox.org"])
         await fixture.backend.releaseMove()
         let succeeded = await moving.value
+        await store.persistFileEdits()
         XCTAssertTrue(succeeded, store.fileActionError ?? "Move failed")
 
         XCTAssertFalse(store.documents.contains { $0.path == "inbox.org" })
@@ -25,7 +46,7 @@ final class WorkspaceStorageConcurrencyTests: XCTestCase {
                        "* Edited while moving\n")
         XCTAssertTrue(store.dirtyFilePaths.isEmpty)
         XCTAssertEqual(store.pendingUploadPaths, ["archive/inbox.org"])
-        let reopened = try WorkspaceSession(connection: fixture.connection, cacheDirectory: fixture.cache,
+        let reopened = try LocalStore(connection: fixture.connection, cacheDirectory: fixture.cache,
             remote: fixture.backend, recoveryDirectory: fixture.cache.appendingPathComponent("Recovery"))
         let durable = try await reopened.snapshot()
         XCTAssertEqual(durable.documents.first { $0.path == "archive/inbox.org" }?.contents,
@@ -55,6 +76,8 @@ final class WorkspaceStorageConcurrencyTests: XCTestCase {
         XCTAssertEqual(store.dirtyFilePaths, ["inbox.org"])
         await fixture.backend.releaseMove()
         let succeeded = await deleting.value
+        await store.persistFileEdits()
+        _ = await store.waitForFileOperation()
         XCTAssertTrue(succeeded, store.fileActionError ?? "Delete failed")
 
         XCTAssertEqual(store.documents.first { $0.path == "inbox.org" }?.contents,
@@ -69,7 +92,7 @@ final class WorkspaceStorageConcurrencyTests: XCTestCase {
         XCTAssertNil(remoteSource)
         XCTAssertEqual(trashed, "* Original\n")
 
-        let reopened = try WorkspaceSession(connection: fixture.connection, cacheDirectory: fixture.cache,
+        let reopened = try LocalStore(connection: fixture.connection, cacheDirectory: fixture.cache,
             remote: fixture.backend, recoveryDirectory: fixture.cache.appendingPathComponent("Recovery"))
         do { try await reopened.synchronize(); XCTFail("A deleted file was silently recreated") }
         catch { XCTAssertEqual(error as? StorageError, .conflict("inbox.org")) }
@@ -92,13 +115,14 @@ final class WorkspaceStorageConcurrencyTests: XCTestCase {
         addTeardownBlock { try? FileManager.default.removeItem(at: cache) }
         let connection = StorageConnection(provider: .webDAV, displayName: "Concurrency Test", rootID: "/org")
         let backend = AwaitingFileActionBackend { moveStarted.fulfill() }
-        let session = try WorkspaceSession(connection: connection, cacheDirectory: cache, remote: backend,
+        let session = try LocalStore(connection: connection, cacheDirectory: cache, remote: backend,
                                             recoveryDirectory: cache.appendingPathComponent("Recovery"))
         try await session.synchronize()
         let store = WorkspaceStore()
+        addTeardownBlock { await store.stopStorageObservation() }
         store.storageCacheDirectory = cache
         store.storageConnection = connection
-        store.workspaceSession = session
+        store.localStore = session
         store.isFolderConnected = true
         store.isStartingWorkspace = false
         store.usesEmacsConfiguration = true

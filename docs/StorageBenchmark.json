@@ -1,0 +1,109 @@
+{
+  "after_refactor": [
+    {
+      "files": 1000,
+      "localIO": {
+        "blobBytesHashed": 10250,
+        "blobBytesRead": 0,
+        "blobBytesWritten": 10250,
+        "blobReads": 0,
+        "blobWrites": 1,
+        "stateBytesWritten": 1264,
+        "stateTransactions": 3
+      },
+      "network": {
+        "methods": {
+          "PUT": 1
+        },
+        "requestBytes": 10250,
+        "responseBytes": 0
+      },
+      "seconds": 0.001572125,
+      "strongPUTETag": true,
+      "walFileGrowthBytes": 57680,
+      "workspaceBytes": 10240000
+    },
+    {
+      "files": 1000,
+      "localIO": {
+        "blobBytesHashed": 10250,
+        "blobBytesRead": 0,
+        "blobBytesWritten": 10250,
+        "blobReads": 0,
+        "blobWrites": 1,
+        "stateBytesWritten": 1264,
+        "stateTransactions": 3
+      },
+      "network": {
+        "methods": {
+          "GET": 1,
+          "PROPFIND": 2,
+          "PUT": 1
+        },
+        "requestBytes": 10580,
+        "responseBytes": 10876
+      },
+      "seconds": 0.001506625,
+      "strongPUTETag": false,
+      "walFileGrowthBytes": 57680,
+      "workspaceBytes": 10240000
+    }
+  ],
+  "before_refactor": {
+    "files": 1000,
+    "localIO": {
+      "blobBytesHashed": 20521000,
+      "blobBytesRead": 20510750,
+      "blobBytesWritten": 10250,
+      "blobReads": 2003,
+      "blobWrites": 1,
+      "manifestBytesWritten": 895390,
+      "manifestWrites": 4
+    },
+    "measurement": "Warm local commit, snapshot, full synchronize, snapshot; in-memory DAV transport, no network latency; logical IO only.",
+    "network": {
+      "methods": {
+        "GET": 1,
+        "PROPFIND": 14,
+        "PUT": 1
+      },
+      "requestBytes": 12560,
+      "responseBytes": 285234
+    },
+    "seconds": 0.246213709,
+    "workspaceBytes": 10240000
+  },
+  "environment": {
+    "configuration": "Debug",
+    "simulator": "iOS 27.0",
+    "transport": "In-memory WebDAV transport; real WebDAVBackend and LocalStore",
+    "xcode": "27.0 (27A266a)"
+  },
+  "measured_on": "2026-10-15",
+  "measurement": {
+    "excluded": [
+      "initial import",
+      "400 ms editor debounce",
+      "UI rendering",
+      "Org parsing",
+      "network latency"
+    ],
+    "included": [
+      "local commit",
+      "two snapshot reads",
+      "synchronization"
+    ],
+    "local_io": "Logical blob IO and encoded state payload bytes; WAL file growth is recorded separately and is not physical device IO."
+  },
+  "verification": {
+    "failures": 0,
+    "performance_assertions": [
+      "1 PUT and no other requests with strong PUT ETag",
+      "4 requests with verification fallback",
+      "0 blob bytes read during a warm single edit",
+      "less than 4096 encoded state bytes written",
+      "only the edited document returned by the incremental snapshot"
+    ],
+    "tests_passed": 65
+  }
+}

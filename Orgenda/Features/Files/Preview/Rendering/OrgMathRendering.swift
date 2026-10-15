@@ -34,7 +34,14 @@ enum OrgMathRendering {
         if let cached = cache.object(forKey: key) { return cached }
 
         let traits = UITraitCollection(userInterfaceStyle: colorScheme == .dark ? .dark : .light)
-        let color = UIColor.label.resolvedColor(with: traits)
+        let label = UIColor.label.resolvedColor(with: traits)
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let components = label.cgColor.converted(to: space, intent: .defaultIntent, options: nil)?.components,
+              components.count == 4 else { return nil }
+        // Grayscale-to-RGB conversion can slightly overshoot 1. RaTeX rejects
+        // out-of-range components, so pass explicit, clamped RGB values.
+        let rgba = components.map { min(1, max(0, $0)) }
+        let color = UIColor(red: rgba[0], green: rgba[1], blue: rgba[2], alpha: rgba[3])
         guard let displayList = try? RaTeXEngine.shared.parse(
             latex, displayMode: expression.mode == .display, color: color
         ) else { return nil }

@@ -12,6 +12,7 @@ final class WorkspaceStorageIntegrationTests: XCTestCase {
         first.updateDocument(path: "inbox.org", contents: "* Offline draft 中文\n")
         await first.persistFileEdits()
         first.fileSaveTask?.cancel()
+        await first.stopStorageObservation()
         XCTAssertTrue(first.dirtyFilePaths.isEmpty)
         XCTAssertEqual(first.pendingUploadPaths, ["inbox.org"])
         try FileManager.default.removeItem(at: environment.folder)
@@ -41,7 +42,7 @@ final class WorkspaceStorageIntegrationTests: XCTestCase {
         try FileManager.default.createDirectory(at: nextFolder, withIntermediateDirectories: true)
         let store = makeStore(environment.cache)
         await store.connectFolder(environment.folder, remember: false)
-        let old = try XCTUnwrap(store.workspaceSession)
+        let old = try XCTUnwrap(store.localStore)
         store.updateDocument(path: "inbox.org", contents: "* My draft\n")
         try "* Remote version\n".write(to: file, atomically: true, encoding: .utf8)
         await store.synchronizeFiles()
@@ -86,6 +87,7 @@ final class WorkspaceStorageIntegrationTests: XCTestCase {
     private func makeStore(_ cache: URL) -> WorkspaceStore {
         let store = WorkspaceStore()
         store.storageCacheDirectory = cache
+        addTeardownBlock { await store.stopStorageObservation() }
         return store
     }
 

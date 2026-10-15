@@ -33,9 +33,6 @@ struct WorkspaceSettingsView: View {
                     if connection.provider == .webDAV, let account = connection.accountID {
                         SettingsValueRow(title: String(localized: "Account"), value: account)
                     }
-                    if connection.provider == .webDAV, let endpoint = connection.endpoint {
-                        SettingsValueRow(title: String(localized: "Server Address"), value: endpoint.absoluteString)
-                    }
                 } else {
                     SettingsRow(icon: "folder", color: OrgendaTheme.accentText,
                                 title: store.workspaceName, subtitle: store.workspaceLocation)
@@ -45,7 +42,6 @@ struct WorkspaceSettingsView: View {
                 StorageSyncSummary(
                     state: store.syncState,
                     lastChecked: store.lastFileSync,
-                    orgFileCount: store.documents.filter { $0.kind == .org }.count,
                     pendingUploadCount: store.pendingUploadCount
                 )
             }

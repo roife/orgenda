@@ -46,9 +46,7 @@ extension WorkspaceStore {
         let requestedPaths = replacingAll
             ? Set(documents.filter { $0.kind == .org }.map(\.path))
             : pendingDirtyPaths
-        let targets = documents.filter { document in
-            document.kind == .org && requestedPaths.contains(document.path)
-        }
+        let targets = requestedPaths.sorted().compactMap { documentsByPath[$0] }.filter { $0.kind == .org }
         guard !targets.isEmpty else { return }
         let requestedSources = Dictionary(uniqueKeysWithValues: targets.map { ($0.path, $0.contents) })
 
@@ -68,7 +66,7 @@ extension WorkspaceStore {
 
             guard let self, generation == self.parseGeneration else { return }
             let accepted = parsed.filter { document in
-                guard let current = self.documents.first(where: { $0.path == document.path })?.contents,
+                guard let current = self.documentsByPath[document.path]?.contents,
                       let requested = requestedSources[document.path] else { return false }
                 return current.utf8.elementsEqual(requested.utf8)
             }
@@ -131,6 +129,26 @@ extension WorkspaceStore {
         if !toIndex.isEmpty {
             scheduleWorkspaceRefresh(changedPaths: toIndex, saveFiles: false)
         }
+    }
+
+    func acceptStorageDelta(_ delta: WorkspaceSnapshot) {
+        let removed = delta.removedPaths.subtracting(dirtyFilePaths)
+        var changed = Set<String>()
+        for document in delta.documents where !dirtyFilePaths.contains(document.path) {
+            let previous = documentsByPath[document.path]
+            if previous?.kind != document.kind || previous?.contents.utf8.elementsEqual(document.contents.utf8) != true {
+                documentsByPath[document.path] = document
+                changed.insert(document.path)
+            }
+        }
+        for path in removed { documentsByPath.removeValue(forKey: path); parsedDocuments.removeValue(forKey: path) }
+        guard !changed.isEmpty || !removed.isEmpty else { return }
+        storageContentGeneration &+= 1
+        for path in changed.union(removed) { externalDocumentRevisions[path, default: 0] &+= 1 }
+        items.removeAll { removed.contains($0.source.file) }
+        journalEntries.removeAll { removed.contains($0.source.file) }
+        pendingDirtyPaths.subtract(removed)
+        if !changed.isEmpty { scheduleWorkspaceRefresh(changedPaths: changed, saveFiles: false) }
     }
 
     private func publish(

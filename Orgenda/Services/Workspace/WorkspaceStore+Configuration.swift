@@ -52,7 +52,7 @@ extension WorkspaceStore {
             configurationError = "The configuration changed. Reload before applying this edit."
             return false
         }
-        guard let workspaceSession else { configurationError = "Connect a workspace first."; return false }
+        guard let localStore else { configurationError = "Connect a workspace first."; return false }
         if importedDocument == nil, let source = configurationSource, (try? ConfigurationDocument(source)) == nil {
             configurationError = "Repair the existing config.json before saving settings."
             return false
@@ -66,9 +66,9 @@ extension WorkspaceStore {
         let session = workspaceFileSessionID
         do {
             let source = try (importedDocument ?? configurationDocument).encoded(value)
-            try await workspaceSession.write(path: "config.json", contents: source, expectedContents: configurationSource)
+            try await localStore.write(path: "config.json", contents: source, expectedContents: configurationSource)
             guard session == workspaceFileSessionID else { return false }
-            let snapshot = try await workspaceSession.snapshot()
+            let snapshot = try await localStore.snapshot()
             guard session == workspaceFileSessionID else { return false }
             applyStorageSnapshot(snapshot)
             if syncConflicts.contains(where: { $0.path == "config.json" }) {

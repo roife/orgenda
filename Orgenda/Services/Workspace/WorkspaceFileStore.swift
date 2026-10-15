@@ -117,7 +117,8 @@ actor WorkspaceFileStore {
 
     /// `nil` means creation: it never grants permission to replace an existing
     /// file. Compare and atomic replacement happen inside one coordinated write.
-    func write(path: String, contents: String, expectedContents: String?) throws {
+    @discardableResult
+    func write(path: String, contents: String, expectedContents: String?) throws -> RemoteFile {
         try Task.checkCancellation()
         try validate(path: path)
         guard WorkspaceDocument.Kind(path: path) != nil else { throw Failure.unsupportedFile(path) }
@@ -130,7 +131,7 @@ actor WorkspaceFileStore {
         // never redirect even a new file outside the selected workspace.
         try fileManager.createDirectory(at: parent, withIntermediateDirectories: true)
         var coordinationError: NSError?
-        var result: Result<Void, Error>?
+        var result: Result<RemoteFile, Error>?
         let coordinator = NSFileCoordinator(filePresenter: nil)
         // Updating a document uses the default coordination option, including
         // when the implementation atomically renames temporary bytes into place.
@@ -141,14 +142,20 @@ actor WorkspaceFileStore {
                 guard safeURL == destination else { throw Failure.conflict(path) }
                 let current = try self.existingData(at: safeURL)
                 let expected = expectedContents.map { Data($0.utf8) }
-                if current == Data(contents.utf8) { return }
-                guard current == expected else { throw Failure.conflict(path) }
-                try Data(contents.utf8).write(to: safeURL, options: .atomic)
+                let bytes = Data(contents.utf8)
+                if current != bytes {
+                    guard current == expected else { throw Failure.conflict(path) }
+                    try bytes.write(to: safeURL, options: .atomic)
+                }
+                let values = try safeURL.resourceValues(forKeys: [.fileResourceIdentifierKey, .contentModificationDateKey, .fileSizeKey])
+                return RemoteFile(id: values.fileResourceIdentifier.map { String(describing: $0) } ?? path,
+                    path: path, isDirectory: false, revision: LocalStore.digest(bytes),
+                    modifiedAt: values.contentModificationDate, size: Int64(bytes.count))
             }
         }
         if let coordinationError { throw coordinationError }
         guard let result else { throw Failure.unreadable(path) }
-        try result.get()
+        return try result.get()
     }
 
     private func collect(
@@ -287,10 +294,10 @@ extension WorkspaceFileStore {
         try coordinatedMove(from: path, to: destination, expected: expected)
     }
 
-    func trash(document: WorkspaceDocument, expected: [WorkspaceDocument]) throws -> WorkspaceTrashEntry {
+    func trash(document: WorkspaceDocument, expected: [WorkspaceDocument], entry requestedEntry: WorkspaceTrashEntry? = nil) throws -> WorkspaceTrashEntry {
         try validateVisiblePath(document.path)
         let root = try resolvedRoot()
-        let entry = WorkspaceTrashEntry(id: UUID(), originalPath: document.path,
+        let entry = requestedEntry ?? WorkspaceTrashEntry(id: UUID(), originalPath: document.path,
             title: document.title, kind: document.kind, deletedAt: .now)
         let bucket = try strictURL(entry.storageFolder, root: root)
         try fileManager.createDirectory(at: bucket, withIntermediateDirectories: true)
@@ -408,5 +415,96 @@ extension WorkspaceFileStore {
         guard values.isRegularFile == true else { throw Failure.unreadable(path) }
         guard let contents = String(data: try Data(contentsOf: safe), encoding: .utf8) else { throw Failure.invalidUTF8(path) }
         return [WorkspaceDocument(path: path, title: safe.deletingPathExtension().lastPathComponent, contents: contents, kind: kind)]
+    }
+}
+
+struct FolderInventory: Sendable {
+    var entries: [String: WorkspaceFileRecord] = [:]
+    var changedContents: [String: Data] = [:]
+}
+
+extension WorkspaceFileStore {
+    /// Metadata is read inside coordinated access. Only changed files are read
+    /// and hashed; explicit presenter notifications bypass the fingerprint.
+    func scan(known: [String: WorkspaceFileRecord], changedPaths: Set<String>? = nil) throws -> FolderInventory {
+        let root = try resolvedRoot()
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+        return try coordinatedRead(at: root, coordinator: coordinator) { coordinatedRoot in
+            let root = coordinatedRoot.resolvingSymlinksInPath().standardizedFileURL
+            var inventory = FolderInventory()
+            if let paths = changedPaths, !paths.isEmpty,
+               paths.allSatisfy({ known[$0]?.file.isDirectory == false && fileManager.fileExists(atPath: root.appendingPathComponent($0).path) }) {
+                inventory.entries = known
+                for path in paths {
+                    try scanFile(at: root.appendingPathComponent(path), path: path, root: root,
+                        coordinator: coordinator, known: known, force: true, inventory: &inventory)
+                }
+            } else {
+                try scanDirectory(root, path: "", root: root, ancestors: [], coordinator: coordinator,
+                    known: known, forced: changedPaths ?? [], inventory: &inventory)
+            }
+            return inventory
+        }
+    }
+
+    private func scanDirectory(_ directory: URL, path: String, root: URL, ancestors: Set<String>,
+                               coordinator: NSFileCoordinator, known: [String: WorkspaceFileRecord],
+                               forced: Set<String>, inventory: inout FolderInventory) throws {
+        let safe = try containedURL(directory, root: root, path: path)
+        guard !ancestors.contains(safe.path) else { throw Failure.unsafePath(path) }
+        let ancestors = ancestors.union([safe.path])
+        for child in try fileManager.contentsOfDirectory(at: safe, includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey]) {
+            try Task.checkCancellation()
+            let name = child.lastPathComponent
+            let relative = path.isEmpty ? name : path + "/" + name
+            if name.hasPrefix(".") {
+                if name.hasSuffix(".icloud"), WorkspaceDocument.Kind(path: String(name.dropFirst().dropLast(7))) != nil {
+                    throw Failure.unreadable(relative)
+                }
+                continue
+            }
+            let child = try containedURL(child, root: root, path: relative)
+            let values = try child.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey])
+            if values.isDirectory == true {
+                let file = RemoteFile(id: relative, path: relative, isDirectory: true)
+                inventory.entries[relative] = WorkspaceFileRecord(file: file, blob: nil, fileID: known[relative]?.fileID ?? UUID())
+                try scanDirectory(child, path: relative, root: root, ancestors: ancestors, coordinator: coordinator,
+                    known: known, forced: forced, inventory: &inventory)
+            } else if WorkspaceDocument.Kind(path: relative) != nil {
+                guard values.isRegularFile == true else { throw Failure.unreadable(relative) }
+                try scanFile(at: child, path: relative, root: root, coordinator: coordinator, known: known,
+                    force: forced.contains(relative), inventory: &inventory)
+            }
+        }
+    }
+
+    private func scanFile(at url: URL, path: String, root: URL, coordinator: NSFileCoordinator,
+                          known: [String: WorkspaceFileRecord], force: Bool, inventory: inout FolderInventory) throws {
+        try coordinatedRead(at: url, coordinator: coordinator) { coordinated in
+            let safe = try containedURL(coordinated, root: root, path: path)
+            let keys: Set<URLResourceKey> = [.isRegularFileKey, .contentModificationDateKey, .fileSizeKey,
+                .fileResourceIdentifierKey, .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]
+            let before = try safe.resourceValues(forKeys: keys)
+            guard before.isRegularFile == true else { throw Failure.unreadable(path) }
+            let id = before.fileResourceIdentifier.map { String(describing: $0) } ?? path
+            let old = known[path]
+            if !force, let old, old.blob != nil, old.file.id == id,
+               let modified = before.contentModificationDate, let size = before.fileSize,
+               old.file.modifiedAt == modified, old.file.size == Int64(size),
+               before.isUbiquitousItem != true || before.ubiquitousItemDownloadingStatus == .current {
+                inventory.entries[path] = old
+                return
+            }
+            let bytes = try Data(contentsOf: safe)
+            guard String(data: bytes, encoding: .utf8) != nil else { throw Failure.invalidUTF8(path) }
+            let after = try safe.resourceValues(forKeys: keys)
+            guard before.contentModificationDate == after.contentModificationDate,
+                  before.fileSize == after.fileSize else { throw Failure.conflict(path) }
+            let blob = LocalStore.digest(bytes)
+            let file = RemoteFile(id: id, path: path, isDirectory: false, revision: blob,
+                modifiedAt: after.contentModificationDate, size: Int64(bytes.count))
+            inventory.entries[path] = WorkspaceFileRecord(file: file, blob: blob, fileID: old?.fileID ?? UUID())
+            inventory.changedContents[path] = bytes
+        }
     }
 }

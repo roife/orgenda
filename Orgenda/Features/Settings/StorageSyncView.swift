@@ -4,7 +4,6 @@ struct StorageSyncSummary: View {
     @ScaledMetric(relativeTo: .body) private var iconWidth = 20.0
     let state: WorkspaceSyncState
     let lastChecked: Date?
-    let orgFileCount: Int
     let pendingUploadCount: Int
 
     var body: some View {
@@ -37,7 +36,6 @@ struct StorageSyncSummary: View {
                     LabeledContent("Last checked",
                                    value: lastChecked.formatted(date: .abbreviated, time: .shortened))
                 }
-                LabeledContent("Org files", value: orgFileCount.formatted())
                 if pendingUploadCount > 0 {
                     LabeledContent("Pending uploads", value: pendingUploadCount.formatted())
                 }
@@ -55,16 +53,16 @@ struct StorageSyncSummary: View {
         Section("Sync Status") {
             StorageSyncSummary(state: .folderUpdated,
                                lastChecked: Date(timeIntervalSince1970: 1_791_004_020),
-                               orgFileCount: 0, pendingUploadCount: 0)
+                               pendingUploadCount: 0)
         }
         Section("Sync Status") {
             StorageSyncSummary(state: .syncing, lastChecked: nil,
-                               orgFileCount: 24, pendingUploadCount: 3)
+                               pendingUploadCount: 3)
         }
         Section("Sync Status") {
             StorageSyncSummary(state: .conflict(1),
                                lastChecked: Date(timeIntervalSince1970: 1_791_004_020),
-                               orgFileCount: 24, pendingUploadCount: 1)
+                               pendingUploadCount: 1)
         }
     }
     .listStyle(.insetGrouped)

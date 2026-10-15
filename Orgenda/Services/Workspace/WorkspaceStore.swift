@@ -16,8 +16,24 @@ final class WorkspaceStore {
         didSet { rebuildDerivedCollections() }
     }
     var journalEntries: [JournalEntry]
+    /// Edits and storage deltas address documents by path; the sorted array is
+    /// a lazily rebuilt projection for views.
+    var documentsByPath: [String: WorkspaceDocument] = [:] {
+        didSet { sortedDocuments = nil }
+    }
+    @ObservationIgnored private var sortedDocuments: [WorkspaceDocument]?
     var documents: [WorkspaceDocument] {
-        didSet { storageContentGeneration &+= 1 }
+        get {
+            let byPath = documentsByPath // Registers observation.
+            if let sortedDocuments { return sortedDocuments }
+            let result = byPath.values.sorted { $0.path < $1.path }
+            sortedDocuments = result
+            return result
+        }
+        set {
+            documentsByPath = Dictionary(newValue.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+            storageContentGeneration &+= 1
+        }
     }
     var parserStatus = String(localized: "Tree-sitter parser is warming up")
     var parseDurationMilliseconds: Double = 0
@@ -40,6 +56,8 @@ final class WorkspaceStore {
     var isWorkspaceReady: Bool { isFolderConnected }
     var hasPendingStorageChanges: Bool { !dirtyFilePaths.isEmpty || !pendingUploadPaths.isEmpty || !syncConflicts.isEmpty || hasPendingStorageOperation }
     var fileSaveErrors: [String: String] = [:]
+    var pathSyncErrors: [String: String] = [:]
+    @ObservationIgnored var isStorageForeground = false
     var externalDocumentRevisions: [String: UInt64] = [:]
     var usesEmacsConfiguration = false {
         didSet { rebuildDerivedCollections() }
@@ -67,19 +85,23 @@ final class WorkspaceStore {
     var reminderPermissionDenied = false
     @ObservationIgnored let reminderScheduler = OrgReminderScheduler()
 
-    @ObservationIgnored var workspaceSession: WorkspaceSession?
+    @ObservationIgnored var localStore: LocalStore?
     @ObservationIgnored var connectionDefaults: UserDefaults = .standard
-    @ObservationIgnored var isPersistingEdits = false
     @ObservationIgnored var isChangingStorage = false
-    @ObservationIgnored var automaticSyncRetryAt: Date?
-    @ObservationIgnored var serverSyncRetryAt: Date?
-    @ObservationIgnored var syncFailureCount = 0
+    @ObservationIgnored var syncEngine: SyncEngine?
+    @ObservationIgnored var storageObservationTask: Task<Void, Never>?
+    @ObservationIgnored var syncStatusTask: Task<Void, Never>?
+    @ObservationIgnored var persistenceTask: Task<Void, Never>?
+    @ObservationIgnored var folderMonitor: WorkspaceFolderMonitor?
+    var syncRetryAt: Date?
     @ObservationIgnored var storageContentGeneration: UInt64 = 0
     @ObservationIgnored var appliedStorageRevision: UInt64 = 0
     @ObservationIgnored var storageCacheDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("Workspace Storage", isDirectory: true)
     @ObservationIgnored var folderAccessURL: URL?
-    @ObservationIgnored var persistedContents: [String: String] = [:]
+    @ObservationIgnored var persistedBlobs: [String: String] = [:]
+    /// Baselines of documents removed by storage while an editor may still save.
+    @ObservationIgnored var retiredBlobs: [String: String] = [:]
     var dirtyFilePaths: Set<String> = []
     @ObservationIgnored var fileSaveTask: Task<Void, Never>?
     @ObservationIgnored var hasStarted = false
@@ -98,8 +120,8 @@ final class WorkspaceStore {
     ) {
         self.items = items
         self.journalEntries = journalEntries
-        self.documents = documents
         self.selectedDate = selectedDate.startOfDay
+        self.documents = documents
         rebuildDerivedCollections()
     }
 

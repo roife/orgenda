@@ -21,7 +21,7 @@ final class EmacsProfileIntegrationTests: XCTestCase {
         XCTAssertNotNil(store.operationError)
     }
 
-    func testMoveWaitsForExternalHeadingChangesBeforeUsingOffsets() async throws {
+    func testOfflineRefileKeepsExternalSourceAndDurableMovedHeading() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root.appendingPathComponent("agenda"), withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -29,12 +29,19 @@ final class EmacsProfileIntegrationTests: XCTestCase {
         try "* TODO A\n".write(to: url, atomically: true, encoding: .utf8)
         let store = WorkspaceStore()
         await store.connectFolder(root, remember: false)
+        store.folderMonitor?.stop()
+        store.folderMonitor = nil
         let baseline = try XCTUnwrap(store.items.first)
         try "* TODO B\n".write(to: url, atomically: true, encoding: .utf8)
         let success = await store.archiveItem(baseline)
-        XCTAssertFalse(success)
+        XCTAssertTrue(success, store.operationError ?? "Local refile failed")
+        await store.synchronizeFiles()
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "* TODO B\n")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("agenda/archives/actions-\(Calendar(identifier: .gregorian).component(.year, from: .now)).org").path))
+        let durable = try await XCTUnwrap(store.localStore).snapshot()
+        XCTAssertEqual(durable.conflicts.first?.path, "agenda/actions.org")
+        XCTAssertEqual(durable.conflicts.first?.remoteContents, "* TODO B\n")
+        XCTAssertTrue(durable.documents.contains { $0.path != "agenda/actions.org" && $0.contents.contains("* TODO A") })
+        await store.stopStorageObservation()
     }
 
     private func makeStore(_ sources: [String: String]) -> WorkspaceStore {

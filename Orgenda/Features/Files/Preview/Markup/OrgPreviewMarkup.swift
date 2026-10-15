@@ -1,4 +1,5 @@
 import SwiftUI
+import OrgTreeSitter
 
 /// Presentation derived from the existing syntax tree. Source slices stay in
 /// UTF-8 coordinates; removing visible delimiters never changes edit offsets.
@@ -173,7 +174,22 @@ enum OrgPreviewMarkup {
         case "latex_fragment", "latex_block":
             return [.math(OrgMathExpression(node))]
         case "bold", "italic", "underline", "strikethrough":
-            return [.text(render(node, replacement: nil))]
+            let styled = render(node, replacement: nil)
+            let source = String(node.text.dropFirst().dropLast())
+            guard source.contains("\\") || source.contains("$") else { return [.text(styled)] }
+            // Emphasis is a terminal grammar token. Parse its body with the
+            // same Org grammar so formulas survive the surrounding style.
+            let body = ParsedOrgNode(OrgParser().parse(source).rootNode, path: node.id)
+            let fragments = renderFragments(body, replacement: nil)
+            guard fragments.contains(where: { if case .math = $0 { return true }; return false }) else {
+                return [.text(styled)]
+            }
+            let attributes = styled.runs.first?.attributes ?? AttributeContainer()
+            return fragments.map { fragment in
+                guard case .text(var value) = fragment else { return fragment }
+                value.mergeAttributes(attributes)
+                return .text(value)
+            }
         case "code", "verbatim", "statistics_cookie", "target", "radio_target", "macro",
              "export_snippet", "footnote_reference", "inline_footnote", "footnote_definition_marker",
              "description_tag", "timestamp", "timestamp_range", "active_timestamp", "inactive_timestamp":

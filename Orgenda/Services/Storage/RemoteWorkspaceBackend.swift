@@ -11,6 +11,8 @@ struct RemoteFile: Codable, Equatable, Sendable, Identifiable {
 
 struct RemoteScan: Sendable {
     var files: [RemoteFile]
+    /// Explicitly incomplete subtrees. Their previous cache must be retained.
+    var unavailablePaths: [String: String] = [:]
 }
 
 struct RemoteDownload: Sendable {
@@ -18,8 +20,8 @@ struct RemoteDownload: Sendable {
     var data: Data
 }
 
-/// All paths are relative to the persisted root. A scan must throw on any
-/// partial enumeration; upload and move must never silently overwrite.
+/// Paths are relative to the root. Partial enumeration must either throw or
+/// explicitly identify every unavailable subtree; omissions are never deletions.
 protocol RemoteWorkspaceBackend: Sendable {
     func scan() async throws -> RemoteScan
     func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload

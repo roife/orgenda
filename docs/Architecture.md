@@ -16,7 +16,7 @@ Org 文件是工作区的内容来源。界面、索引和存储围绕同一份�
 
 ## 状态与数据流
 
-`OrgendaRootView` 持有 `WorkspaceStore`，负责顶层导航、快捷操作和工作区生命周期。`WorkspaceStore` 在主 actor 上维护文档、解析结果、议程集合和保存状态；按职责拆分的扩展仍属于同一个 store。
+`OrgendaRootView` 持有 `WorkspaceStore`，负责顶层导航、快捷操作和工作区生命周期。`WorkspaceStore` 在主 actor 上按路径维护文档、本机 blob 基线、解析结果、议程集合和保存状态，同步状态订阅自 `SyncEngine`；按职责拆分的扩展仍属于同一个 store。文档数组是按需生成的界面投影，保存和单文件索引直接按路径查找。
 
 页面负责交互状态和未保存草稿，通过 store 执行内容变更。日历中的任务与日记共用 `AgendaCalendarView`；日记内容和输入由 `JournalDayContent`、`JournalComposer` 提供。`OrgDocumentView` 协调源码编辑器、交互预览与大纲定位，`OrgEditorSession` 保留文本视图和撤销历史。
 
@@ -30,11 +30,17 @@ Org 文件是工作区的内容来源。界面、索引和存储围绕同一份�
 
 ## 保存与同步
 
-`WorkspaceStore` 只持有一个 `WorkspaceSession`，维护界面状态、编辑基线与同步状态。文档和图片读写、恢复副本、移动与同步统一交给 Session。`WorkspaceSession` 使用本机 blob 与 manifest 保存文档、待上传修改和冲突，再通过 `WorkspaceFileStore` 访问系统文件夹，或通过 `RemoteWorkspaceBackend` 同步远端。
+`LocalStore` actor 持有不可变 `blobs/<sha256>` 与 `state.sqlite`。状态库包含 `files`、`drafts`、`conflicts`、`ops`、`trash`、`attachments`、`meta`；SQLite WAL 配合 `synchronous=FULL`，事务提交是唯一提交点。blob 在提交前写入，事务失败保留上一版状态；没有被引用的新 blob 可稍后清理。普通保存和上传确认只提交单文件补丁，避免复制整个文件表或重写全量状态。
 
-每个 session 的后端由互斥的 `Source` 枚举表示，必须是文件夹或远端之一。草稿同步与跨文件移动复用同一个条件上传入口，统一核对目标路径和返回文件类型。
+文件使用本机 UUID。`files` 索引逻辑路径、远端路径及规范化后的大小写路径；草稿和冲突关联稳定文件 ID，正文通过 blob 引用保存。离线操作记录顺序及前置版本，逻辑路径立即反映本机意图，远端路径在回放确认后前移。状态格式直接使用 SQLite，不读取或迁移旧 manifest，也不自动删除旧缓存。
 
-界面的保存状态区分本机保存和存储位置写入。工作区更换、文件移动、归档与冲突处理沿用现有恢复副本和源码核对流程。WebDAV 与系统文件夹实现位于 `Services/Storage`，配置及实际存储位置验收见 [存储与同步说明](Storage.md)。
+`SyncEngine` 合并同步请求，统一管理退避、服务器 Retry-After、网络恢复、前台刷新与定时拉取。编辑后的同步仅推送 pending；进入前台、手动、定时及条件写入失败时拉取。`LocalStore` 的变更流携带修订号与变化路径，Store 按修订号读取文本增量；超过增量保留窗口时回退到完整快照。blob LRU 缓存最多 16 MiB / 4096 项，磁盘读入时校验哈希。
+
+推送逐路径确认，单文件失败保留队列并允许其他路径继续；离线、认证失败和服务器限流按全局失败处理。WebDAV 最多并发 4 个请求，强 PUT ETag 可直接确认写入，其余情况读回校验。完整目录扫描中的异常子树显式隔离并保留旧缓存，不能把不完整枚举当成删除。文件夹扫描以资源身份、mtime、size 跳过未变化文件；`NSFilePresenter` 和 iCloud `NSMetadataQuery` 触发定向读取，定时扫描负责补充核对。
+
+移动、删除、恢复先在本机事务中入队，回放仍使用不覆盖目标的操作及内容/版本前置条件；冲突保留本机内容。跨文件 refile 在一个事务中提交两份草稿，源文件以目标文件的稳定 ID 和确切 blob 为依赖，先确认目标再上传源文件。目标在中断后改变时保留源端内容，避免重试重复追加。三方文本合并只接受互不重叠的字节精确行修改，重叠修改交由用户处理。
+
+WebDAV 的路径身份不能证明所有远端改名；只有后端稳定 ID，或唯一且未变化的版本与 blob，才用于跟踪改名。无法唯一识别时保守地保留草稿并报告冲突。配置与实际存储位置验收见 [存储与同步说明](Storage.md)，可重复基准见 [基准数据](StorageBenchmark.json)。
 
 ## 扩展与验证
 

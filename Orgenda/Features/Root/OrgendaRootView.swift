@@ -14,7 +14,6 @@ struct OrgendaRootView: View {
     @EnvironmentObject private var sceneDelegate: OrgendaSceneDelegate
     @AppStorage("appearance") private var appearance = "System"
     @State private var store = WorkspaceStore.startup()
-    @State private var storageNetwork = StorageNetworkMonitor()
     @State private var selectedTab: OrgendaTab = .dashboard
     @State private var searchQuery = ""
     @State private var dashboardPerspective: OrgAgendaPerspective = .todos
@@ -78,17 +77,11 @@ struct OrgendaRootView: View {
         .task(id: scenePhase) {
             if scenePhase == .active {
                 if store.isFolderConnected { await store.refreshReminders() }
-                while !Task.isCancelled {
-                    await store.synchronizeFiles(automatic: true)
-                    try? await Task.sleep(for: .seconds(store.storageConnection?.provider.isRemote == true ? 30 : 3))
-                }
+                await store.setStorageForeground(true)
             } else {
+                await store.setStorageForeground(false)
                 await store.finishStorageBeforeSuspending()
             }
-        }
-        .onChange(of: storageNetwork.recoveryGeneration) { _, _ in
-            guard scenePhase == .active else { return }
-            Task { await store.synchronizeFiles() }
         }
         .onChange(of: appearance, initial: true) { _, appearance in
             sceneDelegate.updateAppearance(appearance)
