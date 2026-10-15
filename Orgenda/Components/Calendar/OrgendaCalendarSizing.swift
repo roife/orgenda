@@ -8,7 +8,7 @@ enum OrgendaCalendarLayout {
         + monthRowSpacing * CGFloat(monthRowCount - 1)
 }
 
-/// Accepted Motion Lab settings; keep in sync with previews/calendar-motion.json.
+/// Shared timing and curves for calendar density transitions.
 enum OrgendaCalendarTransition {
     static let opacityMax = 1.0
     static let opacityMiddle = 0.66

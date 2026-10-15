@@ -61,7 +61,7 @@ xcodegen generate --spec project.yml
 open Orgenda.xcodeproj
 ```
 
-`project.yml` 是项目配置的来源，生成后的 Xcode 工程一并提交。新增、移动源码或修改构建设置后重新生成工程；构建设置应先写入 YAML，避免下次生成时丢失。
+`project.yml` 是唯一的项目配置来源，生成的 `Orgenda.xcodeproj` 已加入 `.gitignore`。首次克隆，以及新增、移动源码或修改构建设置后，先运行上面的 XcodeGen 命令；构建设置统一写入 YAML。
 
 命令行构建（可将设备名替换为本机已安装的模拟器）：
 

@@ -24,7 +24,7 @@ extension WorkspaceStore {
             guard !self.documents.contains(where: { WorkspaceFileTransfer.contains($0.path, in: destination) }) else {
                 throw WorkspaceFileActionError.nameExists
             }
-            if let disk = self.fileStore {
+            if let disk = self.workspaceSession {
                 try await disk.move(path: source, to: destination, expected: transfer.snapshot)
             }
             var moved = self.documents.map { document in
@@ -74,7 +74,7 @@ extension WorkspaceStore {
         await performFileAction {
             try self.validateFileTransfer(transfer)
             let entry: WorkspaceTrashEntry
-            if let disk = self.fileStore {
+            if let disk = self.workspaceSession {
                 entry = try await disk.trash(document: transfer.document, expected: transfer.snapshot)
             } else {
                 entry = WorkspaceTrashEntry(id: UUID(), originalPath: transfer.document.path,
@@ -106,18 +106,14 @@ extension WorkspaceStore {
             guard !self.documents.contains(where: { WorkspaceFileTransfer.contains($0.path, in: entry.originalPath) }) else {
                 throw WorkspaceFileActionError.nameExists
             }
-            if let disk = self.fileStore {
+            if let disk = self.workspaceSession {
                 try await disk.restore(entry)
                 // The move already succeeded. Even if the next provider read fails,
                 // do not offer a second restore or report the payload as deleted.
                 self.recentlyDeleted.removeAll { $0.id == entry.id }
                 self.fileUndo = nil
-                if let session = self.workspaceSession {
-                    self.applyStorageSnapshot(try await session.snapshot())
-                    self.scheduleWorkspaceParse()
-                } else {
-                    self.acceptFileActionDocuments(try await disk.load())
-                }
+                self.applyStorageSnapshot(try await disk.snapshot())
+                self.scheduleWorkspaceParse()
             } else {
                 guard let restored = self.demoDeletedFiles.removeValue(forKey: entry.id) else {
                     throw WorkspaceFileActionError.changed
@@ -142,7 +138,7 @@ extension WorkspaceStore {
     }
 
     func reloadDeletedFiles() async {
-        guard let disk = fileStore else { return }
+        guard let disk = workspaceSession else { return }
         let session = workspaceFileSessionID
         do {
             let entries = try await disk.deletedEntries()
@@ -193,7 +189,7 @@ extension WorkspaceStore {
     /// Demo documents may start in implicit directories. A filesystem move or
     /// deletion leaves those parents in place, even when their last child leaves.
     private func keepDemoParentFolders(of path: String, in next: inout [WorkspaceDocument]) {
-        guard fileStore == nil else { return }
+        guard workspaceSession == nil else { return }
         var parent = (path as NSString).deletingLastPathComponent
         while !parent.isEmpty {
             if !next.contains(where: { $0.path == parent }) {

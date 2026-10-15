@@ -21,6 +21,32 @@ final class WorkspaceSessionTests: XCTestCase {
                              recoveryDirectory: cache.appendingPathComponent("Recovery"))
     }
 
+    func testRecoveryCopiesRetainDistinctDraftsAndWorkspaceIdentities() async throws {
+        let first = try session(SessionFakeBackend([:]))
+        try await first.preserveUnsaved("* First draft 中文\n", path: "notes/inbox.org")
+        try await first.preserveUnsaved("* First draft 中文\n", path: "notes/inbox.org")
+        try await first.preserveUnsaved("* Second draft\n", path: "notes/inbox.org")
+        let firstIdentity = connection.identity
+        connection = StorageConnection(provider: .webDAV, displayName: "Other", rootID: "/other")
+        let second = try session(SessionFakeBackend([:]))
+        try await second.preserveUnsaved("* First draft 中文\n", path: "notes/inbox.org")
+
+        let recovery = cache.appendingPathComponent("Recovery")
+        let copies = try FileManager.default.subpathsOfDirectory(atPath: recovery.path).filter { $0.hasSuffix(".txt") }
+        XCTAssertEqual(copies.count, 3, "Repeated recovery must retain each version and each workspace independently")
+        var drafts: [String: Set<String>] = [:]
+        for copy in copies {
+            let url = recovery.appendingPathComponent(copy)
+            let metadata = try XCTUnwrap(JSONSerialization.jsonObject(
+                with: Data(contentsOf: url.deletingPathExtension().appendingPathExtension("json"))) as? [String: String])
+            XCTAssertEqual(metadata["path"], "notes/inbox.org")
+            let identity = try XCTUnwrap(metadata["workspace"])
+            drafts[identity, default: []].insert(try String(contentsOf: url, encoding: .utf8))
+        }
+        XCTAssertEqual(drafts[firstIdentity], ["* First draft 中文\n", "* Second draft\n"])
+        XCTAssertEqual(drafts[connection.identity], ["* First draft 中文\n"])
+    }
+
     func testExternalChangePreservesBothVersionsAndResolvesUsingLatestRemote() async throws {
         let backend = SessionFakeBackend(["inbox.org": "* Base\n"])
         let workspace = try session(backend)

@@ -3,8 +3,7 @@ import Foundation
 
 /// A durable local workspace, optionally connected to a remote service. UI
 /// edits never require a network request; only synchronize performs uploads.
-actor WorkspaceSession: WorkspaceFileAccess {
-    nonisolated let recoveryIdentity: String
+actor WorkspaceSession {
     nonisolated let connection: StorageConnection
     let directory: URL
     let recoveryDirectory: URL
@@ -36,7 +35,6 @@ actor WorkspaceSession: WorkspaceFileAccess {
     private init(connection: StorageConnection, cacheDirectory: URL, source: Source,
                  recoveryDirectory: URL?) throws {
         self.connection = connection
-        self.recoveryIdentity = connection.identity
         self.directory = cacheDirectory.appendingPathComponent(connection.id.uuidString, isDirectory: true)
         self.recoveryDirectory = recoveryDirectory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Unsaved Edits", isDirectory: true)
@@ -189,6 +187,25 @@ actor WorkspaceSession: WorkspaceFileAccess {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(info).write(to: archive.appendingPathComponent("recovery.json"), options: .atomic)
+    }
+
+    func archiveUnsynced() throws {
+        let destination = recoveryDirectory.appendingPathComponent(
+            "\(Int(Date.now.timeIntervalSince1970))-\(UUID().uuidString)", isDirectory: true)
+        try archiveUnsynced(to: destination)
+    }
+
+    /// Content addressing retains every distinct draft without duplicating an
+    /// unchanged conflict on each refresh or colliding across workspaces.
+    func preserveUnsaved(_ contents: String, path: String) throws {
+        let identity = connection.provider.isRemote ? connection.identity : connection.rootID
+        let recovery = recoveryDirectory.appendingPathComponent(Self.digest(Data(identity.utf8)), isDirectory: true)
+        let name = Self.digest(Data(path.utf8)) + "-" + Self.digest(Data(contents.utf8))
+        try FileManager.default.createDirectory(at: recovery, withIntermediateDirectories: true)
+        try Data(contents.utf8).write(to: recovery.appendingPathComponent(name + ".txt"), options: .atomic)
+        let metadata = ["workspace": identity, "path": path]
+        try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys])
+            .write(to: recovery.appendingPathComponent(name + ".json"), options: .atomic)
     }
 
     /// Called only after a verified recovery export and successful activation

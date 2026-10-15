@@ -1,21 +1,7 @@
 import Foundation
 
+#if DEBUG
 extension WorkspaceStore {
-    /// Production always begins empty and waits for the persistent workspace.
-    /// Only explicit debug launches may use the isolated UI-test fixtures.
-    static func startup(arguments: [String] = ProcessInfo.processInfo.arguments) -> WorkspaceStore {
-        isUITestWorkspace(arguments: arguments) ? preview() : WorkspaceStore()
-    }
-
-    nonisolated static func isUITestWorkspace(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
-        #if DEBUG
-        // Preserve the old argument for existing developer test runners.
-        arguments.contains("--ui-test-workspace") || arguments.contains("--demo-workspace")
-        #else
-        false
-        #endif
-    }
-
     static func preview(now: Date = .now) -> WorkspaceStore {
         let calendar = Calendar.autoupdatingCurrent
         func at(_ offset: Int, hour: Int, minute: Int = 0) -> Date {
@@ -106,3 +92,4 @@ extension WorkspaceStore {
         return store
     }
 }
+#endif

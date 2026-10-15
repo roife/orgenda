@@ -20,7 +20,7 @@ Org 文件是工作区的内容来源。界面、索引和存储围绕同一份�
 
 页面负责交互状态和未保存草稿，通过 store 执行内容变更。日历中的任务与日记共用 `AgendaCalendarView`；日记内容和输入由 `JournalDayContent`、`JournalComposer` 提供。`OrgDocumentView` 协调源码编辑器、交互预览与大纲定位，`OrgEditorSession` 保留文本视图和撤销历史。
 
-搜索用 `.task(id:)` 随查询、范围和工作区内容变化取消并重启防抖任务。捕获表单将输入与预览分开保存；预览同时记录生成文本、目标文件基线、配置版本和工作区身份，提交时核对同一份快照。显式启用的启动测试场景集中在 `App/Fixtures`，工作区连接服务只负责生命周期与持久化连接。
+搜索用 `.task(id:)` 随查询、范围和工作区内容变化取消并重启防抖任务。捕获表单将输入与预览分开保存；预览同时记录生成文本、目标文件基线、配置版本和工作区身份，提交时核对同一份快照。`App/WorkspaceStore+Preview.swift` 仅在 Debug 编译，用于 `--demo-workspace` 手动调试。
 
 `OrgIndexService` 在独立 actor 上解析文档，生成带 UTF-8 字节范围的快照；任务和日记条目复用同一棵语法树，文件变化时只更新该文件的结果。编辑器高亮独立解析当前文本，并复用该次解析修正工作流关键词，不再调用完整工作区索引。异步索引发布前核对解析代次与源码，避免旧结果覆盖较新的编辑。同步解析入口用于测试和需要等待索引的操作。
 
@@ -30,7 +30,7 @@ Org 文件是工作区的内容来源。界面、索引和存储围绕同一份�
 
 ## 保存与同步
 
-`WorkspaceFileAccess` 定义工作区文件访问边界。`WorkspaceFileStore` 负责本机及系统文件夹访问；`WorkspaceSession` 使用本机 blob 与 manifest 保存文档、待上传修改和冲突，再通过文件夹或 `RemoteWorkspaceBackend` 同步。
+`WorkspaceStore` 只持有一个 `WorkspaceSession`，维护界面状态、编辑基线与同步状态。文档和图片读写、恢复副本、移动与同步统一交给 Session。`WorkspaceSession` 使用本机 blob 与 manifest 保存文档、待上传修改和冲突，再通过 `WorkspaceFileStore` 访问系统文件夹，或通过 `RemoteWorkspaceBackend` 同步远端。
 
 每个 session 的后端由互斥的 `Source` 枚举表示，必须是文件夹或远端之一。草稿同步与跨文件移动复用同一个条件上传入口，统一核对目标路径和返回文件类型。
 
@@ -38,7 +38,7 @@ Org 文件是工作区的内容来源。界面、索引和存储围绕同一份�
 
 ## 扩展与验证
 
-页面专用代码放在对应 feature；多个页面实际复用后再移到 `Components`。领域规则和源码处理放在 `Domain`，文件与网络操作放在 `Services`。测试按对应职责放在 `OrgendaTests`，导航和手势回归放在 `OrgendaUITests`。
+页面专用代码放在对应 feature；多个页面实际复用后再移到 `Components`。领域规则和源码处理放在 `Domain`，文件与网络操作放在 `Services`。数据安全回归放在 `OrgendaTests`，导航和手势通过 `--demo-workspace` 手动验证。
 
 修改语法时编辑 `grammar.js` 或 `src/scanner.c`；`src/parser.c`、`src/grammar.json` 和 `src/node-types.json` 由 Tree-sitter 生成。第三方运行时位于 `Vendor/tree-sitter`，来源与许可证见包内 `THIRD_PARTY_NOTICES.md`。
 

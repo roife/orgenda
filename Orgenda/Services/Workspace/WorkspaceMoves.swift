@@ -109,50 +109,19 @@ extension WorkspaceStore {
                 plan = try OrgWorkflowOperations.archive(source: source, headingStartByte: current.source.startByte,
                     destination: destination, defaultLocation: hasWorkspaceConfiguration ? configuration.files.archive : nil)
             }
-            if let fileStore {
+            if let workspaceSession {
                 isSynchronizing = true
                 defer { isSynchronizing = false }
-                let disk = try await fileStore.load()
+                let disk = try await workspaceSession.load()
                 guard documents == originalDocuments,
                       disk.first(where: { $0.path == source.path })?.contents == source.contents,
                       disk.first(where: { $0.path == destination.path })?.contents == existingDestination?.contents else {
                     operationError = String(localized: "The source or destination changed. Refresh and try again.")
                     return false
                 }
-                if let workspaceSession {
-                    try await workspaceSession.commitOnlineMove(source: plan.source, destination: plan.destination,
-                        expectedSource: source.contents, expectedDestination: existingDestination?.contents)
-                } else {
-                    try await fileStore.write(path: plan.destination.path, contents: plan.destination.contents,
-                                              expectedContents: existingDestination?.contents)
-                }
-                if workspaceSession == nil && plan.source.path != plan.destination.path {
-                    // Never remove source text before the full destination exists.
-                    guard documents == originalDocuments else {
-                        operationError = String(localized: "A copy was saved, but an edit interrupted the move. Both copies are retained.")
-                        return false
-                    }
-                    do {
-                        try await fileStore.write(path: plan.source.path, contents: plan.source.contents,
-                                                  expectedContents: source.contents)
-                    } catch {
-                        operationError = String(localized: "A copy was saved to \(plan.destination.path), but the source changed. Both copies are retained.")
-                        let loaded = try await fileStore.load()
-                        for document in loaded where document.kind != .folder && !dirtyFilePaths.contains(document.path) {
-                            persistedContents[document.path] = document.contents
-                        }
-                        let retainedPaths = Set(loaded.map(\.path)).union(dirtyFilePaths)
-                        persistedContents = persistedContents.filter { retainedPaths.contains($0.key) }
-                        acceptDiskDocuments(loaded)
-                        return false
-                    }
-                }
-                let loaded = try await fileStore.load()
-                for document in loaded where document.kind != .folder && !dirtyFilePaths.contains(document.path) {
-                    persistedContents[document.path] = document.contents
-                }
-                acceptDiskDocuments(loaded)
-                lastFileSync = .now
+                try await workspaceSession.commitOnlineMove(source: plan.source, destination: plan.destination,
+                    expectedSource: source.contents, expectedDestination: existingDestination?.contents)
+                applyStorageSnapshot(try await workspaceSession.snapshot())
             } else {
                 var next = documents.filter { $0.path != plan.source.path && $0.path != plan.destination.path }
                 next.append(plan.destination)

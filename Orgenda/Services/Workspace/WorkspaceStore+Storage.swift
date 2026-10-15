@@ -1,7 +1,22 @@
 import Foundation
+import UIKit
 
 extension WorkspaceStore {
     static let storageConnectionKey = "storageConnection.v1"
+
+    func finishStorageBeforeSuspending() async {
+        guard isWorkspaceReady else { return }
+        let finishing = Task { await synchronizeFiles() }
+        let identifier = UIApplication.shared.beginBackgroundTask(withName: "Save workspace") {
+            finishing.cancel()
+        }
+        await withTaskCancellationHandler {
+            await finishing.value
+        } onCancel: {
+            finishing.cancel()
+        }
+        if identifier != .invalid { UIApplication.shared.endBackgroundTask(identifier) }
+    }
 
     func restoreConfiguredStorage(defaults: UserDefaults, localURL: URL) async {
         connectionDefaults = defaults
@@ -97,7 +112,7 @@ extension WorkspaceStore {
                 return
             }
             let cloud = (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]).isUbiquitousItem) == true
-            let digest = Self.recoveryDigest(root)
+            let digest = WorkspaceSession.digest(Data(root.utf8))
             let hex = Array(digest.prefix(32))
             let uuidString = String(hex[0..<8]) + "-" + String(hex[8..<12]) + "-" + String(hex[12..<16])
                 + "-" + String(hex[16..<20]) + "-" + String(hex[20..<32])
@@ -244,10 +259,7 @@ extension WorkspaceStore {
             }
         } else if let workspaceSession {
             let originalDocuments = documents
-            let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("Unsaved Edits", isDirectory: true)
-                .appendingPathComponent("\(Int(Date.now.timeIntervalSince1970))-\(UUID().uuidString)", isDirectory: true)
-            try await workspaceSession.archiveUnsynced(to: root)
+            try await workspaceSession.archiveUnsynced()
             guard dirtyFilePaths.isEmpty, documents == originalDocuments else {
                 throw StorageError.configuration(String(localized: "The workspace changed while keeping a copy. Finish editing and try again."))
             }
@@ -270,7 +282,6 @@ extension WorkspaceStore {
         fileSaveTask?.cancel()
         fileSaveTask = nil
         workspaceFileSessionID = UUID()
-        fileStore = session
         workspaceSession = session
         appliedStorageRevision = 0
         storageConnection = connection
@@ -352,14 +363,14 @@ extension WorkspaceStore {
         while isPersistingEdits {
             do { try await Task.sleep(for: .milliseconds(10)) } catch { return }
         }
-        guard let fileStore, !dirtyFilePaths.isEmpty else { return }
+        guard let workspaceSession, !dirtyFilePaths.isEmpty else { return }
         isPersistingEdits = true
         defer { isPersistingEdits = false }
         let identity = workspaceFileSessionID
         for path in dirtyFilePaths.sorted() {
             guard let contents = documents.first(where: { $0.path == path })?.contents else { continue }
             do {
-                try await fileStore.write(path: path, contents: contents, expectedContents: persistedContents[path])
+                try await workspaceSession.write(path: path, contents: contents, expectedContents: persistedContents[path])
                 guard identity == workspaceFileSessionID else { return }
                 persistedContents[path] = contents
                 fileSaveErrors.removeValue(forKey: path)
@@ -371,17 +382,17 @@ extension WorkspaceStore {
                 fileSaveErrors[path] = error.localizedDescription
                 fileSyncError = error.localizedDescription
                 syncState = .failed(error.localizedDescription)
-                try? await Self.preserveUnsaved(contents, path: path, workspaceIdentity: fileStore.recoveryIdentity)
+                try? await workspaceSession.preserveUnsaved(contents, path: path)
             }
         }
-        if let workspaceSession, let snapshot = try? await workspaceSession.snapshot(), identity == workspaceFileSessionID {
+        if let snapshot = try? await workspaceSession.snapshot(), identity == workspaceFileSessionID {
             applyStorageSnapshot(snapshot)
         }
     }
 
     func synchronizeFiles(automatic: Bool = false) async {
         await persistFileEdits()
-        guard !isSynchronizing, let fileStore, !Task.isCancelled else { return }
+        guard !isSynchronizing, let workspaceSession, !Task.isCancelled else { return }
         if automatic && isChangingStorage { return }
         if let serverSyncRetryAt, serverSyncRetryAt > .now { return }
         if automatic, let automaticSyncRetryAt, automaticSyncRetryAt > .now { return }
@@ -391,22 +402,14 @@ extension WorkspaceStore {
         syncState = .syncing
         var failure: Error?
         do {
-            if let workspaceSession {
-                try await workspaceSession.synchronize()
-                guard identity == workspaceFileSessionID else { return }
-                applyStorageSnapshot(try await workspaceSession.snapshot())
-            } else {
-                let loaded = try await fileStore.load()
-                guard identity == workspaceFileSessionID else { return }
-                persistedContents = Dictionary(uniqueKeysWithValues: loaded.filter { $0.kind != .folder }.map { ($0.path, $0.contents) })
-                acceptDiskDocuments(loaded)
-                lastFileSync = .now
-                syncState = .folderUpdated
-            }
+            try await workspaceSession.synchronize()
+            let snapshot = try await workspaceSession.snapshot()
+            guard identity == workspaceFileSessionID else { return }
+            applyStorageSnapshot(snapshot)
         } catch { failure = error }
         guard identity == workspaceFileSessionID else { return }
         if let failure {
-            if let workspaceSession, let snapshot = try? await workspaceSession.snapshot(), identity == workspaceFileSessionID {
+            if let snapshot = try? await workspaceSession.snapshot(), identity == workspaceFileSessionID {
                 applyStorageSnapshot(snapshot)
             }
             guard identity == workspaceFileSessionID else { return }
@@ -425,15 +428,10 @@ extension WorkspaceStore {
         if fileSyncError != nil {
             for path in dirtyFilePaths.union(pendingUploadPaths) {
                 if let contents = documents.first(where: { $0.path == path })?.contents {
-                    try? await Self.preserveUnsaved(contents, path: path, workspaceIdentity: recoveryWorkspaceIdentity)
+                    try? await workspaceSession.preserveUnsaved(contents, path: path)
                 }
             }
         }
-    }
-
-    var recoveryWorkspaceIdentity: String {
-        guard let connection = storageConnection else { return fileStore?.recoveryIdentity ?? "workspace" }
-        return connection.provider.isRemote ? connection.identity : connection.rootID
     }
 
     func resolveSyncConflict(path: String, resolution: WorkspaceConflictResolution,
@@ -463,14 +461,15 @@ extension WorkspaceStore {
     @discardableResult
     func adoptFolderVersions() async -> Bool {
         await persistFileEdits()
+        guard let workspaceSession else { return false }
         for path in dirtyFilePaths.union(pendingUploadPaths) {
             if let document = documents.first(where: { $0.path == path }) {
-                do { try await Self.preserveUnsaved(document.contents, path: path, workspaceIdentity: recoveryWorkspaceIdentity) }
+                do { try await workspaceSession.preserveUnsaved(document.contents, path: path) }
                 catch { reportStorageError(error); return false }
             }
         }
         await synchronizeFiles()
-        guard let workspaceSession, dirtyFilePaths.isEmpty, await waitForFileOperation() else { return false }
+        guard dirtyFilePaths.isEmpty, await waitForFileOperation() else { return false }
         if syncConflicts.isEmpty { return pendingUploadPaths.isEmpty && fileSyncError == nil }
         for conflict in syncConflicts {
             await resolveSyncConflict(path: conflict.path, resolution: .useRemote)

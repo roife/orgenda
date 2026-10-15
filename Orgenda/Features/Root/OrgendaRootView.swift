@@ -24,11 +24,11 @@ struct OrgendaRootView: View {
     @State private var calendarNavigationID = UUID()
     @State private var filesNavigationID = UUID()
     @State private var searchNavigationID: UUID?
-    private let isUITestWorkspace = WorkspaceStore.isUITestWorkspace(arguments: ProcessInfo.processInfo.arguments)
+    private let isDemoWorkspace = WorkspaceStore.isDemoWorkspace(arguments: ProcessInfo.processInfo.arguments)
 
     var body: some View {
         Group {
-            if !store.isStartingWorkspace && !store.isWorkspaceReady && !isUITestWorkspace {
+            if !store.isStartingWorkspace && !store.isWorkspaceReady && !isDemoWorkspace {
                 workspaceUnavailable
             } else {
                 workspaceTabs
@@ -60,15 +60,6 @@ struct OrgendaRootView: View {
             SettingsView(store: store, initialDestination: .workspace)
         }
         .task {
-            #if DEBUG
-            // Hold the real startup state long enough for deterministic UI checks.
-            if isUITestWorkspace,
-               let value = ProcessInfo.processInfo.environment["ORGENDA_UI_TEST_STARTUP_DELAY"],
-               let delay = Double(value), delay.isFinite, delay > 0 {
-                do { try await Task.sleep(for: .seconds(min(delay, 60))) }
-                catch { return }
-            }
-            #endif
             await store.startWorkspace()
         }
         .task(id: actionableShortcutID) {
@@ -108,7 +99,7 @@ struct OrgendaRootView: View {
 private extension OrgendaRootView {
     var actionableShortcutID: UUID? {
         guard scenePhase == .active, !store.isStartingWorkspace, !store.isPerformingFileAction,
-              store.isWorkspaceReady || isUITestWorkspace else { return nil }
+              store.isWorkspaceReady || isDemoWorkspace else { return nil }
         return sceneDelegate.pendingAction?.id
     }
 
@@ -192,7 +183,7 @@ private extension OrgendaRootView {
                 AgendaView(store: store, mode: .calendar, perspective: .constant(.agenda), onCapture: { date in
                     capture = CaptureDestination(date: date)
                 }, onShowInFile: showInFile, onShowOverdue: showOverdue,
-                   expectsConnectedWorkspace: !isUITestWorkspace)
+                   expectsConnectedWorkspace: !isDemoWorkspace)
                 .id(calendarNavigationID)
                 .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
@@ -227,7 +218,7 @@ private extension OrgendaRootView {
         AgendaView(store: store, perspective: perspective, onCapture: { date in
             capture = CaptureDestination(date: date)
         }, onShowInFile: showInFile, onShowOverdue: showOverdue,
-           expectsConnectedWorkspace: !isUITestWorkspace)
+           expectsConnectedWorkspace: !isDemoWorkspace)
         .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
     }
 

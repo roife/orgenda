@@ -10,8 +10,7 @@ final class WorkspaceStore {
     var configurationRevision: UInt64 = 0
     var isSavingConfiguration = false
     var configurationSource: String?
-    /// Production sessions always use configuration; legacy fixtures opt in
-    /// independently of the old personal-workflow feature flag.
+    /// Connected workspaces use their persisted configuration.
     var hasWorkspaceConfiguration = false
     var items: [OrgItem] {
         didSet { rebuildDerivedCollections() }
@@ -68,7 +67,6 @@ final class WorkspaceStore {
     var reminderPermissionDenied = false
     @ObservationIgnored let reminderScheduler = OrgReminderScheduler()
 
-    @ObservationIgnored var fileStore: (any WorkspaceFileAccess)?
     @ObservationIgnored var workspaceSession: WorkspaceSession?
     @ObservationIgnored var connectionDefaults: UserDefaults = .standard
     @ObservationIgnored var isPersistingEdits = false

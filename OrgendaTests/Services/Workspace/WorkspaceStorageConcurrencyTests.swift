@@ -99,7 +99,6 @@ final class WorkspaceStorageConcurrencyTests: XCTestCase {
         store.storageCacheDirectory = cache
         store.storageConnection = connection
         store.workspaceSession = session
-        store.fileStore = session
         store.isFolderConnected = true
         store.isStartingWorkspace = false
         store.usesEmacsConfiguration = true

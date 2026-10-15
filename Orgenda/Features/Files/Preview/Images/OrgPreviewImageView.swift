@@ -151,7 +151,7 @@ struct OrgPreviewImageView: View {
             guard request.failure == nil else { return }
             do {
                 let image = try await OrgPreviewImageLoader.shared.load(
-                    candidates: request.paths, fileStore: context?.store.fileStore
+                    candidates: request.paths, workspaceSession: context?.store.workspaceSession
                 )
                 try Task.checkCancellation()
                 loadedImage = image

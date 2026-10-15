@@ -52,7 +52,7 @@ extension WorkspaceStore {
             configurationError = "The configuration changed. Reload before applying this edit."
             return false
         }
-        guard let fileStore else { configurationError = "Connect a workspace first."; return false }
+        guard let workspaceSession else { configurationError = "Connect a workspace first."; return false }
         if importedDocument == nil, let source = configurationSource, (try? ConfigurationDocument(source)) == nil {
             configurationError = "Repair the existing config.json before saving settings."
             return false
@@ -66,19 +66,11 @@ extension WorkspaceStore {
         let session = workspaceFileSessionID
         do {
             let source = try (importedDocument ?? configurationDocument).encoded(value)
-            try await fileStore.write(path: "config.json", contents: source, expectedContents: configurationSource)
+            try await workspaceSession.write(path: "config.json", contents: source, expectedContents: configurationSource)
             guard session == workspaceFileSessionID else { return false }
-            if let workspaceSession {
-                let snapshot = try await workspaceSession.snapshot()
-                guard session == workspaceFileSessionID else { return false }
-                applyStorageSnapshot(snapshot)
-            } else {
-                _ = acceptConfiguration(source)
-                let document = WorkspaceDocument(path: "config.json", title: "Configuration", contents: source, kind: .configuration)
-                documents.removeAll { $0.path == "config.json" }
-                documents.append(document)
-                scheduleWorkspaceParse()
-            }
+            let snapshot = try await workspaceSession.snapshot()
+            guard session == workspaceFileSessionID else { return false }
+            applyStorageSnapshot(snapshot)
             if syncConflicts.contains(where: { $0.path == "config.json" }) {
                 configurationError = "The configuration changed during saving. Resolve the sync conflict."
                 return false
