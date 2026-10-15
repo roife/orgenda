@@ -46,6 +46,9 @@ struct AgendaView: View {
     }
 
     private var showsPerspectiveMenu: Bool { tabBarPlacement != .sidebar }
+    private var canChoosePerspective: Bool {
+        showsPerspectiveMenu && !store.isStartingWorkspace && !store.isPerformingFileAction
+    }
 
     var body: some View {
         NavigationStack {
@@ -70,19 +73,19 @@ struct AgendaView: View {
                 }
             }
             .background(Color(uiColor: .systemBackground))
-            .navigationTitle(mode == .calendar && !showsPerspectiveMenu ? String(localized: "Calendar") : "")
+            .navigationTitle(mode == .agenda ? displayedPerspective.title
+                             : !showsPerspectiveMenu ? String(localized: "Calendar") : "")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleMenu {
+                if mode == .agenda && canChoosePerspective { perspectivePicker }
+            }
             // Regular iPad tabs share the top navigation area. Keep its inset
             // even when Calendar supplies its own date heading below the tabs.
             .toolbar(mode == .calendar && showsPerspectiveMenu && calendarMinimumDensity == .week
                      ? .hidden : .visible, for: .navigationBar)
             .toolbar {
                 if mode == .agenda {
-                    if showsPerspectiveMenu {
-                        ToolbarItem(placement: .topBarLeading) {
-                            perspectiveMenu
-                        }
-                    } else {
+                    if !canChoosePerspective {
                         ToolbarItem(placement: .principal) {
                             Text(displayedPerspective.title)
                                 .font(.headline)
@@ -169,28 +172,17 @@ struct AgendaView: View {
         perspective = option
     }
 
-    private var perspectiveMenu: some View {
-        Menu {
-            Picker("Dashboard view", selection: Binding(
-                get: { perspective },
-                set: selectPerspective
-            )) {
-                ForEach(availablePerspectives) { option in
-                    Label(option.menuTitle, systemImage: option.symbol)
-                        .tag(option)
-                        .accessibilityIdentifier("agenda.mode.\(option.controlID)")
-                }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Text(displayedPerspective.title)
-                Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+    private var perspectivePicker: some View {
+        Picker("Dashboard view", selection: Binding(
+            get: { perspective },
+            set: selectPerspective
+        )) {
+            ForEach(availablePerspectives) { option in
+                Label(option.menuTitle, systemImage: option.symbol)
+                    .tag(option)
+                    .accessibilityIdentifier("agenda.mode.\(option.controlID)")
             }
         }
-        .accessibilityLabel("Switch view")
-        .accessibilityValue(displayedPerspective.menuTitle)
-        .accessibilityHint("Choose which tasks to show")
-        .accessibilityIdentifier("agenda.viewMenu")
     }
 
     @ViewBuilder

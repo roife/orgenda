@@ -33,11 +33,11 @@ final class IPadLayoutUITests: XCTestCase {
             let item = try sidebarItem(title, in: app)
             XCTAssertGreaterThan(item.frame.minY, search.frame.maxY)
         }
-        XCTAssertTrue(app.buttons["agenda.viewMenu"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.agendaViewMenu.waitForNonExistence(timeout: 5))
         XCTAssertFalse(app.tabBars.buttons["Dashboard"].isHittable)
 
         try sidebarItem("Overdue", in: app).tap()
-        XCTAssertTrue(app.scrollViews["agenda.view.overdue"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollSurface("agenda.view.overdue").waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Overdue sidebar task"].isHittable)
         showSidebar(in: app)
         try sidebarItem("Waiting", in: app).tap()
@@ -45,17 +45,17 @@ final class IPadLayoutUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Waiting for review"].isHittable)
         showSidebar(in: app)
         XCTAssertEqual(element("agenda.currentPerspective", in: app).label, "Waiting")
-        XCTAssertFalse(app.buttons["agenda.viewMenu"].exists)
+        XCTAssertFalse(app.agendaViewMenu.exists)
         attach(app, name: "iPad sidebar with Dashboard perspectives")
 
         tap(app.buttons.matching(NSPredicate(format: "label == 'Hide Sidebar'")).firstMatch)
-        let menu = app.buttons["agenda.viewMenu"]
-        assertValue("Waiting", of: menu)
+        let menu = app.agendaViewMenu
+        assertTitle("Waiting", of: menu)
         XCTAssertTrue(app.staticTexts["Waiting for review"].isHittable)
         selectRootTab("Calendar", in: app)
         XCTAssertTrue(app.calendarDensityHandle.waitForExistence(timeout: 5))
         selectRootTab("Dashboard", in: app)
-        assertValue("Waiting", of: menu)
+        assertTitle("Waiting", of: menu)
         attach(app, name: "Dashboard menu restored after hiding sidebar")
     }
 
@@ -66,7 +66,7 @@ final class IPadLayoutUITests: XCTestCase {
         showSidebar(in: app)
         try sidebarItem("Overdue", in: app).tap()
         XCTAssertTrue(app.staticTexts["Overdue sidebar task"].waitForExistence(timeout: 5))
-        assertValue("Overdue", of: app.buttons["agenda.viewMenu"])
+        assertTitle("Overdue", of: app.agendaViewMenu)
         let hideSidebar = app.buttons.matching(NSPredicate(format: "label == 'Hide Sidebar'")).firstMatch
         XCTAssertFalse(hideSidebar.exists && hideSidebar.isHittable,
                        "The native temporary sidebar should dismiss after navigation")
@@ -81,9 +81,9 @@ final class IPadLayoutUITests: XCTestCase {
                                     ("dashboard", "Dashboard")] {
             showSidebar(in: app)
             tap(app.cells["sidebar.perspective.\(identifier)"])
-            assertValue(title, of: app.buttons["agenda.viewMenu"])
-            // The separate toolbar menu can also be titled Dashboard. Count
-            // only entries in the floating tab strip, after its sidebar toggle.
+            assertTitle(title, of: app.agendaViewMenu)
+            // The system title menu can also be named Dashboard. Count only
+            // rendered positions in the tab strip; UIKit may expose AX aliases.
             let sidebarToggle = app.buttons.matching(NSPredicate(
                 format: "label == 'Show Sidebar' OR identifier == 'ToggleSideBar' OR label == 'Toggle sidebar'"
             )).firstMatch
@@ -91,8 +91,11 @@ final class IPadLayoutUITests: XCTestCase {
             let tabStripLeadingEdge = sidebarToggle.frame.minX
             for tab in ["Dashboard", "Calendar", "Files", "Search"] {
                 let visibleTabs = app.buttons.matching(NSPredicate(format: "label == %@", tab))
-                    .allElementsBoundByIndex.filter { $0.isHittable && $0.frame.minX > tabStripLeadingEdge }
-                XCTAssertEqual(visibleTabs.count, 1,
+                    .allElementsBoundByIndex.filter {
+                        $0.isHittable && $0.frame.minX > tabStripLeadingEdge
+                            && abs($0.frame.midY - sidebarToggle.frame.midY) < 1
+                    }
+                XCTAssertEqual(Set(visibleTabs.map { NSCoder.string(for: $0.frame) }).count, 1,
                                "The tab bar must contain exactly one \(tab) entry. Toggle: \(sidebarToggle.debugDescription). Matches: \(visibleTabs.map(\.debugDescription))")
             }
             selectRootTab("Calendar", in: app)
@@ -115,22 +118,29 @@ final class IPadLayoutUITests: XCTestCase {
 
     private func showSidebar(in app: XCUIApplication) {
         let hide = app.buttons.matching(NSPredicate(format: "label == 'Hide Sidebar'")).firstMatch
-        if hide.exists && hide.isHittable { return }
-        let toggle = app.buttons.matching(NSPredicate(
-            format: "identifier == 'ToggleSideBar' OR label == 'Toggle sidebar' OR label == 'Show Sidebar'"
-        )).firstMatch
-        tap(toggle)
-        XCTAssertTrue(hide.waitForExistence(timeout: 5))
+        if !hide.exists || !hide.isHittable {
+            let toggle = app.buttons.matching(NSPredicate(
+                format: "identifier == 'ToggleSideBar' OR label == 'Toggle sidebar' OR label == 'Show Sidebar'"
+            )).firstMatch
+            tap(toggle)
+            XCTAssertTrue(hide.waitForExistence(timeout: 5))
+        }
+        // The native sidebar restores a section's collapsed state between runs.
+        let perspectives = app.cells.matching(NSPredicate(format: "identifier BEGINSWITH 'sidebar.perspective.'"))
+        let section = app.cells["sidebar.dashboard"]
+        if section.exists && !perspectives.firstMatch.exists {
+            section.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+            XCTAssertTrue(perspectives.firstMatch.waitForExistence(timeout: 5))
+        }
     }
 
     private func sidebarItem(_ title: String, in app: XCUIApplication) throws -> XCUIElement {
-        let items = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", title))
+        let items = app.cells.matching(NSPredicate(format: "label == %@", title))
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             items.allElementsBoundByIndex.contains { $0.isHittable }
         }, object: app)
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed, "Sidebar item: \(title)")
-        // A content heading can share a sidebar label. The native navigation
-        // item is the leftmost visible match while the sidebar is presented.
+        // Restrict the query to navigation cells, excluding content headings.
         return try XCTUnwrap(items.allElementsBoundByIndex.filter(\.isHittable)
             .min { $0.frame.minX < $1.frame.minX })
     }
@@ -393,7 +403,7 @@ final class IPadLayoutUITests: XCTestCase {
         defer { app.terminate() }
         let narrowViewport = assertViewportSize(narrowSize, in: app)
         XCTAssertTrue(app.tabBars.buttons["Dashboard"].isHittable)
-        assertValue("Unscheduled", of: app.buttons["agenda.viewMenu"])
+        assertTitle("Unscheduled", of: app.agendaViewMenu)
         XCTAssertTrue(app.staticTexts["Plan iPad reading workflow"].isHittable)
         selectRootTab("Calendar", in: app)
         assertValue("Stacked", of: element("calendar.layout", in: app))
@@ -531,6 +541,10 @@ final class IPadLayoutUITests: XCTestCase {
 
     private func selectRootTab(_ title: String, in app: XCUIApplication) {
         dismissMapsWidgetLocationPrompt()
+        // Dashboard labels a collapsible sidebar section, not a destination.
+        // Use the top tab when returning to the current Dashboard perspective.
+        let hideSidebar = app.buttons.matching(NSPredicate(format: "label == 'Hide Sidebar'")).firstMatch
+        if title == "Dashboard", hideSidebar.exists && hideSidebar.isHittable { hideSidebar.tap() }
         let tab = app.tabBars.buttons[title].firstMatch
         if tab.exists && tab.isHittable {
             tab.tap()
@@ -538,14 +552,16 @@ final class IPadLayoutUITests: XCTestCase {
         }
         // iPadOS can expose top tabs outside a tab-bar node. Hittability is a
         // live element property and is not supported in an element-query predicate.
-        let candidates = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", title))
+        let candidates = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ AND (elementType == %d OR elementType == %d)",
+            title, XCUIElement.ElementType.button.rawValue, XCUIElement.ElementType.cell.rawValue
+        ))
         if let target = candidates.allElementsBoundByIndex.first(where: { $0.isHittable }) {
             target.tap()
             return
         }
         // iPadOS can restore the adaptable tab view as a sidebar between runs.
         // Close it only when the tabs are hidden; Files has its own sidebar.
-        let hideSidebar = app.buttons.matching(NSPredicate(format: "label == 'Hide Sidebar'")).firstMatch
         if hideSidebar.exists && hideSidebar.isHittable { hideSidebar.tap() }
         if tab.exists && tab.isHittable {
             tab.tap()
@@ -603,6 +619,12 @@ final class IPadLayoutUITests: XCTestCase {
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: element)
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
         element.tap()
+    }
+
+    private func assertTitle(_ title: String, of element: XCUIElement) {
+        XCTAssertTrue(element.waitForExistence(timeout: 5))
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", title), object: element)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
     }
 
     private func assertValue(_ value: String, of element: XCUIElement) {

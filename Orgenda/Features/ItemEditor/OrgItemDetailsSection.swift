@@ -48,9 +48,7 @@ struct OrgItemDetailsSection: View {
     }
 
     private var tagsField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Tags")
-                .font(.subheadline.weight(.medium))
+        LabeledContent("Tags") {
             TextField("work, focus", text: $tagsText, axis: .vertical)
                 .lineLimit(1...4)
                 .textInputAutocapitalization(.never)

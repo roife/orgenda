@@ -215,9 +215,9 @@ final class MotionFlowUITests: XCTestCase {
         let source = editor.value as? String
         app.buttons["Preview"].tap()
         app.selectRootTab("Dashboard")
-        let perspective = app.buttons["agenda.viewMenu"]
+        let perspective = app.agendaViewMenu
         XCTAssertTrue(perspective.waitForExistence(timeout: 3))
-        XCTAssertEqual(perspective.value as? String, "Unscheduled")
+        XCTAssertEqual(perspective.label, "Unscheduled")
         let row = app.staticTexts[target]
         XCTAssertTrue(row.waitForExistence(timeout: 3))
         row.press(forDuration: 0.6)
@@ -239,8 +239,8 @@ final class MotionFlowUITests: XCTestCase {
         XCTAssertEqual(reopenedSource, source)
         app.buttons["Preview"].tap()
         app.selectRootTab("Dashboard")
-        XCTAssertTrue(app.buttons["agenda.viewMenu"].waitForExistence(timeout: 3))
-        XCTAssertEqual(app.buttons["agenda.viewMenu"].value as? String, "Unscheduled")
+        XCTAssertTrue(app.agendaViewMenu.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.agendaViewMenu.label, "Unscheduled")
         XCTAssertTrue(row.isHittable)
         app.selectRootTab("Files")
         edgeBack(in: app)
@@ -324,6 +324,39 @@ final class MotionFlowUITests: XCTestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["agenda.swipe.more"].isHittable,
                        "Returning to a retained perspective must not restore an open swipe action.")
+    }
+
+    func testDashboardSectionsKeepOtherGroupsAfterCompletionAndUndo() {
+        let app = launchTestApp(["--configured-agenda-fixture"], appearance: "Light")
+        app.selectRootTab("Dashboard")
+        chooseAgendaView("dashboard", in: app)
+        let list = app.scrollSurface("agenda.view.dashboard")
+        XCTAssertTrue(list.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["agenda.dashboard.dateScope"].exists)
+        XCTAssertTrue(app.staticTexts["Nothing scheduled in the next 7 days."].isHittable)
+        XCTAssertTrue(app.staticTexts["Overdue sidebar task"].isHittable)
+
+        let someday = app.staticTexts["Learn ceramics"]
+        list.swipeUp()
+        for _ in 0..<3 where !someday.isHittable { list.swipeUp() }
+        XCTAssertTrue(someday.isHittable, "Later Dashboard groups must remain reachable.")
+
+        let urgent = app.staticTexts["Fix launch blocker"]
+        for _ in 0..<3 where !urgent.isHittable { list.swipeDown() }
+        XCTAssertTrue(urgent.isHittable)
+        horizontalDrag(in: app, y: urgent.frame.midY, from: 0.12, to: 0.97)
+        let undo = app.buttons["agenda.gesture.undo"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 3))
+        XCTAssertTrue(urgent.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Prepare release notes"].isHittable,
+                      "Completing the only urgent task must preserve the following group.")
+        undo.tap()
+        XCTAssertTrue(urgent.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Prepare release notes"].isHittable)
+        attachScreenshot("Dashboard native sections after completion and undo", screenshot: app.screenshot())
+
+        for _ in 0..<3 where !someday.isHittable { list.swipeUp() }
+        XCTAssertTrue(someday.isHittable, "Undo must preserve the later Dashboard groups too.")
     }
 
     func testNativeFileSwipeCoordinatesRowsAndScrollDismissal() {
@@ -1361,7 +1394,7 @@ final class MotionFlowUITests: XCTestCase {
     }
 
     private func chooseAgendaView(_ name: String, in app: XCUIApplication) {
-        let picker = app.buttons["agenda.viewMenu"]
+        let picker = app.agendaViewMenu
         XCTAssertTrue(picker.waitForExistence(timeout: 3))
         picker.tap()
         // UIKit's menu presentation does not always preserve Picker tag IDs.

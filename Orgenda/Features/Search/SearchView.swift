@@ -185,7 +185,6 @@ struct SearchView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                     .accessibilityIdentifier("search.expandScope")
-                    .padding(.top, 24)
             }
         }
         .scrollDismissesKeyboard(.interactively)
@@ -221,39 +220,26 @@ struct SearchView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.large)
             }
-            .padding(.top, 24)
         }
         .scrollDismissesKeyboard(.interactively)
     }
 
 }
 
-/// A single SwiftUI layout keeps the icon, title, and description together
-/// during search activation and keyboard resizing. ContentUnavailableView
-/// adjusts its own placement during that transition, producing a second jump.
 private struct SearchEmptyState<Actions: View>: View {
     let title: LocalizedStringKey
     let description: String
     @ViewBuilder let actions: () -> Actions
 
     var body: some View {
-        VStack(spacing: 0) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 24)
-                .accessibilityHidden(true)
-            Text(title)
-                .font(.title3.bold())
-                .padding(.bottom, 4)
-                .accessibilityAddTraits(.isHeader)
+        ContentUnavailableView {
+            Label(title, systemImage: "magnifyingglass")
+        } description: {
             Text(description)
-                .font(.body)
-                .foregroundStyle(.secondary)
+        } actions: {
             actions()
         }
-        .multilineTextAlignment(.center)
-        .padding(20)
         .orgendaEmptyState()
+        .accessibilityIdentifier("search.empty")
     }
 }

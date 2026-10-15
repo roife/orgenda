@@ -27,16 +27,9 @@ enum OrgPlanningKeyword: String, CaseIterable, Identifiable, Sendable {
 }
 
 struct OrgPlanningTimestampDraft: Hashable, Sendable {
-    private static let sameDayTimeExpression = try! NSRegularExpression(pattern: #"^-\d{2}:\d{2}"#)
-    private static let recurrenceTokenExpression = try! NSRegularExpression(
-        pattern: #"(?<!\S)(?:\+\+|\.\+|\+)\d+[hdwmy](?:/\d+[hdwmy])?(?!\S)"#
-    )
-
     /// Range of a leading `-HH:MM` same-day end time in the given suffix text.
     static func sameDayTimeRange(in text: String) -> Range<String.Index>? {
-        sameDayTimeExpression
-            .firstMatch(in: text, range: NSRange(text.startIndex..., in: text))
-            .flatMap { Range($0.range, in: text) }
+        text.firstMatch(of: #/^-\d{2}:\d{2}/#.matchingSemantics(.unicodeScalar))?.range
     }
 
     var date: Date
@@ -83,9 +76,11 @@ struct OrgPlanningTimestampDraft: Hashable, Sendable {
     }
 
     fileprivate static func recurrenceRange(in suffix: String) -> Range<String.Index>? {
-        recurrenceTokenExpression
-            .firstMatch(in: suffix, range: NSRange(suffix.startIndex..., in: suffix))
-            .flatMap { Range($0.range, in: suffix) }
+        guard let token = suffix.firstMatch(of: #/
+            (?:^|\s)(?<token>(?:\+\+|\.\+|\+)\d+[hdwmy](?:/\d+[hdwmy])?)(?=\s|$)
+            /#.matchingSemantics(.unicodeScalar))?.output.token
+        else { return nil }
+        return token.startIndex..<token.endIndex
     }
 
     mutating func move(to newDate: Date, includesTime: Bool, durationMinutes: Int? = nil) {
@@ -119,16 +114,6 @@ struct OrgPlanningTimestampDraft: Hashable, Sendable {
 /// tokens. Rebuilding therefore changes only the selected semantic values while
 /// preserving tabs, repeaters, warning offsets, ranges, and trailing whitespace.
 struct OrgPlanningEntryDraft: Hashable, Sendable {
-    private static let keywordExpression = try! NSRegularExpression(
-        pattern: #"(SCHEDULED|DEADLINE|CLOSED):"#
-    )
-    private static let timestampTokenExpression = try! NSRegularExpression(
-        pattern: #"<[^>\r\n]+>|\[[^\]\r\n]+\]"#
-    )
-    private static let timestampBodyExpression = try! NSRegularExpression(
-        pattern: #"^((\d{4})-(\d{2})-(\d{2}))(?:(\s+)([[:alpha:]]+))?(?:(\s+)((\d{2}):(\d{2})))?(.*)$"#
-    )
-
     var keyword: OrgPlanningKeyword?
     var timestamps: [OrgPlanningTimestampDraft]
 
@@ -153,24 +138,16 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
             timestampsStart = source.startIndex
         } else {
             guard
-                let keywordMatch = Self.keywordExpression.firstMatch(
-                    in: source,
-                    range: NSRange(source.startIndex..., in: source)
-                ),
-                let keywordTokenRange = Range(keywordMatch.range(at: 0), in: source),
-                let keywordValueRange = Range(keywordMatch.range(at: 1), in: source),
-                let parsedKeyword = OrgPlanningKeyword(rawValue: String(source[keywordValueRange]))
+                let keywordMatch = source.firstMatch(of: #/(?<keyword>SCHEDULED|DEADLINE|CLOSED):/#.matchingSemantics(.unicodeScalar)),
+                let parsedKeyword = OrgPlanningKeyword(rawValue: String(keywordMatch.output.keyword))
             else {
                 return nil
             }
             keyword = parsedKeyword
-            keywordStart = keywordTokenRange.lowerBound
-            timestampsStart = keywordTokenRange.upperBound
+            keywordStart = keywordMatch.range.lowerBound
+            timestampsStart = keywordMatch.range.upperBound
         }
-        let timestampMatches = Self.timestampTokenExpression.matches(
-            in: source,
-            range: NSRange(timestampsStart..<source.endIndex, in: source)
-        )
+        let timestampMatches = source[timestampsStart...].matches(of: #/<[^>\r\n]+>|\[[^\]\r\n]+\]/#.matchingSemantics(.unicodeScalar))
         guard (1...2).contains(timestampMatches.count) else { return nil }
 
         var parsedTimestamps: [OrgPlanningTimestampDraft] = []
@@ -178,8 +155,8 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
         var cursor = timestampsStart
 
         for match in timestampMatches {
-            guard let range = Range(match.range, in: source),
-                  let timestamp = Self.parseTimestamp(String(source[range])) else {
+            let range = match.range
+            guard let timestamp = Self.parseTimestamp(String(source[range])) else {
                 return nil
             }
             segments.append(String(source[cursor..<range.lowerBound]))
@@ -213,48 +190,32 @@ struct OrgPlanningEntryDraft: Hashable, Sendable {
 
     private static func parseTimestamp(_ source: String) -> OrgPlanningTimestampDraft? {
         let inner = String(source.dropFirst().dropLast())
-        guard
-            let match = timestampBodyExpression.firstMatch(
-                in: inner,
-                range: NSRange(inner.startIndex..., in: inner)
-            )
-        else {
-            return nil
-        }
-
-        func integer(_ capture: Int) -> Int? {
-            guard let range = Range(match.range(at: capture), in: inner) else { return nil }
-            return Int(inner[range])
-        }
-
-        guard let year = integer(2), let month = integer(3), let day = integer(4) else {
-            return nil
-        }
-
-        let hour = integer(9)
-        let minute = integer(10)
+        // Match scalar syntax so combining marks stay in their original source
+        // segment instead of becoming part of a numeric or weekday token.
+        guard let match = inner.firstMatch(of: #/
+            ^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})
+            (?:(?<weekdaySeparator>\s+)(?<weekday>[[:alpha:]]+))?
+            (?:(?<timeSeparator>\s+)(?<time>(?<hour>\d{2}):(?<minute>\d{2})))?
+            (?<suffix>.*)$
+            /#.matchingSemantics(.unicodeScalar)),
+              let year = Int(match.output.year), let month = Int(match.output.month),
+              let day = Int(match.output.day) else { return nil }
+        let parts = match.output
+        let hour = parts.hour.flatMap { Int($0) }
+        let minute = parts.minute.flatMap { Int($0) }
         guard let date = Date.orgTimestamp(year: year, month: month, day: day,
                                            hour: hour ?? 0, minute: minute ?? 0) else { return nil }
-        let suffix: String
-        if let range = Range(match.range(at: 11), in: inner) {
-            suffix = String(inner[range])
-        } else {
-            suffix = ""
-        }
-
-        func text(_ capture: Int) -> String? {
-            Range(match.range(at: capture), in: inner).map { String(inner[$0]) }
-        }
+        let suffix = String(parts.suffix)
 
         return OrgPlanningTimestampDraft(
             date: date,
             includesTime: hour != nil && minute != nil,
             recurrence: OrgPlanningTimestampDraft.recurrenceRange(in: suffix).map { String(suffix[$0]) },
             originalDate: date,
-            weekdaySeparator: text(5),
-            weekdayText: text(6),
-            timeSeparator: text(7),
-            originalTimeText: text(8),
+            weekdaySeparator: parts.weekdaySeparator.map(String.init),
+            weekdayText: parts.weekday.map(String.init),
+            timeSeparator: parts.timeSeparator.map(String.init),
+            originalTimeText: parts.time.map(String.init),
             isActive: source.hasPrefix("<"),
             suffix: suffix
         )

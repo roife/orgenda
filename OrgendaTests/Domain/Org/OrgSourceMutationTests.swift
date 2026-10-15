@@ -172,6 +172,24 @@ final class OrgSourceMutationTests: XCTestCase {
         XCTAssertEqual(draft.source, "DEADLINE:\t<2019-05-20  Mon\t09:00-10:30 \t-2d>  ")
     }
 
+    func testPlanningEditsPreserveCombiningMarksOutsideDateTokens() throws {
+        for body in ["Sa\u{301}b 09:30", "Sat 0\u{301}9:30"] {
+            let source = "说明🙂 SCHEDULED:\t<2026-09-19 \(body) +1d>\t"
+            var draft = try XCTUnwrap(OrgPlanningEntryDraft(source: source))
+            XCTAssertEqual(draft.source, source)
+            XCTAssertFalse(draft.timestamps[0].includesTime)
+            XCTAssertEqual(draft.timestamps[0].recurrence, "+1d")
+            draft.timestamps[0].recurrence = "++2w"
+            XCTAssertEqual(draft.source, source.replacingOccurrences(of: "+1d", with: "++2w"))
+        }
+
+        let source = "<2026-09-19 Sat 09:30 +1d\u{301}>"
+        var draft = try XCTUnwrap(OrgPlanningEntryDraft(timestampSource: source))
+        XCTAssertNil(draft.timestamps[0].recurrence)
+        draft.timestamps[0].recurrence = "+2w"
+        XCTAssertEqual(draft.source, "<2026-09-19 Sat 09:30 +2w +1d\u{301}>")
+    }
+
     func testAddingRepeaterPlacesItAfterTimeRangeAndBeforeWarning() throws {
         for time in ["", " 09:00-10:30"] {
             var draft = try XCTUnwrap(OrgPlanningEntryDraft(source: "SCHEDULED: <2019-05-20 Mon\(time) -2d>"))
@@ -543,6 +561,14 @@ final class OrgRepeaterTests: XCTestCase {
         XCTAssertEqual(OrgRepeater(".+2d/3d")?.maximumUnit, .day)
     }
 
+    func testRepeaterParsingRejectsOverflowAndNonIntegerDigitSequences() {
+        XCTAssertEqual(OrgRepeater("+\(Int.max)d")?.interval, Int.max)
+        XCTAssertEqual(OrgRepeater(".+1d/\(Int.max)w")?.maximumInterval, Int.max)
+        for token in ["+\(Int.max)0d", ".+1d/\(Int.max)0w", "+١d", "+1١d", "+1\u{301}d"] {
+            XCTAssertNil(OrgRepeater(token), token)
+        }
+    }
+
     func testCompletionDatesRespectCumulativeCatchUpAndRestartRules() throws {
         let cases: [(String, Date, Date, Date)] = [
             ("+1w", date(2026, 9, 25), date(2026, 9, 1, 9), date(2026, 9, 8, 9)),
@@ -673,6 +699,25 @@ final class OrgPreviewPresentationTests: XCTestCase {
         let daily = try XCTUnwrap(OrgPlanningEntryDraft(source: "SCHEDULED: <2026-09-19 Sat +1d>"))
         XCTAssertEqual(OrgPreviewDateText(draft: daily, locale: Locale(identifier: "zh_CN")).details, ["每天重复"])
         XCTAssertEqual(OrgPreviewDateText(draft: daily, locale: Locale(identifier: "zh_TW")).details, ["每天重複"])
+    }
+
+    func testReadableDateKeepsGregorianYearsWithNonGregorianLocale() throws {
+        let source = "<2025-12-31 Wed 23:30-23:45>--<2026-01-02 Fri>"
+        let draft = try XCTUnwrap(OrgPlanningEntryDraft(timestampSource: source))
+        let text = OrgPreviewDateText(
+            draft: draft,
+            locale: Locale(identifier: "en_GB@calendar=buddhist"),
+            now: draft.timestamps[1].date
+        )
+        let dates = text.date.components(separatedBy: " → ")
+
+        XCTAssertEqual(dates.count, 2)
+        XCTAssertTrue(dates[0].contains("2025"))
+        XCTAssertTrue(dates[0].contains("23:30–23:45"))
+        XCTAssertFalse(text.date.contains("2568"))
+        XCTAssertFalse(dates[1].contains("2026"))
+        XCTAssertFalse(dates[1].contains(":"))
+        XCTAssertEqual(draft.source, source)
     }
 
     func testBodyAlignmentUsesActualParentLevelIncludingSkippedLevels() throws {

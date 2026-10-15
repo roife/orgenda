@@ -60,27 +60,21 @@ struct OrgRepeater: Hashable, Sendable {
         }
     }
 
-    private static let tokenExpression = try! NSRegularExpression(
-        pattern: #"\A(\+\+|\.\+|\+)([1-9]\d*)([hdwmy])(?:/([1-9]\d*)([hdwmy]))?\z"#
-    )
-
     init?(_ token: String) {
-        guard let match = Self.tokenExpression.firstMatch(in: token, range: NSRange(token.startIndex..., in: token)) else {
-            return nil
-        }
-        func text(_ capture: Int) -> String? {
-            Range(match.range(at: capture), in: token).map { String(token[$0]) }
-        }
-        guard let prefix = text(1), let mode = Mode(rawValue: prefix),
-              let count = text(2), let interval = Int(count),
-              let unitText = text(3), let unit = Unit(rawValue: unitText) else { return nil }
-        let maximumInterval = text(4).flatMap(Int.init)
-        if text(4) != nil, maximumInterval == nil { return nil }
+        guard let match = token.wholeMatch(of: #/
+            (?<mode>\+\+|\.\+|\+)(?<interval>[1-9]\d*)(?<unit>[hdwmy])
+            (?:/(?<maximumInterval>[1-9]\d*)(?<maximumUnit>[hdwmy]))?
+            /#.matchingSemantics(.unicodeScalar)),
+              let mode = Mode(rawValue: String(match.output.mode)),
+              let interval = Int(match.output.interval),
+              let unit = Unit(rawValue: String(match.output.unit)) else { return nil }
+        let maximumInterval = match.output.maximumInterval.flatMap { Int($0) }
+        if match.output.maximumInterval != nil, maximumInterval == nil { return nil }
         self.mode = mode
         self.interval = interval
         self.unit = unit
         self.maximumInterval = maximumInterval
-        maximumUnit = text(5).flatMap(Unit.init(rawValue:))
+        maximumUnit = match.output.maximumUnit.flatMap { Unit(rawValue: String($0)) }
     }
 
     /// `+` advances once, `++` keeps the original cadence until it is in the

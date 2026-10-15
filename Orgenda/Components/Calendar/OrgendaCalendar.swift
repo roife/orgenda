@@ -20,11 +20,6 @@ struct OrgendaCalendar: View {
     }
 
 
-    private enum PageDirection {
-        case backward
-        case forward
-    }
-
     @Binding var selectedDate: Date
     @Binding var density: Density
     let markedDates: Set<String>
@@ -49,9 +44,9 @@ struct OrgendaCalendar: View {
     @State private var yearScrollPosition: Int?
     @State private var preferredDayOfMonth: Int
     @State private var isUpdatingSelectionFromMonthScroll = false
-    @State private var verticalDrag: CGFloat = 0
-    @State private var pageDirection: PageDirection = .forward
-    @State private var pageGeneration = 0
+    @State private var weekScrollAnchor: Date
+    @State private var weekScrollPosition: Int? = 0
+    @State private var isWeekScrollDrivenByUser = false
     @State private var dropDate: Date?
     @State private var densityDragOrigin: CGFloat?
     @State private var densityDragPosition: CGFloat?
@@ -62,6 +57,7 @@ struct OrgendaCalendar: View {
 
     private let calendar = Calendar.autoupdatingCurrent
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+    private let weekPageOffsets = -1040...1040
     private let monthPageOffsets = -240...240
     private let yearPageOffsets = -200...200
 
@@ -82,6 +78,7 @@ struct OrgendaCalendar: View {
         let calendar = Calendar.autoupdatingCurrent
         let initialMonth = calendar.dateInterval(of: .month, for: selectedDate.wrappedValue)?.start
             ?? selectedDate.wrappedValue
+        _weekScrollAnchor = State(initialValue: calendar.dateInterval(of: .weekOfYear, for: selectedDate.wrappedValue)?.start ?? selectedDate.wrappedValue)
         _visibleMonth = State(initialValue: initialMonth)
         _monthScrollAnchor = State(initialValue: initialMonth)
         _monthScrollPosition = State(initialValue: 0)
@@ -190,7 +187,6 @@ struct OrgendaCalendar: View {
                 }
                 return
             }
-            pageDirection = newValue < visibleMonth ? .backward : .forward
 
             if density == .month {
                 scrollToMonth(containing: newValue, animated: true)
@@ -201,10 +197,7 @@ struct OrgendaCalendar: View {
                 return
             }
 
-            withAnimation(pageAnimation) {
-                visibleMonth = newValue
-                pageGeneration &+= 1
-            }
+            scrollToWeek(containing: newValue, animated: true)
         }
     }
 
@@ -420,7 +413,7 @@ struct OrgendaCalendar: View {
     @ViewBuilder
     private var calendarViewport: some View {
         if density == .month {
-            monthPager
+            dayPager(isWeek: false)
                 .frame(maxWidth: .infinity)
                 .frame(height: sizing.calendarHeight(for: .month), alignment: .top)
                 .clipped()
@@ -432,65 +425,85 @@ struct OrgendaCalendar: View {
                 .clipped()
                 .transition(densityTransition)
         } else {
-            ZStack(alignment: .top) {
-                dayGrid(dates: dates.daysInWeek(containing: selectedDate), displayedIn: visibleMonth,
-                        exposesAccessibility: true, isWeekLayout: true)
-                    .transition(densityTransition)
-                    .frame(maxWidth: .infinity, alignment: .top)
-                    .id(pageGeneration)
-                    .transition(pageTransition)
-                    .offset(y: reduceMotion ? 0 : verticalDrag)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: sizing.calendarHeight(for: .week), alignment: .top)
-            .contentShape(Rectangle())
-            .simultaneousGesture(verticalPageSwipe)
-            .clipped()
+            dayPager(isWeek: true)
+                .frame(maxWidth: .infinity)
+                .frame(height: sizing.calendarHeight(for: .week), alignment: .top)
+                .clipped()
+                .transition(densityTransition)
+                .onAppear {
+                    isWeekScrollDrivenByUser = false
+                    scrollToWeek(containing: selectedDate, animated: false)
+                }
         }
     }
 
-    private var monthPager: some View {
-        ScrollView(.vertical) {
+    @ViewBuilder
+    private func dayPager(isWeek: Bool) -> some View {
+        let position = isWeek ? $weekScrollPosition : $monthScrollPosition
+        let scroll = ScrollView(.vertical) {
             LazyVStack(spacing: 0) {
-                ForEach(monthPageOffsets, id: \.self) { offset in
-                    let pageMonth = month(at: offset)
-                    monthGrid(
-                        for: pageMonth,
-                        exposesAccessibility: monthScrollPosition == offset
-                    )
-                    .id(pageMonth)
-                    // Match the scroll viewport exactly, including pixel
-                    // rounding at scaled text sizes, so page offsets stay aligned.
+                ForEach(isWeek ? weekPageOffsets : monthPageOffsets, id: \.self) { offset in
+                    let page = isWeek ? week(at: offset) : month(at: offset)
+                    Group {
+                        if isWeek {
+                            dayGrid(dates: dates.daysInWeek(containing: page),
+                                    displayedIn: position.wrappedValue == offset ? visibleMonth : page,
+                                    exposesAccessibility: position.wrappedValue == offset, isWeekLayout: true)
+                        } else {
+                            monthGrid(for: page, exposesAccessibility: position.wrappedValue == offset)
+                        }
+                    }
+                    .id(page)
+                    // Match the viewport, including pixel rounding at scaled text sizes.
                     .containerRelativeFrame(.vertical, alignment: .top)
                     .clipped()
                     .accessibilityElement(children: .contain)
-                    .accessibilityHidden(monthScrollPosition != offset)
+                    .accessibilityHidden(position.wrappedValue != offset)
                     .id(offset)
                 }
             }
             .scrollTargetLayout()
         }
         .scrollIndicators(.hidden)
-        .scrollTargetBehavior(.paging)
-        .scrollPosition(id: $monthScrollPosition, anchor: .top)
-        .accessibilityLabel("Calendar months")
-        .accessibilityValue(visibleMonth.formatted(.dateTime.month(.wide).year()))
-        .accessibilityHint("Swipe up or down to change months")
+        .scrollPosition(id: position, anchor: .top)
+        .accessibilityLabel(isWeek ? Text("Calendar weeks") : Text("Calendar months"))
+        .accessibilityValue(isWeek ? selectedDate.formatted(date: .complete, time: .omitted)
+                            : visibleMonth.formatted(.dateTime.month(.wide).year()))
+        .accessibilityHint(isWeek ? Text("Swipe up or down to change weeks") : Text("Swipe up or down to change months"))
         .accessibilityScrollAction { edge in
             switch edge {
-            case .top:
-                moveVisiblePage(by: -1)
-            case .bottom:
-                moveVisiblePage(by: 1)
-            default:
-                break
+            case .top: moveVisiblePage(by: -1)
+            case .bottom: moveVisiblePage(by: 1)
+            default: break
             }
         }
-        .accessibilityIdentifier("orgenda.calendar.months")
-        .onChange(of: monthScrollPosition) { _, offset in
-            if let offset {
-                updateVisibleMonth(month(at: offset))
+        .accessibilityIdentifier(isWeek ? "orgenda.calendar.weeks" : "orgenda.calendar.months")
+        .onChange(of: position.wrappedValue) { _, offset in
+            if !isWeek, let offset { updateVisibleMonth(month(at: offset)) }
+        }
+        .onScrollPhaseChange { _, phase in
+            guard isWeek else { return }
+            switch phase {
+            case .tracking, .interacting:
+                isWeekScrollDrivenByUser = true
+            case .idle:
+                guard isWeekScrollDrivenByUser, let offset = weekScrollPosition else { return }
+                isWeekScrollDrivenByUser = false
+                updateVisibleWeek(at: offset)
+                // Recenter at the limits so week paging has no terminal date.
+                if offset == weekPageOffsets.lowerBound || offset == weekPageOffsets.upperBound {
+                    weekScrollAnchor = week(at: offset)
+                    weekScrollPosition = 0
+                }
+            case .animating:
+                isWeekScrollDrivenByUser = false
+            default: break
             }
+        }
+        if isWeek {
+            scroll.scrollTargetBehavior(WeekPagingBehavior(limitsToOneWeek: isWeekScrollDrivenByUser))
+        } else {
+            scroll.scrollTargetBehavior(.paging)
         }
     }
 
@@ -557,37 +570,6 @@ struct OrgendaCalendar: View {
         )
     }
 
-    private var verticalPageSwipe: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { value in
-                guard !reduceMotion else { return }
-                guard abs(value.translation.height) > abs(value.translation.width) else { return }
-                var transaction = Transaction(animation: nil)
-                transaction.isContinuous = true
-                withTransaction(transaction) {
-                    verticalDrag = min(max(value.translation.height * 0.18, -44), 44)
-                }
-            }
-            .onEnded { value in
-                guard abs(value.translation.height) > abs(value.translation.width) else {
-                    withAnimation(pageAnimation) { verticalDrag = 0 }
-                    return
-                }
-
-                let translation = value.translation.height
-                let projected = value.predictedEndTranslation.height
-                let directionValue = abs(projected) > abs(translation) ? projected : translation
-                let shouldAdvance = abs(translation) > 36 || abs(projected) > 72
-
-                guard shouldAdvance else {
-                    withAnimation(pageAnimation) { verticalDrag = 0 }
-                    return
-                }
-
-                moveVisiblePage(by: directionValue < 0 ? 1 : -1)
-            }
-    }
-
     private func setDensity(_ requestedDensity: Density, animated: Bool = true) {
         let nextDensity = requestedDensity == .week ? minimumDensity : requestedDensity
         guard nextDensity != density else { return }
@@ -618,13 +600,11 @@ struct OrgendaCalendar: View {
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             if nextDensity == .week { visibleMonth = selectedDate }
-            verticalDrag = 0
             density = nextDensity
         }
     }
 
     private func selectMonth(_ month: Date) {
-        pageDirection = month < visibleMonth ? .backward : .forward
         scrollToMonth(containing: month, animated: false)
         var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
@@ -640,34 +620,10 @@ struct OrgendaCalendar: View {
             OrgendaHaptics.selectionChanged()
         }
         preferredDayOfMonth = calendar.component(.day, from: date)
-        let granularity: Calendar.Component = density == .week ? .weekOfYear : .month
-        let changesPage = !calendar.isDate(date, equalTo: visibleMonth, toGranularity: granularity)
-
-        guard changesPage else {
-            withAnimation(selectionAnimation) { selectedDate = date }
-            return
-        }
-
-        pageDirection = date < visibleMonth ? .backward : .forward
-
-        if density == .month {
-            withAnimation(selectionAnimation) {
-                selectedDate = date
-            }
-            return
-        }
-
-        withAnimation(pageAnimation) {
-            visibleMonth = date
-            selectedDate = date
-            verticalDrag = 0
-            pageGeneration &+= 1
-        }
+        withAnimation(selectionAnimation) { selectedDate = date }
     }
 
     private func moveVisiblePage(by delta: Int) {
-        pageDirection = delta < 0 ? .backward : .forward
-
         if density == .year {
             let currentOffset = yearScrollPosition ?? yearOffset(for: visibleMonth)
             withAnimation(reduceMotion ? nil : pageAnimation) {
@@ -682,8 +638,6 @@ struct OrgendaCalendar: View {
                 max(currentOffset + delta, monthPageOffsets.lowerBound),
                 monthPageOffsets.upperBound - 1
             )
-            // Month paging moves a scroll position; reduced-motion fades are
-            // reserved for the week content transitions below.
             withAnimation(reduceMotion ? nil : pageAnimation) {
                 monthScrollPosition = nextOffset
             }
@@ -691,13 +645,7 @@ struct OrgendaCalendar: View {
         }
 
         let nextPage = calendar.date(byAdding: .weekOfYear, value: delta, to: selectedDate) ?? selectedDate
-
-        withAnimation(pageAnimation) {
-            visibleMonth = nextPage
-            selectedDate = nextPage.startOfDay
-            verticalDrag = 0
-            pageGeneration &+= 1
-        }
+        selectDay(nextPage)
     }
 
     private var pageAnimation: Animation {
@@ -708,24 +656,13 @@ struct OrgendaCalendar: View {
         reduceMotion ? .easeOut(duration: 0.12) : .snappy(duration: 0.22)
     }
 
-    private var pageTransition: AnyTransition {
-        guard !reduceMotion else { return .opacity }
-
-        let insertionEdge: Edge = pageDirection == .forward ? .bottom : .top
-        let removalEdge: Edge = pageDirection == .forward ? .top : .bottom
-        return .asymmetric(
-            insertion: .move(edge: insertionEdge).combined(with: .opacity),
-            removal: .move(edge: removalEdge).combined(with: .opacity)
-        )
-    }
-
     private var densityTransition: AnyTransition {
         guard !reduceMotion else { return .opacity }
         return .opacity.combined(with: .scale(scale: 0.985, anchor: .top))
     }
 
     private var selectionGeometryID: String {
-        "orgenda-calendar-selected-date-\(density.rawValue)-\(pageGeneration)"
+        "orgenda-calendar-selected-date-\(density.rawValue)"
     }
 
     private var sizing: OrgendaCalendarSizing {
@@ -776,6 +713,34 @@ struct OrgendaCalendar: View {
         }
     }
 
+    private func week(at offset: Int) -> Date {
+        calendar.date(byAdding: .weekOfYear, value: offset, to: weekScrollAnchor)!
+    }
+
+    private func updateVisibleWeek(at offset: Int) {
+        let page = week(at: offset)
+        guard !calendar.isDate(page, equalTo: selectedDate, toGranularity: .weekOfYear) else { return }
+        let selectedWeek = calendar.dateInterval(of: .weekOfYear, for: selectedDate)!.start
+        let weekday = calendar.dateComponents([.day], from: selectedWeek, to: selectedDate).day ?? 0
+        let nextDate = calendar.date(byAdding: .day, value: weekday, to: page) ?? page
+        visibleMonth = nextDate
+        selectedDate = nextDate
+    }
+
+    private func scrollToWeek(containing date: Date, animated: Bool) {
+        let week = calendar.dateInterval(of: .weekOfYear, for: date)!.start
+        let offset = calendar.dateComponents([.weekOfYear], from: weekScrollAnchor, to: week).weekOfYear ?? 0
+        withAnimation(animated && !reduceMotion ? pageAnimation : nil) {
+            if weekPageOffsets.contains(offset) {
+                weekScrollPosition = offset
+            } else {
+                weekScrollAnchor = week
+                weekScrollPosition = 0
+            }
+            visibleMonth = date
+        }
+    }
+
     private func month(at offset: Int) -> Date {
         calendar.date(byAdding: .month, value: offset, to: monthScrollAnchor)!
     }
@@ -816,7 +781,6 @@ struct OrgendaCalendar: View {
 
     private func updateVisibleMonth(_ month: Date) {
         guard !calendar.isDate(month, equalTo: visibleMonth, toGranularity: .month) else { return }
-        pageDirection = month < visibleMonth ? .backward : .forward
         let nextSelectedDate = dates.date(in: month, day: preferredDayOfMonth)
         isUpdatingSelectionFromMonthScroll = true
 
@@ -841,6 +805,20 @@ struct OrgendaCalendar: View {
     }
 
 
+}
+
+/// System paging owns the gesture and settling; cap its destination relative
+/// to the gesture's starting page, even when a drag crosses several short weeks.
+private struct WeekPagingBehavior: ScrollTargetBehavior {
+    let limitsToOneWeek: Bool
+
+    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+        PagingScrollTargetBehavior().updateTarget(&target, context: context)
+        let height = context.containerSize.height
+        guard limitsToOneWeek, height > 0 else { return }
+        let start = (context.originalTarget.rect.minY / height).rounded() * height
+        target.rect.origin.y = min(max(target.rect.minY, start - height), start + height)
+    }
 }
 
 /// The root tab view owns this policy. Navigation columns can supply their own

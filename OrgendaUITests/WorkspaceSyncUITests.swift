@@ -53,14 +53,15 @@ final class WorkspaceSyncUITests: XCTestCase {
         app.launch()
 
         let skeleton = app.otherElements["workspace.loading"]
-        let viewMenu = app.buttons["agenda.viewMenu"]
+        let viewMenu = app.agendaViewMenu
         let capture = app.buttons["orgenda.capture"]
         XCTAssertTrue(skeleton.waitForExistence(timeout: 5))
         XCTAssertEqual(skeleton.label, "Loading workspace")
         XCTAssertEqual(skeleton.value as? String, "Dashboard")
         XCTAssertFalse(app.progressIndicators["workspace.loading"].exists)
-        XCTAssertTrue(viewMenu.exists)
-        XCTAssertFalse(viewMenu.isEnabled)
+        // A system title has no menu while workspace actions are unavailable.
+        XCTAssertTrue(app.staticTexts["agenda.currentPerspective"].exists)
+        XCTAssertFalse(viewMenu.exists)
         XCTAssertTrue(capture.exists)
         XCTAssertFalse(capture.isEnabled)
         for tab in ["Dashboard", "Calendar", "Files", "Search"] {
@@ -77,14 +78,14 @@ final class WorkspaceSyncUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["No scheduled items"].exists)
         XCTAssertFalse(app.staticTexts["No items in Dashboard"].exists)
         XCTAssertFalse(app.staticTexts["Review quarterly roadmap"].exists)
-        let menuFrame = viewMenu.frame
+        let navigationFrame = app.navigationBars.firstMatch.frame
         let captureFrame = capture.frame
         let tabFrame = app.tabBars.buttons["Dashboard"].frame
 
         XCTAssertTrue(skeleton.waitForNonExistence(timeout: 20))
         XCTAssertTrue(viewMenu.isEnabled)
         XCTAssertTrue(capture.isEnabled)
-        XCTAssertEqual(viewMenu.frame.minY, menuFrame.minY, accuracy: 1)
+        XCTAssertEqual(app.navigationBars.firstMatch.frame, navigationFrame)
         XCTAssertEqual(capture.frame.minY, captureFrame.minY, accuracy: 1)
         XCTAssertEqual(app.tabBars.buttons["Dashboard"].frame.minY, tabFrame.minY, accuracy: 1)
         XCTAssertTrue(app.staticTexts["Plan iPad reading workflow"].waitForExistence(timeout: 5))

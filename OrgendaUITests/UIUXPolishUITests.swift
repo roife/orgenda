@@ -1,6 +1,159 @@
 import XCTest
 
 final class UIUXPolishUITests: XCTestCase {
+    func testSystemTitleMenuChangesPerspectiveAndPreservesSelection() {
+        let app = launchApp()
+        let title = app.navigationBars.buttons["Unscheduled"]
+        XCTAssertTrue(title.waitForExistence(timeout: 3))
+        title.tap()
+        let overdue = app.buttons.matching(NSPredicate(format: "label == 'Overdue' AND identifier == ''")).firstMatch
+        XCTAssertTrue(overdue.waitForExistence(timeout: 3))
+        overdue.tap()
+        XCTAssertTrue(app.navigationBars.buttons["Overdue"].waitForExistence(timeout: 3))
+        app.selectRootTab("Calendar")
+        XCTAssertFalse(app.navigationBars.firstMatch.exists)
+        app.selectRootTab("Dashboard")
+        XCTAssertTrue(app.navigationBars.buttons["Overdue"].waitForExistence(timeout: 3))
+        attachScreenshot("System perspective title menu", screenshot: app.screenshot())
+    }
+
+    func testSystemSearchEmptyStateRecoversWithKeyboard() {
+        verifySearchEmptyState()
+    }
+
+    func testSystemSearchEmptyStateAtAccessibilitySize() {
+        verifySearchEmptyState(arguments: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+    }
+
+    private func verifySearchEmptyState(arguments: [String] = []) {
+        let app = launchTestApp(arguments + ["--empty-workspace-fixture"])
+        app.selectRootTab("Search")
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Start a search"].waitForExistence(timeout: 3))
+        search.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+        attachScreenshot("System search guidance with keyboard", screenshot: app.screenshot())
+        app.buttons["search.scope.menu"].tap()
+        app.buttons["Tasks"].tap()
+        search.tap()
+        search.typeText("no-matching-entry")
+        XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 3))
+        let clear = app.buttons["Clear Search"]
+        for _ in 0..<5 {
+            if clear.isHittable { break }
+            scrollSearchContentUp(in: app)
+        }
+        XCTAssertTrue(clear.isHittable)
+        attachScreenshot("System search empty results and recovery", screenshot: app.screenshot())
+        clear.tap()
+        XCTAssertTrue(app.staticTexts["Start a search"].waitForExistence(timeout: 3))
+        search.tap()
+        search.typeText("no-matching-entry")
+        XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 3))
+        let expand = app.buttons["search.expandScope"]
+        for _ in 0..<5 {
+            if expand.isHittable { break }
+            scrollSearchContentUp(in: app)
+        }
+        XCTAssertTrue(expand.isHittable)
+        expand.tap()
+        assertValue("All categories", of: app.buttons["search.scope.menu"])
+        XCTAssertEqual(search.value as? String, "no-matching-entry")
+        XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 3))
+    }
+
+    private func scrollSearchContentUp(in app: XCUIApplication) {
+        let surface = app.scrollSurface("search.empty").frame
+        // XCTest's default swipe can start behind the software keyboard. Keep
+        // the gesture inside the visible content between the scope and field.
+        let top = max(surface.minY, app.buttons["search.scope.menu"].frame.maxY) + 12
+        let bottom = min(surface.maxY, app.searchFields.firstMatch.frame.minY,
+                         app.keyboards.firstMatch.frame.minY) - 12
+        XCTAssertGreaterThan(bottom, top)
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        let start = origin.withOffset(CGVector(dx: surface.midX, dy: bottom))
+        let end = origin.withOffset(CGVector(dx: surface.midX, dy: top))
+        start.press(forDuration: 0.05, thenDragTo: end)
+    }
+
+    func testWeekPagerMovesOneWeekAndReturnsToday() {
+        verifyWeekPager()
+    }
+
+    func testWeekPagerAtAccessibilitySize() {
+        verifyWeekPager(arguments: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+    }
+
+    private func verifyWeekPager(arguments: [String] = []) {
+        let app = launchTestApp(arguments)
+        app.selectRootTab("Calendar")
+        let weeks = app.scrollViews["orgenda.calendar.weeks"]
+        XCTAssertTrue(weeks.waitForExistence(timeout: 3))
+        let today = Calendar.autoupdatingCurrent.startOfDay(for: .now)
+        let nextWeek = Calendar.autoupdatingCurrent.date(byAdding: .weekOfYear, value: 1, to: today)!
+        func page(by distance: CGFloat) {
+            let start = weeks.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: distance)),
+                        withVelocity: .fast, thenHoldForDuration: 0.05)
+        }
+        page(by: -160)
+        assertValue(nextWeek.formatted(date: .complete, time: .omitted), of: weeks)
+        let selected = weeks.buttons.matching(NSPredicate(format: "selected == true")).firstMatch
+        XCTAssertEqual(selected.label, nextWeek.formatted(date: .complete, time: .omitted))
+        page(by: 160)
+        assertValue(today.formatted(date: .complete, time: .omitted), of: weeks)
+        page(by: -160)
+        app.buttons["orgenda.calendar.today"].tap()
+        assertValue(today.formatted(date: .complete, time: .omitted), of: weeks)
+        XCTAssertTrue(app.buttons["orgenda.calendar.today"].waitForNonExistence(timeout: 3))
+        attachScreenshot("System week pager", screenshot: app.screenshot())
+    }
+
+    func testSystemEditorLabelsSaveTagsAndKeepSourceVisible() {
+        verifyEditorLabels()
+    }
+
+    func testSystemEditorLabelsAtAccessibilitySize() {
+        verifyEditorLabels(arguments: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+    }
+
+    private func verifyEditorLabels(arguments: [String] = []) {
+        let app = launchTestApp(arguments + ["--file-browser-fixture"])
+        let item = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'agenda.item.open.'")).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 3))
+        item.tap()
+        let form = app.scrollSurface("item.editor.form")
+        let tags = app.descendants(matching: .any).matching(identifier: "item.editor.tags").firstMatch
+        for _ in 0..<6 {
+            if tags.isHittable { break }
+            form.swipeUp()
+        }
+        XCTAssertTrue(tags.isHittable)
+        let previous = tags.value as? String ?? ""
+        let replacement = "focus, project_name_with_many_characters, review, planning, longterm"
+        tags.tap()
+        tags.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count) + replacement)
+        XCTAssertEqual(tags.value as? String, replacement)
+        attachScreenshot("System multiline tags while editing", screenshot: app.screenshot())
+        app.buttons["item.editor.save"].tap()
+        XCTAssertTrue(app.buttons["item.editor.save"].waitForNonExistence(timeout: 3))
+        item.tap()
+        for _ in 0..<6 {
+            if tags.isHittable { break }
+            form.swipeUp()
+        }
+        XCTAssertEqual(tags.value as? String, replacement)
+        let file = app.descendants(matching: .any).matching(identifier: "item.editor.sourceFile").firstMatch
+        for _ in 0..<10 {
+            if file.isHittable { break }
+            form.swipeUp()
+        }
+        XCTAssertTrue(file.isHittable)
+        XCTAssertTrue((file.label + String(describing: file.value)).contains("inbox.org"))
+        attachScreenshot("System editor labels", screenshot: app.screenshot())
+    }
+
     func testEditorAccessoryUndoRedoAndDismissKeyboard() throws {
         let app = launchApp()
         openInbox(in: app)
@@ -246,7 +399,7 @@ final class UIUXPolishUITests: XCTestCase {
 
     private func assertValue(_ value: String, of element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: element)
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed, file: file, line: line)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed, "Expected \(value); got \(String(describing: element.value))", file: file, line: line)
     }
 
     private func launchApp() -> XCUIApplication {

@@ -1917,6 +1917,23 @@
         }
       }
     },
+    "Calendar weeks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日历周"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日曆週"
+          }
+        }
+      }
+    },
     "Calendar years" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12485,6 +12502,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "上下滑動切換月份"
+          }
+        }
+      }
+    },
+    "Swipe up or down to change weeks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下滑动切换周"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上下滑動切換週"
           }
         }
       }

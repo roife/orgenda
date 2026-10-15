@@ -199,12 +199,12 @@ final class DatePresentationUITests: XCTestCase {
 
         XCTAssertTrue(app.tabBars.buttons["Dashboard"].isSelected)
         XCTAssertFalse(app.tabBars.buttons["Journal"].exists)
-        let viewMenu = app.buttons["agenda.viewMenu"]
+        let viewMenu = app.agendaViewMenu
         XCTAssertTrue(viewMenu.waitForExistence(timeout: 3))
         viewMenu.tap()
         XCTAssertFalse(app.buttons["agenda.mode.agenda"].exists)
         app.buttons["Overdue"].tap()
-        XCTAssertEqual(viewMenu.value as? String, "Overdue")
+        XCTAssertEqual(viewMenu.label, "Overdue")
         app.tabBars.buttons["Calendar"].tap()
         XCTAssertFalse(viewMenu.exists)
         XCTAssertFalse(app.navigationBars.firstMatch.exists)
@@ -253,7 +253,7 @@ final class DatePresentationUITests: XCTestCase {
 
         app.tabBars.buttons["Dashboard"].tap()
         XCTAssertTrue(viewMenu.waitForExistence(timeout: 3))
-        XCTAssertEqual(viewMenu.value as? String, "Overdue")
+        XCTAssertEqual(viewMenu.label, "Overdue")
         XCTAssertFalse(app.calendarDensityHandle.exists)
         app.tabBars.buttons["Calendar"].tap()
         XCTAssertTrue(calendarNeighbor.isSelected)

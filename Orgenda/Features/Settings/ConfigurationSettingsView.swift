@@ -19,10 +19,8 @@ struct ConfigurationSettingsView: View {
     @State private var autosaveTask: Task<Void, Never>?
     @State private var saveTask: Task<Bool, Never>?
     @State private var sessionID = UUID()
-    @State private var templateEditor: WorkspaceConfiguration.Template?
+    @State private var editor: EditorDestination?
     @State private var pendingPreset: String?
-    @State private var keywordEditor: KeywordEditorDestination?
-    @State private var reminderEditor: ReminderTimingKind?
     @State private var pendingExit: ExitDestination?
     @State private var pendingSequence: WorkspaceConfiguration?
     @State private var showsSaveError = false
@@ -31,17 +29,26 @@ struct ConfigurationSettingsView: View {
     @State private var undoDocument: ConfigurationDocument?
     @State private var replacementID: UUID?
     @State private var showsJSON = false
-    @State private var showsPastedImport = false
 
     private enum ExitDestination { case back, workspace, reload }
     private var changed: Bool { draft != baseline || importedDocument != nil }
     private var needsExitProtection: Bool { !ready || changed || saving || leaving }
     private var configurationWarnings: [String] { (importedDocument ?? store.configurationDocument).warnings }
 
-    private struct KeywordEditorDestination: Identifiable {
-        let token: String?
-        let terminal: Bool
-        var id: String { token ?? (terminal ? "add-terminal" : "add-process") }
+    private enum EditorDestination: Identifiable {
+        case template(WorkspaceConfiguration.Template)
+        case keyword(token: String?, terminal: Bool)
+        case reminder(ReminderTimingKind)
+        case pastedImport
+
+        var id: String {
+            switch self {
+            case .template(let template): "template.\(template.id)"
+            case .keyword(let token, let terminal): "keyword.\(token ?? (terminal ? "add-terminal" : "add-process"))"
+            case .reminder(let kind): "reminder.\(kind.id)"
+            case .pastedImport: "pasted-import"
+            }
+        }
     }
 
     var body: some View {
@@ -61,10 +68,7 @@ struct ConfigurationSettingsView: View {
         .navigationTitle(destination.title)
         .task {
             guard !ready else { return }
-            draft = store.configuration
-            baseline = draft
-            revision = store.configurationRevision
-            sessionID = store.workspaceFileSessionID
+            reload()
             ready = true
         }
         .onChange(of: store.configurationRevision) { _, value in
@@ -77,29 +81,32 @@ struct ConfigurationSettingsView: View {
             undoDocument = nil
             error = String(localized: "The workspace changed. Reload settings before applying changes.")
         }
-        .sheet(item: $templateEditor) { template in
-            ConfigurationTemplateEditor(template: template, store: store, configuration: draft) { value in
-                var next = draft
-                if let index = next.capture.templates.firstIndex(where: { $0.id == value.id }) { next.capture.templates[index] = value }
-                else { next.capture.templates.append(value) }
-                try await persist(next)
-            }
-        }
-        .sheet(item: $keywordEditor) { editor in
-            ConfigurationKeywordEditor(token: editor.token, terminal: editor.terminal, configuration: draft) { token, keyword in
-                var next = draft
-                if editor.token == nil {
-                    var sequence = defaultSequence
-                    if editor.terminal { sequence.terminal.append(token) }
-                    else { sequence.process.append(token) }
-                    next.workflow.sequences = [sequence]
+        .sheet(item: $editor) { destination in
+            switch destination {
+            case .template(let template):
+                ConfigurationTemplateEditor(template: template, store: store, configuration: draft) { value in
+                    var next = draft
+                    if let index = next.capture.templates.firstIndex(where: { $0.id == value.id }) { next.capture.templates[index] = value }
+                    else { next.capture.templates.append(value) }
+                    try await persist(next)
                 }
-                next.workflow.keywords[token] = keyword
-                try await persist(next)
+            case .keyword(let originalToken, let terminal):
+                ConfigurationKeywordEditor(token: originalToken, terminal: terminal, configuration: draft) { token, keyword in
+                    var next = draft
+                    if originalToken == nil {
+                        var sequence = defaultSequence
+                        if terminal { sequence.terminal.append(token) }
+                        else { sequence.process.append(token) }
+                        next.workflow.sequences = [sequence]
+                    }
+                    next.workflow.keywords[token] = keyword
+                    try await persist(next)
+                }
+            case .reminder(let kind):
+                ReminderTimingEditor(kind: kind, value: binding(kind.configurationPath))
+            case .pastedImport:
+                ConfigurationImportEditor { source in try stageImport(source) }
             }
-        }
-        .sheet(item: $reminderEditor) { kind in
-            ReminderTimingEditor(kind: kind, value: binding(kind.configurationPath))
         }
         // Keep the system back button and interactive pop whenever there is
         // no draft to protect. Hiding it also disables the native edge swipe.
@@ -173,9 +180,6 @@ struct ConfigurationSettingsView: View {
                 showsSaveError = true
             }
         }
-        .sheet(isPresented: $showsPastedImport) {
-            ConfigurationImportEditor { source in try stageImport(source) }
-        }
     }
 
     @ViewBuilder
@@ -213,7 +217,7 @@ struct ConfigurationSettingsView: View {
             Section {
                 Button("Import configuration file", systemImage: "square.and.arrow.down") { showsImporter = true }
                     .accessibilityIdentifier("configuration.importFile")
-                Button("Paste configuration JSON", systemImage: "doc.on.clipboard") { showsPastedImport = true }
+                Button("Paste configuration JSON", systemImage: "doc.on.clipboard") { editor = .pastedImport }
                     .accessibilityIdentifier("configuration.pasteJSON")
             }
             Section("Presets") {
@@ -279,7 +283,7 @@ struct ConfigurationSettingsView: View {
         let tokens = terminal ? defaultSequence.terminal : defaultSequence.process
         return Section {
             ForEach(tokens, id: \.self) { token in
-                Button { keywordEditor = .init(token: token, terminal: terminal) } label: {
+                Button { editor = .keyword(token: token, terminal: terminal) } label: {
                     let state = draft.workflow.state(token) ?? OrgWorkflowState(token: token, terminal: terminal)
                     LabeledContent {
                         if let key = draft.workflow.keywords[token]?.key, !key.isEmpty {
@@ -331,7 +335,7 @@ struct ConfigurationSettingsView: View {
                 }
             }
             Button("Add state", systemImage: "plus") {
-                keywordEditor = .init(token: nil, terminal: terminal)
+                editor = .keyword(token: nil, terminal: terminal)
             }
             .accessibilityIdentifier(terminal ? "configuration.addTerminal" : "configuration.addProcess")
         } header: {
@@ -389,7 +393,7 @@ struct ConfigurationSettingsView: View {
             }
             Section("Templates") {
                 ForEach(draft.capture.templates) { template in
-                    Button { templateEditor = template } label: {
+                    Button { editor = .template(template) } label: {
                         LabeledContent {
                             if !template.key.isEmpty {
                                 Text(verbatim: template.key).font(.caption.monospaced()).foregroundStyle(.secondary)
@@ -427,8 +431,8 @@ struct ConfigurationSettingsView: View {
             }
             Section {
                 Button("Add template", systemImage: "plus") {
-                    templateEditor = .init(id: UUID().uuidString, name: String(localized: "New template"), key: "",
-                                           target: .init(path: draft.files.inbox))
+                    editor = .template(.init(id: UUID().uuidString, name: String(localized: "New template"), key: "",
+                                             target: .init(path: draft.files.inbox)))
                 }
             }
         }
@@ -462,7 +466,7 @@ struct ConfigurationSettingsView: View {
             ReminderSettingsSections(store: store, openWorkspace: { requestExit(.workspace) })
             WorkspaceReminderTimingSections(advance: binding(\.reminders.advanceMinutes),
                                             repeatInterval: binding(\.reminders.repeatMinutes),
-                                            deadline: binding(\.reminders.deadlineWarningDays)) { reminderEditor = $0 }
+                                            deadline: binding(\.reminders.deadlineWarningDays)) { editor = .reminder($0) }
                 .disabled(!store.isWorkspaceReady)
         }.navigationTitle("Reminders")
     }

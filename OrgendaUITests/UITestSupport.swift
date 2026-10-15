@@ -21,6 +21,14 @@ extension XCTestCase {
 }
 
 extension XCUIApplication {
+    /// The system title menu exposes the current title as its button label.
+    var agendaViewMenu: XCUIElement {
+        navigationBars.buttons.matching(NSPredicate(format: "label IN %@", [
+            "Dashboard", "Unscheduled", "Overdue", "Urgent actions", "Next actions",
+            "Waiting", "Projects", "Someday"
+        ])).firstMatch
+    }
+
     /// Native iPad tabs can be exposed as cells rather than TabBar buttons.
     func selectRootTab(_ title: String) {
         let candidates = descendants(matching: .any).matching(NSPredicate(format: "label == %@", title))

@@ -140,22 +140,16 @@ final class OrgEditorSession {
 /// An owned manager is also available while this editor is not first responder.
 final class OrgEditorTextView: UITextView {
     let documentUndoManager = OrgDocumentUndoManager()
-    private var ownedContentStorage: NSTextContentStorage?
     override var undoManager: UndoManager? { documentUndoManager }
 
     static func make() -> OrgEditorTextView {
-        let storage = NSTextContentStorage()
-        let layout = NSTextLayoutManager()
-        storage.addTextLayoutManager(layout)
-        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
-        container.widthTracksTextView = true
-        layout.textContainer = container
-        // UITextView's usingTextLayoutManager convenience initializer can return
-        // a base UITextView. The designated initializer preserves this subclass.
-        let view = OrgEditorTextView(frame: .zero, textContainer: container)
+        // A nil container lets UIKit create TextKit 2 while the designated
+        // initializer preserves our document-level undo manager subclass.
+        let view = OrgEditorTextView(frame: .zero, textContainer: nil)
+        view.textContainer.size = CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+        view.textContainer.widthTracksTextView = true
         view.documentUndoManager.groupsByEvent = false
         view.documentUndoManager.levelsOfUndo = 100
-        view.ownedContentStorage = storage
         return view
     }
 }

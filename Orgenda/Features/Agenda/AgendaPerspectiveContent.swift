@@ -13,7 +13,39 @@ struct AgendaPerspectiveContent<Row: View>: View {
     }
 
     var body: some View {
-        ScrollView {
+        List {
+            if !isEmpty {
+                if option == .dashboard {
+                    if !overdue.isEmpty {
+                        configuredGroup(OrgAgendaGroup(title: String(localized: "Overdue"), items: overdue))
+                    }
+                    Text("Next 7 days")
+                        .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("agenda.dashboard.dateScope")
+                    let dates = groups.filter { $0.isDateGroup && !$0.items.isEmpty }
+                    if dates.isEmpty {
+                        Text("Nothing scheduled in the next 7 days.")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(dates) { configuredGroup($0) }
+                    if !deadlines.isEmpty {
+                        configuredGroup(OrgAgendaGroup(title: String(localized: "Deadlines · next \(configuration.reminders.deadlineWarningDays) days"), items: deadlines))
+                    }
+                    ForEach(groups.filter { !$0.isDateGroup && !$0.items.isEmpty }) { configuredGroup($0) }
+                } else {
+                    ForEach(groups) { group in
+                        Section {
+                            ForEach(group.items, content: row)
+                        } header: {
+                            Text("\(group.items.count) open")
+                        }
+                    }
+                }
+            }
+        }
+        .agendaListSurface()
+        .overlay {
             if isEmpty {
                 ContentUnavailableView(
                     option == .dashboard ? "No items in Dashboard" : "No items",
@@ -22,76 +54,24 @@ struct AgendaPerspectiveContent<Row: View>: View {
                         ? "Scheduled items and open tasks will appear here."
                         : "Items in this view will appear here.")
                 )
-                .frame(maxWidth: .infinity)
-            } else {
-                LazyVStack(alignment: .leading, spacing: option == .dashboard ? 8 : 20) {
-                    if option == .dashboard {
-                        if !overdue.isEmpty {
-                            configuredGroup(OrgAgendaGroup(title: String(localized: "Overdue"), items: overdue))
-                        }
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(String(localized: "Next 7 days"))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .accessibilityAddTraits(.isHeader)
-                                .accessibilityIdentifier("agenda.dashboard.dateScope")
-                            let dates = groups.filter { $0.isDateGroup && !$0.items.isEmpty }
-                            if dates.isEmpty {
-                                Text(String(localized: "Nothing scheduled in the next 7 days."))
-                                    .font(.subheadline).foregroundStyle(.secondary)
-                            }
-                            ForEach(dates) { configuredGroup($0) }
-                        }
-                        if !deadlines.isEmpty {
-                            configuredGroup(OrgAgendaGroup(title: String(localized: "Deadlines · next \(configuration.reminders.deadlineWarningDays) days"), items: deadlines))
-                        }
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(groups.filter { !$0.isDateGroup && !$0.items.isEmpty }) { group in
-                                configuredGroup(group)
-                            }
-                        }
-                    } else {
-                        ForEach(groups) { group in
-                            Text("\(group.items.count) open")
-                                .font(.subheadline).foregroundStyle(.secondary)
-                            LazyVStack(alignment: .leading, spacing: 10) {
-                                ForEach(group.items) { item in
-                                    row(item)
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 24)
-                .frame(maxWidth: 760)
-                .frame(maxWidth: .infinity)
+                .orgendaEmptyState()
             }
         }
-        .swipeActionsContainer()
-        .defaultScrollAnchor(isEmpty ? .center : .top, for: .alignment)
-        .background(Color(uiColor: .systemBackground))
-        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("agenda.view.\(option.controlID)")
     }
 
     private func configuredGroup(_ group: OrgAgendaGroup) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if group.state == nil {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(group.title).font(.headline)
-                    Spacer(minLength: 8)
-                    Text("\(group.items.count)").font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
-                }
-                .accessibilityElement(children: .combine)
+        Section {
+            ForEach(group.items) { item in
+                row(item)
+                    .id("\(group.id):\(item.id)")
             }
-            VStack(alignment: .leading, spacing: 3) {
-                ForEach(group.items) { item in
-                    row(item)
-                }
+        } header: {
+            if group.state == nil {
+                LabeledContent(group.title, value: "\(group.items.count)")
+                    .accessibilityElement(children: .combine)
             }
         }
+        .id(group.id)
     }
-
 }

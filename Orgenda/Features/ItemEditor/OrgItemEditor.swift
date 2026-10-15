@@ -350,15 +350,14 @@ struct OrgItemEditor: View {
                 focusedField = nil
                 showsSource = true
             }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("File")
+            LabeledContent("File") {
                 Text(draft.source.file)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("item.editor.sourceFile")
             if !isNew {
                 LabeledContent("Line", value: "\(draft.source.startLine)")
             }

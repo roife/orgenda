@@ -14,17 +14,13 @@ struct SearchSuggestionsView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(suggestions.tags, id: \.self) { tag in
-                                Button {
+                                Button(tag, systemImage: "number") {
                                     query = tag
-                                } label: {
-                                    Label(tag, systemImage: "number")
-                                        .font(.subheadline.weight(.medium))
-                                        .padding(.horizontal, 12)
-                                        .frame(minHeight: 44)
-                                        .background(OrgendaTheme.accent.opacity(0.08), in: Capsule())
                                 }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(OrgendaTheme.accentText)
+                                .buttonStyle(.bordered)
+                                .buttonBorderShape(.capsule)
+                                .tint(OrgendaTheme.accentText)
+                                .controlSize(.large)
                                 .accessibilityLabel("Search for tag \(tag)")
                             }
                         }

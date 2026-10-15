@@ -1,26 +1,7 @@
 import Foundation
-import Synchronization
 
 /// A display-only projection. The draft retains the exact Org source for edits.
 struct OrgPreviewDateText {
-    /// Formatters are expensive to build and re-template; they are cached per
-    /// (locale, template) since rendering touches one formatter per timestamp.
-    private static let formatters = Mutex<[String: DateFormatter]>([:])
-
-    private static func formatter(locale: Locale, template: String) -> DateFormatter {
-        let key = "\(locale.identifier)\u{0}\(template)"
-        return formatters.withLock { cache in
-            if let cached = cache[key] { return cached }
-            let formatter = DateFormatter()
-            formatter.locale = locale
-            formatter.calendar = Calendar(identifier: .gregorian)
-            formatter.timeZone = .autoupdatingCurrent
-            formatter.setLocalizedDateFormatFromTemplate(template)
-            cache[key] = formatter
-            return formatter
-        }
-    }
-
     let draft: OrgPlanningEntryDraft
     var locale: Locale = .autoupdatingCurrent
     var now: Date = .now
@@ -46,19 +27,19 @@ struct OrgPreviewDateText {
     var date: String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .autoupdatingCurrent
+        let style = Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
+        let timeStyle = style.hour().minute()
         return draft.timestamps.map { timestamp in
             let sameYear = calendar.component(.year, from: timestamp.date)
                 == calendar.component(.year, from: now)
-            let dateFormatter = Self.formatter(
-                locale: locale, template: sameYear ? "MMM d EEE" : "y MMM d EEE")
-            var result = dateFormatter.string(from: timestamp.date)
+            let dateStyle = style.month(.abbreviated).day().weekday(.abbreviated)
+            var result = timestamp.date.formatted(sameYear ? dateStyle : dateStyle.year())
             if timestamp.includesTime {
-                let timeFormatter = Self.formatter(locale: locale, template: "jmm")
-                result += " " + timeFormatter.string(from: timestamp.date)
+                result += " " + timestamp.date.formatted(timeStyle)
                 if let range = OrgPlanningTimestampDraft.sameDayTimeRange(in: timestamp.trailingText) {
                     let parts = timestamp.trailingText[range].dropFirst().split(separator: ":").compactMap { Int($0) }
                     if parts.count == 2, let end = calendar.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: timestamp.date) {
-                        result += "–" + timeFormatter.string(from: end)
+                        result += "–" + end.formatted(timeStyle)
                     }
                 }
             }
