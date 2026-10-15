@@ -1,16 +1,28 @@
 import Foundation
 
-enum OrgAgendaPerspective: String, CaseIterable, Identifiable {
-    case dashboard = "Dashboard"
-    case agenda = "Agenda"
-    case overdue = "Overdue"
-    case todos = "TODOs"
-    case urgent = "Urgent actions"
-    case next = "Next actions"
-    case waiting = "Waiting"
-    case projects = "Projects"
-    case someday = "Someday"
-    var id: String { rawValue }
+enum OrgAgendaPerspective: Hashable, Identifiable {
+    case dashboard
+    case agenda
+    case overdue
+    case todos
+    case projects
+    case status(OrgWorkflowState)
+
+    var id: String {
+        switch self {
+        case .dashboard: "dashboard"
+        case .agenda: "agenda"
+        case .overdue: "overdue"
+        case .todos: "todos"
+        case .projects: "projects"
+        case .status(let state): "status.\(state.rawValue)"
+        }
+    }
+
+    // Selection survives changes to a state's label, icon, or logging rules.
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
     var localizedName: String {
         switch self {
@@ -18,11 +30,8 @@ enum OrgAgendaPerspective: String, CaseIterable, Identifiable {
         case .agenda: String(localized: "Agenda")
         case .overdue: String(localized: "Overdue")
         case .todos: String(localized: "Tasks")
-        case .urgent: String(localized: "Urgent actions")
-        case .next: String(localized: "Next actions")
-        case .waiting: String(localized: "Waiting")
         case .projects: String(localized: "Projects")
-        case .someday: String(localized: "Someday")
+        case .status(let state): state.title
         }
     }
 }

@@ -1,16 +1,10 @@
 import Foundation
 
 extension OrgAgendaPerspective {
-    static func dashboardViews(usesEmacsConfiguration: Bool) -> [Self] {
-        usesEmacsConfiguration ? allCases.filter { $0 != .agenda } : [.overdue, .todos]
-    }
-
     var title: String {
         switch self {
         case .agenda: String(localized: "Calendar")
         case .todos: String(localized: "Unscheduled")
-        case .urgent: String(localized: "Urgent")
-        case .someday: String(localized: "Someday")
         default: localizedName
         }
     }
@@ -29,25 +23,10 @@ extension OrgAgendaPerspective {
         case .agenda: "calendar"
         case .overdue: "exclamationmark.circle"
         case .todos: "checklist"
-        case .urgent: OrgWorkflowState.urgent.symbol
-        case .next: OrgWorkflowState.next.symbol
-        case .waiting: OrgWorkflowState.wait.symbol
         case .projects: "folder"
-        case .someday: OrgWorkflowState.someday.symbol
+        case .status(let state): state.symbol
         }
     }
 
-    var controlID: String {
-        switch self {
-        case .dashboard: "dashboard"
-        case .agenda: "agenda"
-        case .overdue: "overdue"
-        case .todos: "todos"
-        case .urgent: "urgent"
-        case .next: "next"
-        case .waiting: "waiting"
-        case .projects: "projects"
-        case .someday: "someday"
-        }
-    }
+    var controlID: String { id }
 }
