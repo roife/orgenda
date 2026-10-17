@@ -3,10 +3,7 @@ import SwiftUI
 struct OrgItemDetailsSection: View {
     @Binding var draft: OrgItem
     @Binding var tagsText: String
-    @Binding var contextTag: String
     let focusedField: FocusState<OrgItemEditorField?>.Binding
-    let usesCaptureTemplates: Bool
-    let usesEmacsConfiguration: Bool
     var workflow: WorkspaceConfiguration.Workflow = WorkspaceConfiguration.classic.workflow
 
     var body: some View {
@@ -16,10 +13,8 @@ struct OrgItemDetailsSection: View {
                     .accessibilityIdentifier("item.editor.state")
             }
 
-            if !usesCaptureTemplates {
-                Picker("Type", selection: $draft.kind) {
-                    ForEach(OrgItemKind.allCases) { kind in Label(kind.title, systemImage: kind.systemImage).tag(kind) }
-                }
+            Picker("Type", selection: $draft.kind) {
+                ForEach(OrgItemKind.allCases) { kind in Label(kind.title, systemImage: kind.systemImage).tag(kind) }
             }
 
             Picker("Priority", selection: $draft.priority) {
@@ -32,13 +27,6 @@ struct OrgItemDetailsSection: View {
             .accessibilityIdentifier("item.editor.priority")
 
             tagsField
-            if usesEmacsConfiguration {
-                Picker("Context", selection: $contextTag) {
-                    Text("None").tag("")
-                    Text("@home").tag("@home")
-                    Text("@work").tag("@work")
-                }
-            }
         } header: {
             Text("Details")
         } footer: {

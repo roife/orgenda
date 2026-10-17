@@ -6,6 +6,10 @@ struct HighlightedOrgEditor: View {
     private struct HighlightRequest: Equatable {
         let text: String
         let workflow: WorkspaceConfiguration.Workflow
+
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            lhs.text.utf8.elementsEqual(rhs.text.utf8) && lhs.workflow == rhs.workflow
+        }
     }
 
     @Environment(\.workspaceConfiguration) private var configuration
@@ -42,7 +46,7 @@ struct HighlightedOrgEditor: View {
             guard !Task.isCancelled else { return }
 
             let nextHighlights = await highlighter.highlights(in: revision, configuration: configuration)
-            guard !Task.isCancelled, revision == text else { return }
+            guard !Task.isCancelled, revision.utf8.elementsEqual(text.utf8) else { return }
             highlights = nextHighlights
         }
     }

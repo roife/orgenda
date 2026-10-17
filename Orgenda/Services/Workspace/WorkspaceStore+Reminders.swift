@@ -3,7 +3,7 @@ import Foundation
 extension WorkspaceStore {
     func refreshReminders(requestPermission: Bool = false) async {
         reminderPermissionDenied = await reminderScheduler.authorizationStatus() == .denied
-        guard usesEmacsConfiguration || hasWorkspaceConfiguration else {
+        guard hasWorkspaceConfiguration else {
             reminderStatus = String(localized: "Connect a folder to use reminders")
             return
         }

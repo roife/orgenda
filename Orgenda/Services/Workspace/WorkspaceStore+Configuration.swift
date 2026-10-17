@@ -10,7 +10,7 @@ extension WorkspaceStore {
 
     @discardableResult
     func acceptConfiguration(_ source: String?) -> Bool {
-        guard source != configurationSource else { return false }
+        guard source.map({ Data($0.utf8) }) != configurationSource.map({ Data($0.utf8) }) else { return false }
         configurationSource = source
         do {
             let document = try source.map(ConfigurationDocument.init) ?? ConfigurationDocument(configuration: .standard)
@@ -86,7 +86,7 @@ extension WorkspaceStore {
     func capture(_ template: WorkspaceConfiguration.Template, rendered: String, date: Date,
                  createMissing: Bool, expectedContents: String?) -> Bool {
         let current = documents.first { $0.path == template.target.path }
-        guard current?.contents == expectedContents else {
+        guard current.map({ Data($0.contents.utf8) }) == expectedContents.map({ Data($0.utf8) }) else {
             operationError = "The capture destination changed. Preview the template again."
             return false
         }

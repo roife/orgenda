@@ -16,7 +16,7 @@ extension WorkspaceStore {
         let result = datedItems.compactMap { item in
             let dates = [item.scheduled, item.deadline, item.eventDate].compactMap { $0 }
             if dates.contains(where: { Calendar.autoupdatingCurrent.isDate($0, inSameDayAs: date) }) { return item }
-            if usesEmacsConfiguration || hasWorkspaceConfiguration, let base = item.agendaDate, let repeater = item.recurrence.flatMap(OrgRepeater.init),
+            if hasWorkspaceConfiguration, let base = item.agendaDate, let repeater = item.recurrence.flatMap(OrgRepeater.init),
                let occurrence = repeater.occurrences(on: date, from: base).first {
                 var projected = item
                 projected.updateAgendaDate(to: occurrence)

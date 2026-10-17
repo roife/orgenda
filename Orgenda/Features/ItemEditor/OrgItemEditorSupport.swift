@@ -84,7 +84,7 @@ struct OrgItemCaptureSheet: View {
 
     private var inboxPath: String {
         if store.hasWorkspaceConfiguration { return store.configuration.files.inbox }
-        return store.usesEmacsConfiguration ? OrgCaptureTemplate.inboxTask.destinationPath : "inbox.org"
+        return "inbox.org"
     }
 }
 

@@ -7,8 +7,6 @@ import UIKit
 final class OrgEditorSession {
     private(set) var canUndo = false
     private(set) var canRedo = false
-    private(set) var undoName = String(localized: "Undo")
-    private(set) var redoName = String(localized: "Redo")
     var isDatePresented = false
     var isKeyboardFocused = false
     @ObservationIgnored weak var textView: UITextView?
@@ -41,8 +39,6 @@ final class OrgEditorSession {
         let manager = textView?.undoManager
         canUndo = manager?.canUndo == true
         canRedo = manager?.canRedo == true
-        undoName = manager?.undoMenuItemTitle ?? String(localized: "Undo")
-        redoName = manager?.redoMenuItemTitle ?? String(localized: "Redo")
         updateAccessory?(canUndo, canRedo)
     }
 

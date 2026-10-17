@@ -5,7 +5,6 @@ enum OrgAgendaPerspective: Hashable, Identifiable {
     case agenda
     case overdue
     case todos
-    case projects
     case status(OrgWorkflowState)
 
     var id: String {
@@ -14,7 +13,6 @@ enum OrgAgendaPerspective: Hashable, Identifiable {
         case .agenda: "agenda"
         case .overdue: "overdue"
         case .todos: "todos"
-        case .projects: "projects"
         case .status(let state): "status.\(state.rawValue)"
         }
     }
@@ -30,7 +28,6 @@ enum OrgAgendaPerspective: Hashable, Identifiable {
         case .agenda: String(localized: "Agenda")
         case .overdue: String(localized: "Overdue")
         case .todos: String(localized: "Tasks")
-        case .projects: String(localized: "Projects")
         case .status(let state): state.title
         }
     }

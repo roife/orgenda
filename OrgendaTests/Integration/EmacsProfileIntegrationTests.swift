@@ -46,7 +46,8 @@ final class EmacsProfileIntegrationTests: XCTestCase {
 
     private func makeStore(_ sources: [String: String]) -> WorkspaceStore {
         let store = WorkspaceStore(documents: sources.map { WorkspaceDocument(path: $0.key, title: $0.key, contents: $0.value, kind: .org) })
-        store.usesEmacsConfiguration = true
+        store.configuration = .classic
+        store.hasWorkspaceConfiguration = true
         store.parseWorkspace()
         return store
     }

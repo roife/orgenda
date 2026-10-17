@@ -101,17 +101,6 @@ actor OrgSyntaxHighlighter {
         }
     }
 
-    /// Converts a tree-sitter byte range into the UTF-16 coordinate space used
-    /// by Foundation text APIs. Invalid, reversed, out-of-bounds, or mid-scalar
-    /// offsets are rejected instead of being rounded to a nearby character.
-    nonisolated static func utf16Range(
-        startByte: Int,
-        endByte: Int,
-        in source: String
-    ) -> NSRange? {
-        UTF16RangeMap(source).range(startByte: startByte, endByte: endByte)
-    }
-
     private nonisolated static func highlightKind(for nodeType: String) -> OrgHighlightKind? {
         switch nodeType {
         case "heading_marker", "heading_title":

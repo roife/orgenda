@@ -84,7 +84,7 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 - Org 源文字节边界、子树移动、重复任务修改的原子性与日期计算。
 - 中文输入组合过程与撤销，避免高亮刷新打断输入。
 
-展示、布局、导航、常规读写与重复覆盖不保留自动化测试。新增测试也应满足上述门槛。
+展示、布局、导航、常规读写、性能计数、通知与调度机制，以及重复覆盖不保留自动化测试。新增测试必须对应具体的数据丢失、错误覆盖或源码破坏风险；修复过问题本身不构成保留测试的理由。
 
 ```sh
 xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
@@ -97,7 +97,7 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 
 界面改动使用 `--demo-workspace` 手动检查；涉及 iPad 布局时检查旋转、窄窗口与辅助大字体。
 
-解析器覆盖嵌入空字符、源码块结束边界，以及公式定界符、环境嵌套和字面量保护，可以独立验证：
+解析器只保留源码边界回归：嵌入空字符不能截断文档，源码块和嵌套公式必须正确结束，未闭合公式不能吞掉后续标题。可以独立验证：
 
 ```sh
 swift test --package-path Packages/OrgTreeSitter

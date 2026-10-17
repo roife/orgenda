@@ -8,14 +8,12 @@ extension WorkspaceStore {
         parseGeneration &+= 1
         pendingDirtyPaths.removeAll()
 
-        let started = CFAbsoluteTimeGetCurrent()
         let parsed = OrgIndexService.parseSynchronously(documents, configuration: effectiveConfiguration)
 
         publish(
             parsed,
             replacingAll: true,
-            refreshedPaths: Set(documents.filter { $0.kind == .org }.map(\.path)),
-            durationMilliseconds: (CFAbsoluteTimeGetCurrent() - started) * 1_000
+            refreshedPaths: Set(documents.filter { $0.kind == .org }.map(\.path))
         )
     }
 
@@ -59,9 +57,7 @@ extension WorkspaceStore {
             }
             guard !Task.isCancelled else { return }
 
-            let started = CFAbsoluteTimeGetCurrent()
             let parsed = await indexService.parse(targets, configuration: configuration)
-            let duration = (CFAbsoluteTimeGetCurrent() - started) * 1_000
             guard !Task.isCancelled else { return }
 
             guard let self, generation == self.parseGeneration else { return }
@@ -75,8 +71,7 @@ extension WorkspaceStore {
             self.publish(
                 accepted,
                 replacingAll: replacingAll,
-                refreshedPaths: acceptedPaths,
-                durationMilliseconds: duration
+                refreshedPaths: acceptedPaths
             )
             self.pendingDirtyPaths.subtract(acceptedPaths)
             self.parseTask = nil
@@ -154,8 +149,7 @@ extension WorkspaceStore {
     private func publish(
         _ parsed: [ParsedOrgDocument],
         replacingAll: Bool,
-        refreshedPaths: Set<String>,
-        durationMilliseconds: Double
+        refreshedPaths: Set<String>
     ) {
         var nextDocuments = replacingAll ? [:] : parsedDocuments
         for path in refreshedPaths {
@@ -174,22 +168,14 @@ extension WorkspaceStore {
         let allDocuments = nextDocuments.values
         let indexedJournal = isFolderConnected
             ? allDocuments.sorted { $0.path < $1.path }.flatMap(\.journalEntries) : nil
-        let nodeCount = allDocuments.reduce(0) { $0 + $1.nodeCount }
-        let errorCount = allDocuments.lazy.filter(\.hasError).count
-        let status = errorCount == 0
-            ? String(localized: "Ready · \(allDocuments.count) files · \(nodeCount) nodes")
-            : String(localized: "Ready with \(errorCount) recovery tree(s)")
-
         var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             if parsedDocuments != nextDocuments { parsedDocuments = nextDocuments }
             if items != nextItems { items = nextItems }
             if let indexedJournal, journalEntries != indexedJournal { journalEntries = indexedJournal }
-            parseDurationMilliseconds = durationMilliseconds
-            parserStatus = status
         }
-        if usesEmacsConfiguration || hasWorkspaceConfiguration { Task { await refreshReminders() } }
+        if hasWorkspaceConfiguration { Task { await refreshReminders() } }
 
     }
     private func merging(

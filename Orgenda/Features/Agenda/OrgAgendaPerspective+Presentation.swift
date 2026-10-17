@@ -23,7 +23,6 @@ extension OrgAgendaPerspective {
         case .agenda: "calendar"
         case .overdue: "exclamationmark.circle"
         case .todos: "checklist"
-        case .projects: "folder"
         case .status(let state): state.symbol
         }
     }

@@ -9,16 +9,12 @@ struct OrgItemEditor: View {
     private let isNew: Bool
     @State private var originalDraft: OrgItem
     private let captureDate: Date
-    private let createdAt = Date.now
     @State private var draft: OrgItem
     @State private var tagsText: String
     @State private var showsSource = false
     @State private var showsDiscardConfirmation = false
     @State private var showsSaveFailure = false
     @State private var hasConfiguredTime: Bool
-    @State private var captureTemplate: OrgCaptureTemplate = .inboxTask
-    @State private var firstAction = ""
-    @State private var sourceLink = ""
     @State private var stateNote = ""
     @State private var showsArchiveConfirmation = false
     @State private var showsMoveFailure = false
@@ -34,9 +30,7 @@ struct OrgItemEditor: View {
         let newItem = store.item(withID: draft.id) == nil
         isNew = newItem
         captureDate = draft.agendaDate ?? .now
-        var initial = newItem && store.usesEmacsConfiguration
-            ? OrgCaptureTemplate.inboxTask.applyingDefaults(to: draft, date: draft.agendaDate ?? .now, preservingPlanning: true)
-            : draft
+        var initial = draft
         if newItem && store.hasWorkspaceConfiguration {
             initial.state = store.workflow(for: initial.source.file).initial
         }
@@ -105,15 +99,6 @@ struct OrgItemEditor: View {
     private var observedEditor: some View {
         styledEditor
         .task { if isNew { focusedField = .title } }
-        .onChange(of: captureTemplate) { previous, template in
-            var item = draft
-            item.tags = parsedTags
-            let previousDefaults = previous.applyingDefaults(to: originalDraft, date: captureDate)
-            draft = template.applyingDefaults(to: item, date: captureDate, preservingPlanning: true)
-            if item.state.rawValue != previousDefaults.state.rawValue { draft.state = item.state }
-            tagsText = draft.tags.joined(separator: ", ")
-            hasConfiguredTime = draft.hasTime
-        }
         .onChange(of: draft.kind) { _, kind in
             if kind == .event && draft.eventDate == nil {
                 draft.eventDate = draft.scheduled ?? draft.deadline ?? captureDate
@@ -173,9 +158,7 @@ struct OrgItemEditor: View {
         .navigationDestination(isPresented: $showsSource) {
             OrgSourceView(
                 item: preparedDraft,
-                originalSource: usesCaptureTemplates
-                    ? captureTemplate.source(for: preparedDraft, createdAt: createdAt, firstAction: firstAction)
-                    : hasChanges ? nil : store.exactSource(for: originalDraft)
+                originalSource: hasChanges ? nil : store.exactSource(for: originalDraft)
             )
         }
     }
@@ -183,46 +166,22 @@ struct OrgItemEditor: View {
     private var editorForm: some View {
         Form {
             titleSection
-            captureSection
-            firstActionSection
             OrgItemScheduleSection(
                 draft: $draft, hasConfiguredTime: $hasConfiguredTime, captureDate: captureDate,
-                usesEventTimestamp: usesEventTimestamp,
-                requiresSchedule: usesCaptureTemplates && captureTemplate.includesAppointmentWarning,
+                usesEventTimestamp: draft.eventDate != nil,
                 onDismissKeyboard: { focusedField = nil }
             )
             OrgItemDetailsSection(
-                draft: $draft, tagsText: $tagsText, contextTag: contextTag,
-                focusedField: $focusedField, usesCaptureTemplates: usesCaptureTemplates,
-                usesEmacsConfiguration: store.usesEmacsConfiguration,
+                draft: $draft, tagsText: $tagsText, focusedField: $focusedField,
                 workflow: store.workflow(for: draft.source.file)
             )
             stateNoteSection
             repeatSection
             appointmentSection
             notesSection
-            sourceLinkSection
             habitHistorySection
             sourceSection
             moveSection
-        }
-    }
-
-    @ViewBuilder
-    private var captureSection: some View {
-        if usesCaptureTemplates {
-            Section {
-                Picker("Capture", selection: $captureTemplate) {
-                    ForEach(OrgCaptureTemplate.allCases) { template in
-                        Text(template.title).tag(template)
-                    }
-                }
-                .accessibilityIdentifier("item.editor.template")
-            } footer: {
-                Text(captureDestination)
-                    .font(.subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
     }
 
@@ -237,24 +196,6 @@ struct OrgItemEditor: View {
                 .accessibilityIdentifier("item.editor.title")
         } header: {
             Text("Title")
-        }
-    }
-
-    @ViewBuilder
-    private var firstActionSection: some View {
-        if usesCaptureTemplates && captureTemplate.isProject {
-            Section {
-                TextField("What is the first concrete step?", text: $firstAction, axis: .vertical)
-                    .lineLimit(1...4)
-                    .focused($focusedField, equals: .firstAction)
-                    .accessibilityLabel("First next action")
-                    .accessibilityHint("Required to save a project.")
-                    .accessibilityIdentifier("item.editor.firstAction")
-            } header: {
-                Text("First next action (required)")
-            } footer: {
-                Text("Required to save a project.")
-            }
         }
     }
 
@@ -279,7 +220,6 @@ struct OrgItemEditor: View {
         Section {
             OrgRecurrenceEditor(
                 recurrence: $draft.recurrence,
-                allowsNever: !usesCaptureTemplates || captureTemplate != .repeatingReminder,
                 identifier: "item.editor.recurrence"
             )
             .disabled(draft.agendaDate == nil)
@@ -323,19 +263,6 @@ struct OrgItemEditor: View {
     }
 
     @ViewBuilder
-    private var sourceLinkSection: some View {
-        if usesCaptureTemplates && !captureTemplate.isProject {
-            Section("Source link (optional)") {
-                TextField("URL or Org link", text: $sourceLink, axis: .vertical)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
-                    .focused($focusedField, equals: .sourceLink)
-            }
-        }
-    }
-
-    @ViewBuilder
     private var habitHistorySection: some View {
         if draft.kind == .habit {
             Section("28-day history") {
@@ -366,7 +293,7 @@ struct OrgItemEditor: View {
 
     @ViewBuilder
     private var moveSection: some View {
-        if !isNew && (store.usesEmacsConfiguration || store.hasWorkspaceConfiguration) {
+        if !isNew && store.hasWorkspaceConfiguration {
             Section {
                 NavigationLink {
                     OrgItemRefileDestinations(
@@ -386,17 +313,8 @@ struct OrgItemEditor: View {
         }
     }
 
-    private var usesCaptureTemplates: Bool { isNew && store.usesEmacsConfiguration }
-    private var usesEventTimestamp: Bool {
-        draft.eventDate != nil || (usesCaptureTemplates && captureTemplate == .calendarEvent)
-    }
-
-    private var captureDestination: String {
-        captureTemplate.destinationPath + (captureTemplate.parentHeading.map { " → \($0)" } ?? "")
-    }
-
     private var requiresStateNote: Bool {
-        guard !isNew, store.usesEmacsConfiguration || store.hasWorkspaceConfiguration else { return false }
+        guard !isNew, store.hasWorkspaceConfiguration else { return false }
         let logging = store.effectiveConfiguration.logging
         return OrgWorkflowOperations.requiresNote(from: originalDraft.state, to: draft.state)
             || (originalDraft.state.rawValue != draft.state.rawValue && draft.state.isTerminal && logging.done == .note)
@@ -408,18 +326,6 @@ struct OrgItemEditor: View {
         !trimmedTitle.isEmpty
             && OrgRepeater.isValid(draft.recurrence)
             && (!requiresStateNote || !stateNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            && (!usesCaptureTemplates || !captureTemplate.isProject || !firstAction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-    }
-
-    private var contextTag: Binding<String> {
-        Binding(
-            get: { parsedTags.first { $0 == "@home" || $0 == "@work" } ?? "" },
-            set: { context in
-                var tags = parsedTags.filter { $0 != "@home" && $0 != "@work" }
-                if !context.isEmpty { tags.append(context) }
-                tagsText = tags.joined(separator: ", ")
-            }
-        )
     }
 
     private var appointmentWarningMinutes: Binding<Int> {
@@ -451,16 +357,11 @@ struct OrgItemEditor: View {
         var item = draft
         item.title = trimmedTitle
         item.tags = parsedTags
-        if usesCaptureTemplates, !sourceLink.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            item.body += (item.body.isEmpty ? "" : "\n") + sourceLink.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
         return item
     }
 
     private var draftSource: String {
-        usesCaptureTemplates
-            ? captureTemplate.source(for: preparedDraft, createdAt: createdAt, firstAction: firstAction)
-            : OrgSourceView.source(for: preparedDraft, stateNote: stateNote)
+        OrgSourceView.source(for: preparedDraft, stateNote: stateNote)
     }
 
     private func copyDraft() {
@@ -492,14 +393,12 @@ struct OrgItemEditor: View {
 
     private var hasChanges: Bool {
         draft != originalDraft || tagsText != originalDraft.tags.joined(separator: ", ")
-            || !firstAction.isEmpty || !sourceLink.isEmpty || !stateNote.isEmpty
+            || !stateNote.isEmpty
     }
 
     private func commit() {
         focusedField = nil
         if store.save(preparedDraft, original: isNew ? nil : originalDraft,
-                      captureTemplate: usesCaptureTemplates ? captureTemplate : nil,
-                      captureFirstAction: usesCaptureTemplates && captureTemplate.isProject ? firstAction : nil,
                       stateNote: requiresStateNote ? stateNote : nil) {
             OrgendaHaptics.result(true)
             dismiss()

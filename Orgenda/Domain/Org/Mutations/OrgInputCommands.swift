@@ -86,12 +86,22 @@ enum OrgInputCommands {
         let line = text.substring(with: lineRange).trimmingCharacters(in: .newlines)
         // Source/example blocks are literal text; Return must not synthesize Org lists.
         let before = text.substring(to: lineRange.location)
-        var inBlock = false
+        var blockEnd: String?
         var inDrawer = false
         for previous in before.components(separatedBy: .newlines) {
             let marker = previous.trimmingCharacters(in: .whitespaces).uppercased()
-            if marker.hasPrefix("#+BEGIN_") { inBlock = true }
-            if marker.hasPrefix("#+END_") { inBlock = false }
+            if let expected = blockEnd {
+                if marker == expected { blockEnd = nil }
+                continue
+            }
+            if let begin = marker.firstMatch(of: #/^#\+BEGIN_([A-Z0-9_-]+)(?:[ \t]|$)/#) {
+                blockEnd = "#+END_" + begin.1
+                continue
+            }
+            if marker.firstMatch(of: #/^#\+BEGIN:[ \t]+\S/#) != nil {
+                blockEnd = "#+END:"
+                continue
+            }
             if marker == ":END:" { inDrawer = false }
             else if drawerExpression.firstMatch(in: marker, range: NSRange(marker.startIndex..., in: marker)) != nil
                 || (marker.hasPrefix(":") && marker.hasSuffix(":")
@@ -99,7 +109,7 @@ enum OrgInputCommands {
                 inDrawer = true
             }
         }
-        guard !inBlock, !inDrawer,
+        guard blockEnd == nil, !inDrawer,
               let item = listExpression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
               selection.location >= lineRange.location + item.range.length else { return nil }
         let nsLine = line as NSString
@@ -118,12 +128,15 @@ enum OrgInputCommands {
                            selection: NSRange(location: selection.location + insertion.utf16.count, length: 0))
     }
 
-    /// Use a character-boundary diff so native text undo remains valid on either side.
+    /// Keep character boundaries without treating different Unicode spellings
+    /// as identical source: native undo must restore the original code units.
     static func difference(from old: String, to new: String) -> OrgTextEdit {
-        let prefix = zip(old, new).prefix { $0 == $1 }.map(\.0)
+        let prefix = zip(old, new).prefix { $0.unicodeScalars.elementsEqual($1.unicodeScalars) }.map(\.0)
         let oldTail = old.dropFirst(prefix.count)
         let newTail = new.dropFirst(prefix.count)
-        let suffixCount = zip(oldTail.reversed(), newTail.reversed()).prefix { $0 == $1 }.count
+        let suffixCount = zip(oldTail.reversed(), newTail.reversed()).prefix {
+            $0.unicodeScalars.elementsEqual($1.unicodeScalars)
+        }.count
         let removed = oldTail.dropLast(suffixCount)
         let inserted = String(newTail.dropLast(suffixCount))
         let location = String(prefix).utf16.count

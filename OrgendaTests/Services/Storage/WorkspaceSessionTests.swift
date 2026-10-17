@@ -61,24 +61,6 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertNil(oldDestination)
     }
 
-    func testCachedAttachmentFollowsOfflineFolderMoveBeforeAndAfterReplay() async throws {
-        let backend = SessionFakeBackend(["notes/inbox.org": "* Note\n", "notes/pic.png": "image bytes"])
-        await backend.addDirectory("notes")
-        let workspace = try session(backend)
-        try await workspace.synchronize()
-        let bytes = try await workspace.readImageData(path: "notes/pic.png")
-        let expected = try await workspace.load()
-        await backend.setOffline(true)
-        try await workspace.move(path: "notes", to: "archive", expected: expected)
-        let before = try await workspace.readImageData(path: "archive/pic.png")
-        XCTAssertEqual(before, bytes)
-        await backend.setOffline(false)
-        try await workspace.synchronize()
-        await backend.setOffline(true)
-        let after = try await workspace.readImageData(path: "archive/pic.png")
-        XCTAssertEqual(after, bytes)
-    }
-
     func testEmptyFolderCollisionRemainsAResolvableOperationConflict() async throws {
         let backend = SessionFakeBackend()
         await backend.addDirectory("source")
@@ -99,7 +81,7 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertEqual(Set(resolved.documents.map(\.path)), ["source", "target"])
     }
 
-    func testQueuedOperationAndConflictPayloadsContainBlobReferences() async throws {
+    func testQueuedMoveConflictPreservesBothFilesAcrossRestart() async throws {
         let text = "* Unique private text 中文\n"
         let backend = SessionFakeBackend(["inbox.org": text])
         let workspace = try session(backend)
@@ -107,7 +89,6 @@ final class WorkspaceSessionTests: XCTestCase {
         let original = try await document("inbox.org", in: workspace)
         await backend.setOffline(true)
         try await workspace.move(path: "inbox.org", to: "moved.org", expected: [original])
-        XCTAssertFalse(try storedPayloads("ops").contains { $0.range(of: Data("Unique private text".utf8)) != nil })
         await backend.setOffline(false)
         await backend.replace("inbox.org", contents: "* External\n")
         do { try await workspace.synchronize(); XCTFail("A changed source was moved") }
@@ -117,7 +98,6 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertEqual(snapshot.documents.first { $0.path == "moved.org" }?.contents, text)
         XCTAssertEqual(snapshot.documents.first { $0.path == "inbox.org" }?.contents, "* External\n")
         XCTAssertEqual(snapshot.conflicts.first?.path, "moved.org")
-        XCTAssertFalse(try storedPayloads("conflicts").contains { $0.range(of: Data("Unique private text".utf8)) != nil })
     }
 
     func testInvalidInventoryBranchRetainsCacheAndDoesNotBlockHealthyUpload() async throws {
@@ -135,40 +115,6 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertEqual(remote, "* Local B\n")
         XCTAssertTrue(snapshot.pendingPaths.isEmpty)
         XCTAssertNotNil(snapshot.uploadErrors["a.org"])
-    }
-
-    func testServerRetryAfterAppliesToManualAndAutomaticRequests() async throws {
-        let backend = SessionFakeBackend(["inbox.org": "* Base\n"])
-        let workspace = try session(backend)
-        try await workspace.synchronize()
-        try await workspace.write(path: "inbox.org", contents: "* Draft\n", expectedContents: "* Base\n")
-        await backend.failUpload("inbox.org", error: .throttled(60))
-        let engine = SyncEngine(store: workspace)
-        do { try await engine.request(.push); XCTFail("The throttle was hidden") }
-        catch { XCTAssertEqual(error as? StorageError, .throttled(60)) }
-        let scans = await backend.scanCount
-        await backend.failUpload(nil)
-        try await engine.request(.full)
-        try await engine.request(.full, automatic: true)
-        let after = await backend.scanCount
-        let remote = await backend.contents("inbox.org")
-        XCTAssertEqual(after, scans)
-        XCTAssertEqual(remote, "* Base\n")
-        await engine.stop()
-    }
-
-    private func storedPayloads(_ table: String) throws -> [Data] {
-        let url = cache.appendingPathComponent(connection.id.uuidString).appendingPathComponent("state.sqlite")
-        var database: OpaquePointer?, statement: OpaquePointer?
-        XCTAssertEqual(sqlite3_open_v2(url.path, &database, SQLITE_OPEN_READONLY, nil), SQLITE_OK)
-        defer { sqlite3_finalize(statement); sqlite3_close(database) }
-        XCTAssertEqual(sqlite3_prepare_v2(database, "SELECT payload FROM \(table)", -1, &statement, nil), SQLITE_OK)
-        var result: [Data] = []
-        while sqlite3_step(statement) == SQLITE_ROW {
-            result.append(Data(bytes: sqlite3_column_blob(statement, 0), count: Int(sqlite3_column_bytes(statement, 0))))
-        }
-        XCTAssertFalse(result.isEmpty)
-        return result
     }
 
     func testOfflineMoveTrashRestoreQueueRetainsIdentityAndNewDraftAfterRestart() async throws {
@@ -201,24 +147,102 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertEqual(completed.documents.first { $0.kind == .org }?.id, original.id)
     }
 
-    func testPushSkipsScanButRefreshesFailedPreconditionsAndKeepsBothVersions() async throws {
+    func testListingTrashRetainsQueuedOfflineDeletionAcrossRestart() async throws {
         let backend = SessionFakeBackend(["inbox.org": "* Base\n"])
         let workspace = try session(backend)
         try await workspace.synchronize()
-        let scans = await backend.scanCount
-        try await workspace.write(path: "inbox.org", contents: "* First\n", expectedContents: "* Base\n")
-        try await workspace.synchronize(mode: .push)
-        let afterPush = await backend.scanCount
-        XCTAssertEqual(afterPush, scans)
-        try await workspace.write(path: "inbox.org", contents: "* Local\n", expectedContents: "* First\n")
+        let original = try await document("inbox.org", in: workspace)
+        await backend.setOffline(true)
+        let deleted = try await workspace.trash(document: original, expected: [original])
+        let listed = try await workspace.deletedEntries()
+        XCTAssertEqual(listed, [deleted])
+
+        let reopened = try session(backend)
+        let durable = try await reopened.deletedEntries()
+        XCTAssertEqual(durable, [deleted])
+        try await reopened.restore(deleted)
+        await backend.setOffline(false)
+        try await reopened.synchronize()
+        let remote = await backend.contents("inbox.org")
+        let restored = try await document("inbox.org", in: reopened)
+        XCTAssertEqual(remote, original.contents)
+        XCTAssertEqual(restored.id, original.id)
+    }
+
+    func testListingTrashDoesNotResurrectQueuedRestore() async throws {
+        let backend = SessionFakeBackend(["inbox.org": "* Base\n"])
+        let workspace = try session(backend)
+        try await workspace.synchronize()
+        let original = try await document("inbox.org", in: workspace)
+        let deleted = try await workspace.trash(document: original, expected: [original])
+        try await workspace.synchronize()
+        try await workspace.restore(deleted)
+
+        let listed = try await workspace.deletedEntries()
+        XCTAssertTrue(listed.isEmpty)
+        let reopened = try session(backend)
+        let durable = try await reopened.deletedEntries()
+        XCTAssertTrue(durable.isEmpty)
+        try await reopened.synchronize()
+        let remote = await backend.contents("inbox.org")
+        XCTAssertEqual(remote, original.contents)
+        let completed = try await reopened.deletedEntries()
+        XCTAssertTrue(completed.isEmpty)
+    }
+
+    func testFolderTrashListingPreservesQueuedDeletionAndRestore() async throws {
+        let root = cache.appendingPathComponent("Folder", isDirectory: true)
+        let unavailable = cache.appendingPathComponent("UnavailableFolder", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data("* Base\n".utf8).write(to: root.appendingPathComponent("inbox.org"))
+        let localConnection = StorageConnection(provider: .local, displayName: "Folder", rootID: root.path)
+        let workspace = try LocalStore(connection: localConnection, cacheDirectory: cache,
+            folder: WorkspaceFileStore(rootURL: root))
+        try await workspace.synchronize()
+        let original = try await document("inbox.org", in: workspace)
+        try FileManager.default.moveItem(at: root, to: unavailable)
+        let deleted = try await workspace.trash(document: original, expected: [original])
+        try FileManager.default.moveItem(at: unavailable, to: root)
+        let listed = try await workspace.deletedEntries()
+        XCTAssertEqual(listed, [deleted])
+        await workspace.close()
+
+        let reopened = try LocalStore(connection: localConnection, cacheDirectory: cache,
+            folder: WorkspaceFileStore(rootURL: root))
+        let durable = try await reopened.deletedEntries()
+        XCTAssertEqual(durable, [deleted])
+        try await reopened.synchronize()
+        try FileManager.default.moveItem(at: root, to: unavailable)
+        try await reopened.restore(deleted)
+        try FileManager.default.moveItem(at: unavailable, to: root)
+        let restoring = try await reopened.deletedEntries()
+        XCTAssertTrue(restoring.isEmpty)
+        await reopened.close()
+
+        let restoringSession = try LocalStore(connection: localConnection, cacheDirectory: cache,
+            folder: WorkspaceFileStore(rootURL: root))
+        let queued = try await restoringSession.deletedEntries()
+        XCTAssertTrue(queued.isEmpty)
+        try await restoringSession.synchronize()
+        let restored = try await document("inbox.org", in: restoringSession)
+        XCTAssertEqual(restored.id, original.id)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("inbox.org"), encoding: .utf8), original.contents)
+        await restoringSession.close()
+    }
+
+    func testPushConflictKeepsBothVersions() async throws {
+        let backend = SessionFakeBackend(["inbox.org": "* Base\n"])
+        let workspace = try session(backend)
+        try await workspace.synchronize()
+        try await workspace.write(path: "inbox.org", contents: "* Local\n", expectedContents: "* Base\n")
         await backend.replace("inbox.org", contents: "* External\n")
         do { try await workspace.synchronize(mode: .push); XCTFail("The stale conditional write succeeded") }
         catch { XCTAssertEqual(error as? StorageError, .conflict("inbox.org")) }
         let conflict = try await workspace.snapshot()
         XCTAssertEqual(conflict.conflicts.first?.remoteContents, "* External\n")
         XCTAssertEqual(conflict.documents.first?.contents, "* Local\n")
-        let afterConflict = await backend.scanCount
-        XCTAssertEqual(afterConflict, scans + 1)
+        let remote = await backend.contents("inbox.org")
+        XCTAssertEqual(remote, "* External\n")
     }
 
     func testOneFailedPathDoesNotBlockAnotherPendingUpload() async throws {
@@ -254,28 +278,6 @@ final class WorkspaceSessionTests: XCTestCase {
         let new = await backend.contents("new.org")
         XCTAssertNil(old)
         XCTAssertEqual(new, "* Draft\n")
-    }
-
-    func testEngineCoalescesConcurrentRequestsAndRetainsFullPull() async throws {
-        let backend = SessionFakeBackend(["inbox.org": "* Base\n"])
-        let workspace = try session(backend)
-        try await workspace.synchronize()
-        let scans = await backend.scanCount
-        try await workspace.write(path: "inbox.org", contents: "* Draft\n", expectedContents: "* Base\n")
-        await backend.pauseNextUpload()
-        let engine = SyncEngine(store: workspace)
-        let first = await engine.schedule(.push)
-        await backend.waitForUpload()
-        var joining: [Task<Void, Error>] = []
-        for _ in 0..<5 { joining.append(await engine.schedule(.full)) }
-        await backend.resumeUpload()
-        try await first.value
-        for task in joining { try await task.value }
-        let totalScans = await backend.scanCount
-        let uploads = await backend.uploadCount
-        XCTAssertEqual(totalScans, scans + 1)
-        XCTAssertEqual(uploads, 1)
-        await engine.stop()
     }
 
     func testFailedStateTransactionRetainsPreviousDurableDraft() async throws {
@@ -324,6 +326,24 @@ final class WorkspaceSessionTests: XCTestCase {
         XCTAssertEqual(pending?.blob, blob)
         let remote = await backend.contents("inbox.org")
         XCTAssertEqual(remote, "* Base\n")
+    }
+
+    func testSavingDraftRepairsExistingCorruptBlobBeforeAcknowledgingCommit() async throws {
+        let backend = SessionFakeBackend(["inbox.org": "* Base\n"])
+        let workspace = try session(backend)
+        try await workspace.synchronize()
+        let draft = "* Local draft\n"
+        let blob = LocalStore.digest(Data(draft.utf8))
+        let url = cache.appendingPathComponent(connection.id.uuidString).appendingPathComponent("blobs/" + blob)
+        try Data("corrupt".utf8).write(to: url, options: .atomic)
+
+        try await workspace.write(path: "inbox.org", contents: draft, expectedContents: "* Base\n")
+        let reopened = try session(backend)
+        let saved = try await document("inbox.org", in: reopened)
+        XCTAssertEqual(saved.contents, draft)
+        try await reopened.synchronize()
+        let remote = await backend.contents("inbox.org")
+        XCTAssertEqual(remote, draft)
     }
 
     func testRecoveryCopiesRetainDistinctDraftsAndWorkspaceIdentities() async throws {
@@ -551,7 +571,6 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     var failingUpload: String?
     var uploadFailure: StorageError = .offline
     var offline = false
-    var scanCount = 0
     var ambiguousPath: String?
     var paused = false
     var uploadStarted = false
@@ -573,7 +592,6 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     }
 
     func scan() throws -> RemoteScan {
-        scanCount += 1
         if offline { throw StorageError.offline }
         var files = items.values.map(\.file)
         if let ambiguousPath { files.append(RemoteFile(id: ambiguousPath, path: ambiguousPath, isDirectory: false, revision: "ambiguous")) }

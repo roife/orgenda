@@ -34,9 +34,9 @@ Orgenda 保存目录的安全作用域书签，并使用系统协调读写访问
 xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
   -only-testing:OrgendaTests/WebDAVBackendTests \
-  -only-testing:OrgendaTests/StorageKeychainTests \
+  -only-testing:OrgendaTests/WorkspaceFileStoreTests \
+  -only-testing:OrgendaTests/WorkspaceStorageIntegrationTests \
   -only-testing:OrgendaTests/WorkspaceSessionTests \
-  -only-testing:OrgendaTests/WorkspaceStorageBenchmarkTests \
   -only-testing:OrgendaTests/WorkspaceStorageConcurrencyTests test CODE_SIGNING_ALLOWED=YES \
   CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM=''
 ```
@@ -53,6 +53,6 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 
 用户日常数据不用于测试冲突、删除或授权失效。
 
-基准使用内存 WebDAV 服务器、1000 个文件、10,240,000 字节；包含本机提交、两次界面增量读取与一次推送，不含首次导入、网络延迟和解析。结果保存在 [StorageBenchmark.json](StorageBenchmark.json)，耗时只用于本机对照，请求数与 blob 读取量由测试断言约束。状态写入字节数统计编码后的行负载，WAL 文件增长另列；均不是存储设备的物理写入量。坚果云等需要额外 HEAD 获取版本的服务，请求数可能高于通用回退样本。
+历史基准数据保存在 [StorageBenchmark.json](StorageBenchmark.json)，仅供参考，不再作为自动化测试。当前存储测试只保护持久保存、冲突、恢复、并发编辑和写入前置条件，不保留单纯约束耗时、请求次数或 IO 预算的测试。
 
 新状态库直接使用 `state.sqlite`，不读取或迁移旧 `manifest.json`，旧缓存文件保留。完整状态模型见 [架构说明](Architecture.md)。

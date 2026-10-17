@@ -2,6 +2,39 @@ import XCTest
 @testable import Orgenda
 
 final class OrgSourceMutationTests: XCTestCase {
+    func testLiteralWorkflowDeclarationsCannotChangeHeadingEdits() throws {
+        let blocks = [
+            ("  #+BEGIN_SRC org", "#+TODO: FINISHED | OPEN", "  #+END_SRC"),
+            ("#+BEGIN_SRC org", "#+END_EXAMPLE\n#+TODO: FINISHED | OPEN", "#+END_SRC"),
+            ("#+BEGIN_SRC org", "#+END_SRC_extra\n#+TODO: FINISHED | OPEN", "#+END_SRC"),
+            ("#+BEGIN_SRC org", "#+END_SRC not-a-delimiter\n#+TODO: FINISHED | OPEN", "#+END_SRC"),
+            ("#+BEGIN: generated", "#+TODO: FINISHED | OPEN", "#+END:")
+        ]
+        for newline in ["\n", "\r\n"] {
+            for (begin, body, end) in blocks {
+                let source = [begin, body, end, "#+TODO: OPEN(o) | FINISHED(f)", "* OPEN Keep this task", "Notes.", ""]
+                    .joined(separator: "\n").replacingOccurrences(of: "\n", with: newline)
+                let workflow = OrgConfiguredHeading.workflow(in: source, base: WorkspaceConfiguration.classic.workflow)
+                XCTAssertEqual(workflow.tokens, ["OPEN", "FINISHED"], begin + "\n" + body)
+                let (parsed, original) = try workflowFixture(source)
+                XCTAssertFalse(parsed.hasError)
+                XCTAssertFalse(original.state.isTerminal)
+                var edited = original
+                edited.state = workflow.toggled(original.state)
+                XCTAssertTrue(edited.state.isTerminal)
+                let heading = try XCTUnwrap(parsed.root.children.first { $0.type == "heading" })
+                let patches = try XCTUnwrap(OrgSourceMutation.itemEdits(
+                    replacing: original, with: edited, heading: heading,
+                    following: Array(parsed.root.children.drop { $0.endByte <= heading.endByte })
+                ))
+                let updated = try patches.reduce(source) { try $1.applied(to: $0) }
+                XCTAssertTrue(updated.utf8.elementsEqual(
+                    source.replacingOccurrences(of: "* OPEN Keep this task", with: "* FINISHED Keep this task").utf8
+                ))
+            }
+        }
+    }
+
     func testEditingNotesPreservesDrawersClocksAndLiteralBlocks() throws {
         let source = """
         * TODO 原文🙂

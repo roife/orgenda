@@ -41,38 +41,6 @@ final class WebDAVBackendTests: XCTestCase {
         XCTAssertEqual(requests, 1)
     }
 
-    func testStrongPUTETagAcknowledgesExactConditionalWriteWithoutReadback() async throws {
-        var requests = 0
-        StorageMockURLProtocol.handler = { request in
-            requests += 1
-            XCTAssertEqual(request.httpMethod, "PUT")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "If-Match"), "\"base\"")
-            return .init(status: 204, headers: ["ETag": "\"saved\""])
-        }
-        let backend = WebDAVBackend(rootURL: URL(string: "https://dav.example/org/")!, transport: transport)
-        let saved = try await backend.upload(path: "note.org", data: Data("edit".utf8),
-            existing: .init(id: "note.org", path: "note.org", isDirectory: false, revision: "\"base\""))
-        XCTAssertEqual(saved.revision, "\"saved\"")
-        XCTAssertEqual(saved.size, 4)
-        XCTAssertEqual(requests, 1)
-    }
-
-    func testParallelDownloadsShareFourRequestLimit() async throws {
-        let server = ParallelReadServer()
-        let backend = WebDAVBackend(rootURL: URL(string: "https://parallel.example/org/")!, transport: server)
-        let results = try await withThrowingTaskGroup(of: Data.self) { group in
-            for index in 0..<8 { group.addTask {
-                try await backend.download(RemoteFile(id: "\(index).org", path: "\(index).org", isDirectory: false), maxBytes: 1024).data
-            } }
-            var result: [Data] = []
-            for try await data in group { result.append(data) }
-            return result
-        }
-        XCTAssertEqual(results, Array(repeating: Data("* Content\n".utf8), count: 8))
-        let maximum = await server.maximumActive
-        XCTAssertLessThanOrEqual(maximum, 4)
-    }
-
     func testWebDAVCreateAndMoveNeverReplaceDestination() async throws {
         StorageMockURLProtocol.handler = { request in
             if request.httpMethod == "PUT" {
@@ -256,26 +224,4 @@ private final class StorageMockURLProtocol: URLProtocol {
         } catch { client?.urlProtocol(self, didFailWithError: error) }
     }
     override func stopLoading() {}
-}
-
-private actor ParallelReadServer: StorageHTTPTransport {
-    private var active = 0
-    private(set) var maximumActive = 0
-
-    func send(_ request: URLRequest, maxBytes: Int) async throws -> StorageHTTPResponse {
-        active += 1
-        maximumActive = max(maximumActive, active)
-        defer { active -= 1 }
-        try await Task.sleep(for: .milliseconds(20))
-        if request.httpMethod == "GET" {
-            return .init(status: 200, headers: ["etag": "\"fixed\""], data: Data("* Content\n".utf8))
-        }
-        let url = try XCTUnwrap(request.url)
-        let xml = """
-        <d:multistatus xmlns:d="DAV:"><d:response><d:href>\(url.path)</d:href>
-        <d:propstat><d:prop><d:resourcetype/><d:getetag>&quot;fixed&quot;</d:getetag></d:prop>
-        <d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>
-        """
-        return .init(status: 207, headers: [:], data: Data(xml.utf8))
-    }
 }

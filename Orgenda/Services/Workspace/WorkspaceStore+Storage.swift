@@ -285,7 +285,6 @@ extension WorkspaceStore {
         appliedStorageRevision = 0
         storageConnection = connection
         isFolderConnected = true
-        usesEmacsConfiguration = false
         hasWorkspaceConfiguration = true
         configuration = .standard
         configurationDocument = ConfigurationDocument(configuration: .standard)

@@ -162,7 +162,7 @@ struct AgendaView: View {
     private var displayedPerspective: Perspective {
         if mode == .calendar { return .agenda }
         if store.isStartingWorkspace {
-            return expectsConnectedWorkspace || store.usesEmacsConfiguration ? .dashboard : .todos
+            return expectsConnectedWorkspace ? .dashboard : .todos
         }
         return availablePerspectives.first(where: { $0 == perspective }) ?? store.primaryConfiguredPerspective
     }

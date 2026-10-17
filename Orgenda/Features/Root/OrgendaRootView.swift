@@ -36,10 +36,6 @@ struct OrgendaRootView: View {
         .tint(OrgendaTheme.accent)
         .environment(\.workspaceConfiguration, store.effectiveConfiguration)
         .environment(\.orgWorkflow, store.effectiveConfiguration.workflow)
-        .onChange(of: store.usesEmacsConfiguration, initial: true) { _, configured in
-            dashboardPerspective = configured ? .dashboard : .todos
-            if isDashboardSelected { selectDashboard() }
-        }
         .onChange(of: store.configurationRevision) { _, _ in
             if !store.dashboardPerspectives.contains(dashboardPerspective) {
                 dashboardPerspective = store.primaryConfiguredPerspective
@@ -220,7 +216,7 @@ private extension OrgendaRootView {
     }
 
     var primaryDashboardPerspective: OrgAgendaPerspective {
-        store.usesEmacsConfiguration || store.hasWorkspaceConfiguration ? .dashboard : .todos
+        store.hasWorkspaceConfiguration ? .dashboard : .todos
     }
 
     var isDashboardSelected: Bool {

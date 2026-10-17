@@ -3,29 +3,22 @@ import SwiftUI
 /// Shared by Preview timestamp editing and the agenda item editor.
 struct OrgRecurrenceEditor: View {
     @Binding var recurrence: String?
-    var allowsNever = true
     var identifier = "org.recurrence"
     @State private var draft: OrgRepeater
 
-    init(recurrence: Binding<String?>, allowsNever: Bool = true, identifier: String = "org.recurrence") {
+    init(recurrence: Binding<String?>, identifier: String = "org.recurrence") {
         _recurrence = recurrence
-        self.allowsNever = allowsNever
         self.identifier = identifier
         _draft = State(initialValue: recurrence.wrappedValue.flatMap(OrgRepeater.init) ?? OrgRepeater("+1d")!)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if allowsNever {
-                Toggle("Repeat", isOn: Binding(
-                    get: { recurrence != nil },
-                    set: { recurrence = $0 ? draft.token : nil }
-                ))
-                .accessibilityIdentifier("\(identifier).enabled")
-            } else {
-                Label("Repeat", systemImage: "repeat")
-                    .font(.subheadline.weight(.semibold))
-            }
+            Toggle("Repeat", isOn: Binding(
+                get: { recurrence != nil },
+                set: { recurrence = $0 ? draft.token : nil }
+            ))
+            .accessibilityIdentifier("\(identifier).enabled")
 
             if recurrence != nil {
                 Stepper("Interval: \(draft.interval)", value: $draft.interval, in: 1...Int.max)

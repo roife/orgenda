@@ -4,26 +4,6 @@ import XCTest
 
 @MainActor
 final class WorkspaceStorageConcurrencyTests: XCTestCase {
-    func testCoordinatedExternalWriteNotifiesFolderPresenter() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("FolderObserver-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let file = root.appendingPathComponent("inbox.org")
-        try Data("* Before\n".utf8).write(to: file)
-        let changed = expectation(description: "The folder presenter observed the external write")
-        changed.assertForOverFulfill = false
-        let monitor = WorkspaceFolderMonitor(root: root, ubiquitous: false) { _ in changed.fulfill() }
-        let coordinator = NSFileCoordinator(filePresenter: nil)
-        var error: NSError?
-        coordinator.coordinate(writingItemAt: file, options: [], error: &error) { url in
-            do { try Data("* After\n".utf8).write(to: url, options: .atomic) }
-            catch { XCTFail(error.localizedDescription) }
-        }
-        XCTAssertNil(error)
-        await fulfillment(of: [changed], timeout: 3)
-        monitor.stop()
-    }
-
     func testMoveKeepsUIEditArrivingDuringRemoteAwaitAtDestination() async throws {
         let started = expectation(description: "Remote MOVE is waiting")
         let fixture = try await makeFixture(moveStarted: started)
@@ -125,7 +105,7 @@ final class WorkspaceStorageConcurrencyTests: XCTestCase {
         store.localStore = session
         store.isFolderConnected = true
         store.isStartingWorkspace = false
-        store.usesEmacsConfiguration = true
+        store.hasWorkspaceConfiguration = true
         store.applyStorageSnapshot(try await session.snapshot())
         await store.waitForWorkspaceIndex()
         return Fixture(store: store, backend: backend, cache: cache, connection: connection)

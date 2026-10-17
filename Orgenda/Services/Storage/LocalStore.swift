@@ -334,7 +334,16 @@ actor LocalStore {
         let hash = Self.digest(data)
         ioMetrics?.blobBytesHashed += data.count
         let url = directory.appendingPathComponent("blobs").appendingPathComponent(hash)
-        if !FileManager.default.fileExists(atPath: url.path) {
+        var needsWrite = true
+        if FileManager.default.fileExists(atPath: url.path) {
+            // A matching filename does not prove an earlier blob is intact.
+            // Verify its bytes before acknowledging a new durable reference.
+            let existing = try Data(contentsOf: url)
+            ioMetrics?.blobReads += 1
+            ioMetrics?.blobBytesRead += existing.count
+            needsWrite = existing != data
+        }
+        if needsWrite {
             try data.write(to: url, options: .atomic)
             ioMetrics?.blobWrites += 1
             ioMetrics?.blobBytesWritten += data.count

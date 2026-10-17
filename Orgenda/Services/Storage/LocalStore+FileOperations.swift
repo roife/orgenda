@@ -72,13 +72,13 @@ extension LocalStore {
             do {
                 let entries = try await folder.deletedEntries()
                 var next = state
-                next.trash = entries
+                next.trash = projectedTrashEntries(entries)
                 for entry in entries where next.entries[entry.storagePath] == nil {
                     next.entries[entry.storagePath] = WorkspaceFileRecord(file: RemoteFile(id: entry.storagePath,
                         path: entry.storagePath, isDirectory: entry.kind == .folder), blob: nil)
                 }
                 try commit(next)
-                return entries
+                return next.trash
             } catch {
                 if state.initialized, Self.isUnavailable(error) { return state.trash }
                 throw error
@@ -101,15 +101,26 @@ extension LocalStore {
                 guard Self.isVisible(entry.originalPath), state.entries[entry.storagePath] != nil else { continue }
                 entries.append(entry)
             }
-            entries.sort { $0.deletedAt > $1.deletedAt }
             var next = state
-            next.trash = entries
+            next.trash = projectedTrashEntries(entries)
             try commit(next)
-            return entries
+            return next.trash
         } catch {
             if Self.isUnavailable(error) { return state.trash }
             throw error
         }
+    }
+
+    private func projectedTrashEntries(_ entries: [WorkspaceTrashEntry]) -> [WorkspaceTrashEntry] {
+        var projected = Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        // A backend listing describes physical files. The local trash view must
+        // retain ordered intents that have not reached the backend yet.
+        for operation in state.operations {
+            guard let entry = operation.trashEntry else { continue }
+            if operation.kind == .trash { projected[entry.id] = entry }
+            if operation.kind == .restore { projected.removeValue(forKey: entry.id) }
+        }
+        return projected.values.sorted { $0.deletedAt > $1.deletedAt }
     }
 
     /// Commit both drafts atomically. The source draft records the exact

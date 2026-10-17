@@ -35,8 +35,6 @@ final class WorkspaceStore {
             storageContentGeneration &+= 1
         }
     }
-    var parserStatus = String(localized: "Tree-sitter parser is warming up")
-    var parseDurationMilliseconds: Double = 0
     var parsedDocuments: [String: ParsedOrgDocument] = [:]
     var selectedDate: Date
     var workspaceName = String(localized: "Org Workspace")
@@ -59,9 +57,6 @@ final class WorkspaceStore {
     var pathSyncErrors: [String: String] = [:]
     @ObservationIgnored var isStorageForeground = false
     var externalDocumentRevisions: [String: UInt64] = [:]
-    var usesEmacsConfiguration = false {
-        didSet { rebuildDerivedCollections() }
-    }
 
     // Derived collections materialized once per `items` change. Views read
     // these O(1) snapshots instead of re-filtering and re-sorting the same
@@ -126,23 +121,20 @@ final class WorkspaceStore {
     }
 
     /// Rebuilds the materialized derived collections. Called from the `items`
-    /// and `usesEmacsConfiguration` observers, so every mutation path (index
+    /// observer and configuration updates, so every mutation path (index
     /// publishing, edits, moves, sync) refreshes them exactly once.
     func rebuildDerivedCollections() {
-        let agendaItems = hasWorkspaceConfiguration ? items.filter { configuration.agenda.includes($0.source.file) } : usesEmacsConfiguration
-            ? items.filter { OrgWorkspaceConfiguration.isAgendaSource($0.source.file) }
-            : items
+        let agendaItems = hasWorkspaceConfiguration ? items.filter { configuration.agenda.includes($0.source.file) } : items
         self.agendaItems = agendaItems
         datedItems = agendaItems
             .filter {
                 $0.agendaDate != nil
-                    && (hasWorkspaceConfiguration ? $0.isOpen : (!usesEmacsConfiguration || ($0.isOpen && OrgWorkspaceConfiguration.datedPaths.contains($0.source.file))))
+                    && (!hasWorkspaceConfiguration || $0.isOpen)
             }
             .sorted { $0.agendaDate! < $1.agendaDate! }
         openTodos = agendaItems
             .filter {
                 $0.isOpen && $0.agendaDate == nil && $0.hasWorkflowState
-                    && (hasWorkspaceConfiguration || !usesEmacsConfiguration || OrgWorkspaceConfiguration.actionPaths.contains($0.source.file))
             }
             .sorted { lhs, rhs in
                 if lhs.priority != rhs.priority { return lhs.priority.rawValue < rhs.priority.rawValue }

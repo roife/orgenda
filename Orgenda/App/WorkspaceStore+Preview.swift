@@ -88,7 +88,6 @@ extension WorkspaceStore {
 
         let store = WorkspaceStore(items: items, journalEntries: journal, documents: documents, selectedDate: now)
         store.workspaceLocation = String(localized: "Preview workspace")
-        store.usesEmacsConfiguration = false
         return store
     }
 }

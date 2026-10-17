@@ -278,7 +278,7 @@ struct InteractiveOrgPreview: View {
         _ node: ParsedOrgNode,
         with draft: OrgPlanningEntryDraft
     ) -> Bool {
-        if store.usesEmacsConfiguration || store.hasWorkspaceConfiguration {
+        if store.hasWorkspaceConfiguration {
             return store.applyPlanningDraft(path: path, node: node, draft: draft)
         }
         return replace(node, with: draft.source)

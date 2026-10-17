@@ -7,30 +7,26 @@ extension WorkspaceStore {
 
     @discardableResult
     func save(_ draft: OrgItem, original baseline: OrgItem? = nil,
-              captureTemplate: OrgCaptureTemplate? = nil, captureFirstAction: String? = nil,
               stateNote: String? = nil) -> Bool {
         let existing = items.first { $0.id == draft.id }
         // An item removed during editing is a conflict, not a new capture.
         guard baseline == nil || existing != nil else { return false }
-        var item = usesEmacsConfiguration && existing == nil ? draft : normalizedKind(of: draft, replacing: existing)
+        var item = normalizedKind(of: draft, replacing: existing)
         item.title = item.title.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard !item.title.isEmpty else { return false }
         guard let itemIndex = items.firstIndex(where: { $0.id == item.id }) else {
-            if usesEmacsConfiguration {
-                return appendCapture(item, template: captureTemplate ?? .inboxTask, firstAction: captureFirstAction)
-            }
             appendItem(item)
             return true
         }
         let original = items[itemIndex]
         if let baseline, !original.hasSameEditableValues(as: baseline) { return false }
-        if usesEmacsConfiguration || hasWorkspaceConfiguration {
-            if hasWorkspaceConfiguration && original.hasWorkflowState {
+        if hasWorkspaceConfiguration {
+            if original.hasWorkflowState {
                 guard let state = workflow(for: original.source.file).state(item.state.rawValue) else { return false }
                 item.state = state
             }
             item = OrgWorkflowOperations.normalized(item, replacing: original, now: .now)
-            if hasWorkspaceConfiguration && configuration.logging.done == .none
+            if configuration.logging.done == .none
                 && !original.state.isTerminal && item.state.isTerminal { item.closed = original.closed }
             if OrgWorkflowOperations.requiresNote(from: original.state, to: item.state),
                stateNote?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
@@ -54,7 +50,7 @@ extension WorkspaceStore {
             contents = updated
         }
         var logInsertionDelta = 0
-        if usesEmacsConfiguration || hasWorkspaceConfiguration {
+        if hasWorkspaceConfiguration {
             do {
                 let priorCount = contents.utf8.count
                 contents = try OrgWorkflowOperations.applyingLogs(to: contents,
@@ -109,7 +105,7 @@ extension WorkspaceStore {
         let beforeItems = items
         let beforeDirtyPaths = dirtyFilePaths
         let beforeIndexPaths = pendingDirtyPaths
-        let repeatedDate = (usesEmacsConfiguration || hasWorkspaceConfiguration || updated.isRepeatingEvent) && !updated.state.isTerminal
+        let repeatedDate = (hasWorkspaceConfiguration || updated.isRepeatingEvent) && !updated.state.isTerminal
             ? updated.recurrence.flatMap(OrgRepeater.init).flatMap { repeater in
                 updated.agendaDate.flatMap { repeater.nextDate(afterCompletion: .now, from: $0) }
             } : nil
@@ -291,10 +287,10 @@ extension WorkspaceStore {
               let replacement = try? OrgSourceMutation(startByte: node.startByte, endByte: node.endByte,
                                                        replacement: draft.source).applied(to: source) else { return false }
         var updated = replacement
-        if usesEmacsConfiguration || hasWorkspaceConfiguration {
+        if hasWorkspaceConfiguration {
             // Reuse the published index when it still matches the source; only
             // the post-edit document must always be parsed here.
-            let beforeDocument = parsedDocuments[path].flatMap { $0.root.text == source ? $0 : nil }
+            let beforeDocument = parsedDocuments[path].flatMap { $0.root.text.utf8.elementsEqual(source.utf8) ? $0 : nil }
                 ?? OrgIndexService.parseSynchronously([documents[index]], configuration: effectiveConfiguration).first
             var candidate = documents[index]; candidate.contents = replacement
             let afterDocument = OrgIndexService.parseSynchronously([candidate], configuration: effectiveConfiguration).first
@@ -384,7 +380,7 @@ extension WorkspaceStore {
     )? {
         guard let source = documentsByPath[item.source.file] else { return nil }
         let parsed: ParsedOrgDocument?
-        if let cached = parsedDocuments[source.path], cached.root.text == source.contents {
+        if let cached = parsedDocuments[source.path], cached.root.text.utf8.elementsEqual(source.contents.utf8) {
             parsed = cached
         } else {
             parsed = OrgIndexService.parseSynchronously([source], configuration: effectiveConfiguration).first
@@ -479,40 +475,6 @@ extension WorkspaceStore {
         documents[index].contents = prefix + newSource
         items.append(appended)
         scheduleWorkspaceRefresh(changedPaths: [path])
-    }
-
-    private func appendCapture(_ item: OrgItem, template: OrgCaptureTemplate, firstAction: String?) -> Bool {
-        let path = template.destinationPath
-        let old = documentsByPath[path]?.contents ?? ""
-        let source = template.source(for: item, firstAction: firstAction ?? "")
-        var insertion = old.utf8.count
-        var fragment = source
-        if let parent = template.parentHeading {
-            let document = WorkspaceDocument(path: path, title: path, contents: old, kind: .org)
-            let nodes = OrgIndexService.parseSynchronously([document]).first?.root.children ?? []
-            let roots = nodes.filter { $0.type == "heading" && $0.text.prefix(while: { $0 == "*" }).count == 1 }
-            let matches = roots.filter { node in
-                node.children.first(where: { $0.type == "heading_title" })?.text.trimmingCharacters(in: .whitespacesAndNewlines) == parent
-            }
-            guard matches.count <= 1 else {
-                operationError = String(localized: "More than one '\(parent)' heading exists. Choose a unique capture target.")
-                return false
-            }
-            if let match = matches.first {
-                insertion = roots.first(where: { $0.startByte > match.startByte })?.startByte ?? old.utf8.count
-            } else {
-                fragment = "* \(parent)\n" + source
-            }
-        }
-        let prefix = String(decoding: old.utf8.prefix(insertion), as: UTF8.self)
-        fragment = (prefix.isEmpty || prefix.hasSuffix("\n\n") ? "" : prefix.hasSuffix("\n") ? "\n" : "\n\n") + fragment
-        if insertion < old.utf8.count { fragment += "\n" }
-        guard let updated = try? OrgSourceMutation(startByte: insertion, endByte: insertion, replacement: fragment).applied(to: old) else { return false }
-        if let index = documents.firstIndex(where: { $0.path == path }) { documents[index].contents = updated }
-        else { documents.append(WorkspaceDocument(path: path, title: URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent, contents: updated, kind: .org)) }
-        operationError = nil
-        scheduleWorkspaceRefresh(changedPaths: [path])
-        return true
     }
 
 }

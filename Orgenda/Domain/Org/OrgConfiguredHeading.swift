@@ -4,12 +4,25 @@ enum OrgConfiguredHeading {
     static func workflow(in source: String, base: WorkspaceConfiguration.Workflow) -> WorkspaceConfiguration.Workflow {
         var sequences: [WorkspaceConfiguration.Sequence] = []
         var styles = base.keywords
-        var inBlock = false
+        var blockEnd: String?
         for line in source.components(separatedBy: .newlines) {
+            let marker = line.trimmingCharacters(in: .whitespaces).uppercased()
+            if let expected = blockEnd {
+                if marker == expected { blockEnd = nil }
+                continue
+            }
+            // Literal declarations never alter the file's workflow. Match
+            // the opening block's exact end, including indented delimiters.
+            if let begin = marker.firstMatch(of: #/^#\+BEGIN_([A-Z0-9_-]+)(?:[ \t]|$)/#) {
+                blockEnd = "#+END_" + begin.1
+                continue
+            }
+            if marker.firstMatch(of: #/^#\+BEGIN:[ \t]+\S/#) != nil {
+                blockEnd = "#+END:"
+                continue
+            }
             let upper = line.uppercased()
-            if upper.hasPrefix("#+BEGIN_") { inBlock = true }
-            if upper.hasPrefix("#+END_") { inBlock = false; continue }
-            guard !inBlock, ["#+TODO:", "#+SEQ_TODO:", "#+TYP_TODO:"].contains(where: { upper.hasPrefix($0) }),
+            guard ["#+TODO:", "#+SEQ_TODO:", "#+TYP_TODO:"].contains(where: { upper.hasPrefix($0) }),
                   let colon = line.firstIndex(of: ":") else { continue }
             let words = line[line.index(after: colon)...].split(whereSeparator: \.isWhitespace).map(String.init)
             var process: [String] = []

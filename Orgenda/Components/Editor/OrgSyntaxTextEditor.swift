@@ -240,7 +240,8 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             guard !isApplyingPresentation else { return }
 
             let newText = textView.text ?? ""
-            if parent.session != nil, !isApplyingCommand, parent.text != newText {
+            let sourceChanged = !parent.text.utf8.elementsEqual(newText.utf8)
+            if parent.session != nil, !isApplyingCommand, sourceChanged {
                 let difference = OrgInputCommands.difference(from: parent.text, to: newText)
                 let old = (parent.text as NSString).substring(with: difference.range)
                 if textView.undoManager?.groupingLevel == 0 {
@@ -262,7 +263,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             // keystroke would restyle the whole document using stale spans.
             lastText = newText
             lastTypingSelection = textView.selectedRange
-            if parent.text != newText {
+            if sourceChanged {
                 parent.text = newText
             }
             Task { @MainActor [weak self] in self?.parent.session?.refreshHistory() }
@@ -281,7 +282,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             // delegate updates; SwiftUI will call us again once composition ends.
             guard textView.markedTextRange == nil else { return }
 
-            let needsRefresh = lastText != text
+            let needsRefresh = lastText?.utf8.elementsEqual(text.utf8) != true
                 || lastWorkflow != parent.configuration.workflow
                 || lastHighlights != highlights
                 || lastColorScheme != colorScheme
@@ -289,7 +290,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
                 || lastColorSchemeContrast != colorSchemeContrast
             guard needsRefresh else { return }
 
-            if lastText != nil, textView.text != text, parent.session != nil, !skipsSourceUndo {
+            if lastText != nil, !(textView.text ?? "").utf8.elementsEqual(text.utf8), parent.session != nil, !skipsSourceUndo {
                 let difference = OrgInputCommands.difference(from: textView.text ?? "", to: text)
                 let selection = textView.selectedRange
                 let delta = difference.replacement.utf16.count - difference.range.length
@@ -326,7 +327,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             textView.textColor = .label
             textStorage.beginEditing()
 
-            if textStorage.string != text {
+            if !textStorage.string.utf8.elementsEqual(text.utf8) {
                 textStorage.replaceCharacters(
                     in: NSRange(location: 0, length: textStorage.length),
                     with: text

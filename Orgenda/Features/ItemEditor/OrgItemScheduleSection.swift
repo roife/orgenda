@@ -6,7 +6,6 @@ struct OrgItemScheduleSection: View {
     @Binding var hasConfiguredTime: Bool
     let captureDate: Date
     let usesEventTimestamp: Bool
-    let requiresSchedule: Bool
     let onDismissKeyboard: () -> Void
 
     var body: some View {
@@ -15,7 +14,6 @@ struct OrgItemScheduleSection: View {
                 datePicker("Event date", selection: eventDate, displayedComponents: .date)
             } else {
                 Toggle("Scheduled", isOn: hasSchedule)
-                    .disabled(requiresSchedule)
             }
             if draft.scheduled != nil && !usesEventTimestamp {
                 datePicker("Scheduled date", selection: scheduledDate, displayedComponents: .date)

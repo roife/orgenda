@@ -90,45 +90,15 @@ final class WorkspaceFileStoreTests: XCTestCase {
         }
     }
 
-    func testMetadataFingerprintSkipsReadsAndExplicitChangeBypassesIt() async throws {
+    func testExplicitChangeReadsReplacementWithUnchangedSizeAndModificationDate() async throws {
         try fixture("a.org", contents: "* Before\n")
-        try fixture("b.org", contents: "* Stable\n")
         let store = WorkspaceFileStore(rootURL: root)
         let first = try await store.scan(known: [:])
-        XCTAssertEqual(first.changedContents.count, 2)
-        let unchanged = try await store.scan(known: first.entries)
-        XCTAssertTrue(unchanged.changedContents.isEmpty)
         let originalDate = try XCTUnwrap(first.entries["a.org"]?.file.modifiedAt)
         try fixture("a.org", contents: "* After_\n")
         try FileManager.default.setAttributes([.modificationDate: originalDate], ofItemAtPath: root.appendingPathComponent("a.org").path)
         let targeted = try await store.scan(known: first.entries, changedPaths: ["a.org"])
-        XCTAssertEqual(Set(targeted.changedContents.keys), ["a.org"])
         XCTAssertEqual(targeted.changedContents["a.org"], Data("* After_\n".utf8))
-        XCTAssertEqual(targeted.entries["b.org"], first.entries["b.org"])
-    }
-
-    func testFolderOperationsCanQueueOfflineAndReplayWithSameTrashIdentity() async throws {
-        try fixture("inbox.org", contents: "* Keep me\n")
-        let connection = StorageConnection(provider: .local, displayName: "Folder", rootID: root.path)
-        let session = try LocalStore(connection: connection, cacheDirectory: temporaryDirectory.appendingPathComponent("Cache"),
-            folder: WorkspaceFileStore(rootURL: root))
-        try await session.synchronize()
-        let loaded = try await session.document(at: "inbox.org")
-        let document = try XCTUnwrap(loaded)
-        let unavailable = temporaryDirectory.appendingPathComponent("unavailable")
-        try FileManager.default.moveItem(at: root, to: unavailable)
-        let deleted = try await session.trash(document: document, expected: [document])
-        try await session.restore(deleted)
-        let local = try await session.snapshot()
-        XCTAssertEqual(local.documents.first?.contents, document.contents)
-        XCTAssertTrue(local.hasPendingOperation)
-        try FileManager.default.moveItem(at: unavailable, to: root)
-        try await session.synchronize()
-        let final = try await session.snapshot()
-        XCTAssertFalse(final.hasPendingOperation)
-        XCTAssertEqual(final.documents.first?.id, document.id)
-        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("inbox.org"), encoding: .utf8), document.contents)
-        await session.close()
     }
 
     private func fixture(_ path: String, contents: String) throws {

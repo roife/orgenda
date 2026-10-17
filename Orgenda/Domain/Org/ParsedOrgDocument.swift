@@ -68,8 +68,6 @@ struct ParsedOrgDocument: Identifiable, Hashable, Sendable {
     let headings: [IndexedOrgHeading]
     let journalEntries: [JournalEntry]
     let hasError: Bool
-    /// Counted once during parsing so publishing never re-walks every tree.
-    let nodeCount: Int
 
     init(path: String, root: ParsedOrgNode, headings: [IndexedOrgHeading], hasError: Bool,
          journalEntries: [JournalEntry] = []) {
@@ -78,9 +76,5 @@ struct ParsedOrgDocument: Identifiable, Hashable, Sendable {
         self.headings = headings
         self.journalEntries = journalEntries
         self.hasError = hasError
-        func count(_ node: ParsedOrgNode) -> Int {
-            1 + node.children.reduce(0) { $0 + count($1) }
-        }
-        nodeCount = count(root)
     }
 }
