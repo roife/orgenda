@@ -44,16 +44,19 @@ struct OrgItemRow: View {
                     Button(action: onToggle) {
                         Label(completionLabel, systemImage: item.state.isTerminal ? "arrow.uturn.backward" : "checkmark")
                     }
+                    .labelStyle(.iconOnly)
                     .tint(.green)
                     .accessibilityIdentifier("agenda.swipe.complete")
                 }
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button("Edit", systemImage: "pencil", action: onOpen)
+                    .labelStyle(.iconOnly)
                     .tint(.secondary)
                     .accessibilityIdentifier("agenda.swipe.more")
                 if canSchedule {
                     Button("Reschedule", systemImage: "calendar") { onReschedule?() }
+                        .labelStyle(.iconOnly)
                         .tint(OrgendaTheme.accent)
                         .accessibilityIdentifier("agenda.swipe.reschedule")
                 }
