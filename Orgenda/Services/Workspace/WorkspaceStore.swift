@@ -75,6 +75,8 @@ final class WorkspaceStore {
     var fileActionError: String?
     var fileUndo: WorkspaceFileUndo?
     var recentlyDeleted: [WorkspaceTrashEntry] = []
+    var pinnedDocumentIDs: [String] = []
+    var recentDocumentIDs: [String] = []
     @ObservationIgnored var demoDeletedFiles: [UUID: [WorkspaceDocument]] = [:]
     var reminderStatus = String(localized: "Off")
     var reminderPermissionDenied = false

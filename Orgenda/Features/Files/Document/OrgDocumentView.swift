@@ -58,6 +58,7 @@ struct OrgDocumentView: View {
         }
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .modifier(DocumentSaveFailureFeedback(store: store, path: path))
+            .task(id: path) { store.recordDocumentOpened(path: path) }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             // Pushed pages keep the system back button and interactive edge pop.

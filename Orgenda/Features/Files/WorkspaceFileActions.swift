@@ -16,6 +16,7 @@ struct WorkspaceBrowserRow: View {
         NavigationLink(value: document.path) {
             WorkspaceFileRow(
                 document: document, showsPath: showsPath,
+                isPinned: store.pinnedDocumentIDs.contains(document.id),
                 headingCount: store.parsedDocuments[document.path]?.headings.count
             )
         }
@@ -25,6 +26,7 @@ struct WorkspaceBrowserRow: View {
                 onOpen()
             }
             .accessibilityIdentifier("files.context.open")
+            pinButton
             Button("Move", systemImage: "folder") {
                 moveRequest = store.fileTransfer(document)
             }
@@ -58,8 +60,12 @@ struct WorkspaceBrowserRow: View {
             }
         }
         .accessibilityActions {
+            pinButton
             Button("Move") { moveRequest = store.fileTransfer(document) }
             Button("Delete") { deletion = store.fileTransfer(document) }
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            pinButton.tint(.orange)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button("Delete", systemImage: "trash") {
@@ -87,6 +93,16 @@ struct WorkspaceBrowserRow: View {
             WorkspaceMoveSheet(store: store, transfer: file)
                 .presentationDragIndicator(.visible)
         }
+    }
+
+    private var pinButton: some View {
+        let isPinned = store.pinnedDocumentIDs.contains(document.id)
+        return Button(isPinned ? String(localized: "Unpin") : String(localized: "Pin"),
+                      systemImage: isPinned ? "pin.slash" : "pin") {
+            store.toggleDocumentPin(document)
+            OrgendaHaptics.selectionChanged()
+        }
+        .accessibilityIdentifier("files.pin.\(document.path)")
     }
 }
 

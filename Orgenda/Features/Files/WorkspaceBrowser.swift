@@ -64,6 +64,7 @@ struct WorkspaceFileRow: View {
     let document: WorkspaceDocument
     var showsPath = false
     var showsIcon = true
+    var isPinned = false
     /// Heading count from the parsed index; when nil (not indexed yet or a
     /// non-Org file) the detail falls back to scanning the source.
     var headingCount: Int? = nil
@@ -87,6 +88,12 @@ struct WorkspaceFileRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if isPinned {
+                Image(systemName: "pin.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Pinned")
+            }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)

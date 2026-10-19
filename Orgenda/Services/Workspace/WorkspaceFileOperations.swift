@@ -27,10 +27,12 @@ extension WorkspaceStore {
             if let disk = self.localStore {
                 try await disk.move(path: source, to: destination, expected: transfer.snapshot)
             }
+            var movedPaths: [String: String] = [:]
             var moved = self.documents.map { document in
                 var result = document
                 if WorkspaceFileTransfer.contains(document.path, in: source) {
                     result.path = destination + document.path.dropFirst(source.count)
+                    movedPaths[document.id] = result.path
                 }
                 return result
             }
@@ -63,6 +65,10 @@ extension WorkspaceStore {
             } else {
                 self.acceptFileActionDocuments(moved)
             }
+            let movedIDs = movedPaths.mapValues { self.documentsByPath[$0]?.id ?? $0 }
+            self.pinnedDocumentIDs = self.pinnedDocumentIDs.map { movedIDs[$0] ?? $0 }
+            self.recentDocumentIDs = self.recentDocumentIDs.map { movedIDs[$0] ?? $0 }
+            self.saveFileShortcuts()
             if let document = self.documentsByPath[destination] {
                 self.fileUndo = .move(self.fileTransfer(document), originalFolder: (source as NSString).deletingLastPathComponent)
             }

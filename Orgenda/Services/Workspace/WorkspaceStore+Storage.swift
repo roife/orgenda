@@ -285,6 +285,9 @@ extension WorkspaceStore {
         appliedStorageRevision = 0
         storageConnection = connection
         isFolderConnected = true
+        let shortcuts = connectionDefaults.dictionary(forKey: "workspaceFileShortcuts.\(connection.id)") as? [String: [String]] ?? [:]
+        pinnedDocumentIDs = shortcuts["pinned"] ?? []
+        recentDocumentIDs = shortcuts["recent"] ?? []
         hasWorkspaceConfiguration = true
         configuration = .standard
         configurationDocument = ConfigurationDocument(configuration: .standard)
@@ -342,6 +345,10 @@ extension WorkspaceStore {
         let configChanged = hasConfiguration && acceptConfiguration(snapshot.documents.first { $0.path == "config.json" }?.contents)
         if snapshot.isComplete { acceptDiskDocuments(snapshot.documents) }
         else { acceptStorageDelta(snapshot) }
+        // Newly saved documents acquire their persistent file ID.
+        pinnedDocumentIDs = pinnedDocumentIDs.map { documentsByPath[$0]?.id ?? $0 }
+        recentDocumentIDs = recentDocumentIDs.map { documentsByPath[$0]?.id ?? $0 }
+        saveFileShortcuts()
         if configChanged { scheduleWorkspaceParse() }
         if !syncConflicts.isEmpty { syncState = .conflict(syncConflicts.count) }
         else if !dirtyFilePaths.isEmpty { syncState = .saving }

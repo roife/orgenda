@@ -114,22 +114,39 @@ struct FilesView: View {
 
     private func workspaceList(selection: Binding<String?>?) -> some View {
         let documents = visibleFolderDocuments(store.documents, folderPath: "")
+        let documentsByID = Dictionary(uniqueKeysWithValues: store.documents.map { ($0.id, $0) })
+        let pinnedDocuments = store.pinnedDocumentIDs.compactMap { documentsByID[$0] }
+        let recentDocuments = store.recentDocumentIDs.compactMap { documentsByID[$0] }
         let list = List(selection: selection) {
-            ForEach(documents) { document in
-                WorkspaceBrowserRow(store: store, document: document) {
-                    if let selection {
-                        selection.wrappedValue = document.path
-                        preferredCompactColumn = .detail
-                    } else {
-                        navigationPath.append(document.path)
-                    }
+            Section {
+                if pinnedDocuments.isEmpty {
+                    Text("Touch and hold a file or folder to pin it here.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    browserRows(pinnedDocuments, selection: selection, showsPath: true)
                 }
-                .tag(document.path)
+            } header: {
+                Label("Pinned", systemImage: "pin")
             }
-            .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
-                guard files.count == 1, let file = files.first,
-                      store.canMoveFile(file, to: "") else { return }
-                Task { OrgendaHaptics.result(await store.moveFile(file, to: "")) }
+            Section {
+                if recentDocuments.isEmpty {
+                    Text("Files you open will appear here.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    browserRows(recentDocuments, selection: selection, showsPath: true)
+                }
+            } header: {
+                Label("Recently Used", systemImage: "clock")
+            }
+            Section("All Files") {
+                browserRows(documents, selection: selection)
+                    .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
+                        guard files.count == 1, let file = files.first,
+                              store.canMoveFile(file, to: "") else { return }
+                        Task { OrgendaHaptics.result(await store.moveFile(file, to: "")) }
+                    }
             }
         }
         .dragContainer(for: WorkspaceFileTransfer.self) { (path: String) -> [WorkspaceFileTransfer] in
@@ -181,6 +198,22 @@ struct FilesView: View {
                 .accessibilityLabel("Settings")
                 .accessibilityIdentifier("files.settings")
             }
+        }
+    }
+
+    private func browserRows(
+        _ documents: [WorkspaceDocument], selection: Binding<String?>?, showsPath: Bool = false
+    ) -> some View {
+        ForEach(documents) { document in
+            WorkspaceBrowserRow(store: store, document: document, showsPath: showsPath) {
+                if let selection {
+                    selection.wrappedValue = document.path
+                    preferredCompactColumn = .detail
+                } else {
+                    navigationPath.append(document.path)
+                }
+            }
+            .tag(document.path)
         }
     }
 
