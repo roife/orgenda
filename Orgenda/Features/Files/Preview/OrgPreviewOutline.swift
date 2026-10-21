@@ -22,6 +22,7 @@ struct OrgPreviewRow: Identifiable {
         case "heading": headingLevel == 1 ? 10 : 6
         case "property_drawer", "drawer", "planning": 3
         case "list_item": 0
+        case "paragraph_group": 12
         default: 3
         }
     }
@@ -37,7 +38,7 @@ enum OrgPreviewOutline {
         var rows: [OrgPreviewRow] = []
         var ancestors: [HeadingAncestor] = []
 
-        for node in presentationOrder(OrgPreviewCustomBlocks.group(nodes)) {
+        for node in OrgPreviewParagraphs.group(presentationOrder(OrgPreviewCustomBlocks.group(nodes))) {
             if node.type == "heading" {
                 let level = headingLevel(node)
                 while ancestors.last.map({ $0.level >= level }) == true {

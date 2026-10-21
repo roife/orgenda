@@ -179,7 +179,7 @@ private struct OrgPreviewRowView: View {
                 pendingReplacements: pendingReplacements,
                 onEdit: onEditPlanning
             )
-        case "paragraph":
+        case "paragraph", "paragraph_group":
             OrgPreviewParagraph(
                 node: row.node,
                 pendingReplacements: pendingReplacements,

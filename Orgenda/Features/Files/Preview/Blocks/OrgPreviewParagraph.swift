@@ -1,5 +1,49 @@
 import SwiftUI
 
+/// The grammar emits one paragraph node per source line. Group prose only
+/// for presentation, retaining the original nodes and their editable ranges.
+enum OrgPreviewParagraphs {
+    static func group(_ nodes: [ParsedOrgNode]) -> [ParsedOrgNode] {
+        var result: [ParsedOrgNode] = []
+        var lines: [ParsedOrgNode] = []
+
+        func appendParagraph() {
+            guard let first = lines.first, let last = lines.last else { return }
+            result.append(ParsedOrgNode(
+                id: "paragraph:\(first.id):\(last.endByte)",
+                type: "paragraph_group",
+                text: lines.map(\.text).joined(),
+                startByte: first.startByte,
+                endByte: last.endByte,
+                children: lines
+            ))
+            lines.removeAll(keepingCapacity: true)
+        }
+
+        for node in nodes {
+            guard node.type == "paragraph" || node.type == "quote_line" else {
+                appendParagraph()
+                result.append(node)
+                continue
+            }
+            if node.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                appendParagraph()
+                result.append(ParsedOrgNode(
+                    id: node.id, type: "blank_line", text: node.text,
+                    startByte: node.startByte, endByte: node.endByte, children: []
+                ))
+            } else {
+                if let last = lines.last, last.endByte != node.startByte {
+                    appendParagraph()
+                }
+                lines.append(node)
+            }
+        }
+        appendParagraph()
+        return result
+    }
+}
+
 struct OrgPreviewParagraph: View {
     @Environment(\.locale) private var locale
     let node: ParsedOrgNode

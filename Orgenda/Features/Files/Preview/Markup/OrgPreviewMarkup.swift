@@ -89,6 +89,13 @@ enum OrgPreviewMarkup {
     ) -> AttributedString {
         if let replaced = replacement?(node) { return replaced }
         switch node.type {
+        case "paragraph_group":
+            var result = AttributedString()
+            for (index, line) in node.children.enumerated() {
+                if index > 0 { result.append(AttributedString(" ")) }
+                result.append(trimmed(render(line, replacement: replacement), spaces: true))
+            }
+            return result
         case "bold", "italic", "underline", "strikethrough", "code", "verbatim":
             var value = AttributedString(String(node.text.dropFirst().dropLast()))
             switch node.type {
@@ -171,6 +178,13 @@ enum OrgPreviewMarkup {
         if let replaced = replacement?(node) { return [.text(replaced)] }
 
         switch node.type {
+        case "paragraph_group":
+            var result: [OrgPreviewInlineFragment] = []
+            for (index, line) in node.children.enumerated() {
+                if index > 0 { result.append(.text(AttributedString(" "))) }
+                result.append(contentsOf: trimmed(renderFragments(line, replacement: replacement), spaces: true))
+            }
+            return result
         case "latex_fragment", "latex_block":
             return [.math(OrgMathExpression(node))]
         case "bold", "italic", "underline", "strikethrough":

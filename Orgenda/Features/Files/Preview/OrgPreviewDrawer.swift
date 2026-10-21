@@ -73,8 +73,9 @@ struct OrgPreviewReadOnlyContent: View {
     let nodes: [ParsedOrgNode]
 
     var body: some View {
+        let blocks = OrgPreviewParagraphs.group(nodes).filter { $0.type != "blank_line" }
         VStack(alignment: .leading, spacing: 4) {
-            ForEach(nodes) { node in
+            ForEach(blocks) { node in
                 switch node.type {
                 case "clock": OrgPreviewClock(node: node)
                 case "latex_block": OrgPreviewMathBlock(expression: OrgMathExpression(node))
@@ -138,6 +139,7 @@ struct OrgPreviewReadOnlyContent: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
+                    .padding(.top, node.type == "paragraph_group" && node.id != blocks.first?.id ? 8 : 0)
                 }
             }
         }
@@ -244,7 +246,8 @@ struct OrgPreviewTextBlock: View {
         } else {
             OrgPreviewMathFlow(
                 nodes: OrgPreviewMarkup.contents(of: node),
-                centered: node.type == "center_block"
+                centered: node.type == "center_block",
+                preservesLineBreaks: node.type == "verse_block"
             )
                 .font(.body)
                 .multilineTextAlignment(node.type == "center_block" ? .center : .leading)
