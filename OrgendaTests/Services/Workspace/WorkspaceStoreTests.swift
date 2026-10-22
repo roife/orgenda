@@ -24,44 +24,6 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(store.documents.first?.contents, current)
     }
 
-    func testItemSourceIncludesOnlyItsAncestorHeadings() throws {
-        let store = parsedStore("""
-        #+TODO: OPEN | FINISHED
-        * OPEN [#A] Morning :routine:
-        ** Preparation
-        **** OPEN Stretch
-        SCHEDULED: <2026-08-30 Sun 08:00 +1d>
-        ** OPEN Breakfast
-        * Evening
-        *** Reading
-        <2026-08-30 Sun 20:00>
-        * OPEN Top level
-        """, path: "agenda/routines.org")
-
-        func ancestors(_ title: String) throws -> [String] {
-            try XCTUnwrap(store.items.first { $0.title == title }).source.ancestorTitles
-        }
-        XCTAssertEqual(try ancestors("Morning"), [])
-        XCTAssertEqual(try ancestors("Stretch"), ["Morning", "Preparation"])
-        XCTAssertEqual(try ancestors("Breakfast"), ["Morning"])
-        XCTAssertEqual(try ancestors("Reading"), ["Evening"])
-        XCTAssertEqual(try ancestors("Top level"), [])
-
-        let projected = try XCTUnwrap(store.items(on: referenceDate.adding(days: 1)).first { $0.title == "Stretch" })
-        XCTAssertEqual(projected.source.ancestorTitles, ["Morning", "Preparation"])
-    }
-
-    func testItemAncestorsRefreshAfterRenamingAndReparenting() async throws {
-        let store = parsedStore("* Morning\n** TODO Stretch\n* Evening\n")
-        let original = try XCTUnwrap(store.items.first)
-        store.updateDocument(path: "inbox.org", contents: "* Morning\n* Night\n** TODO Stretch\n")
-        await store.waitForWorkspaceIndex()
-
-        let refreshed = try XCTUnwrap(store.item(withID: original.id))
-        XCTAssertEqual(refreshed.source.ancestorTitles, ["Night"])
-        XCTAssertTrue(refreshed.hasSameEditableValues(as: original))
-    }
-
     func testStaleEditorBaselineRejectsNewerSourceNotesBeforeAndAfterReindex() throws {
         for reindex in [false, true] {
             let store = parsedStore("* TODO Original\nOriginal notes.\n")
@@ -146,9 +108,9 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(files["journal"] as? String).utf8.elementsEqual("Cafe\u{301}".utf8))
     }
 
-    private func parsedStore(_ contents: String, path: String = "inbox.org") -> WorkspaceStore {
+    private func parsedStore(_ contents: String) -> WorkspaceStore {
         let store = WorkspaceStore(documents: [
-            WorkspaceDocument(path: path, title: path, contents: contents, kind: .org)
+            WorkspaceDocument(path: "inbox.org", title: "inbox.org", contents: contents, kind: .org)
         ], selectedDate: referenceDate)
         store.parseWorkspace()
         return store

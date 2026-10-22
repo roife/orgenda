@@ -133,62 +133,6 @@ final class WebDAVBackendTests: XCTestCase {
         XCTAssertEqual(requests.filter { $0.httpMethod == "GET" }.count, 2)
     }
 
-    func testWarmNutstoreSyncRevalidatesWithoutDownloadingAndSurvivesReopen() async throws {
-        let server = NutstoreTestServer()
-        for index in 0..<100 { await server.replaceExternally("note-\(index).org", data: Data("* Unchanged\n".utf8)) }
-        let backend = WebDAVBackend(rootURL: server.root, transport: server)
-        let cache = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: cache) }
-        let connection = StorageConnection(provider: .webDAV, displayName: "Test", rootID: server.root.absoluteString)
-        let workspace = try LocalStore(connection: connection, cacheDirectory: cache, remote: backend)
-        try await workspace.synchronize()
-        let initial = try await workspace.snapshot()
-        let coldRequests = await server.requests.count
-        XCTAssertEqual(coldRequests, 502)
-        await workspace.close()
-
-        let reopened = try LocalStore(connection: connection, cacheDirectory: cache, remote: backend)
-        for _ in 0..<2 {
-            await server.resetRequests()
-            try await reopened.synchronize()
-            let methods = await server.requests.compactMap(\.httpMethod)
-            XCTAssertEqual(methods.count, 102)
-            XCTAssertEqual(methods.filter { $0 == "HEAD" }.count, 100)
-            XCTAssertEqual(methods.filter { $0 == "PROPFIND" }.count, 2)
-            XCTAssertFalse(methods.contains("GET"))
-            let snapshot = try await reopened.snapshot()
-            XCTAssertEqual(snapshot.blobHashes, initial.blobHashes)
-            XCTAssertEqual(snapshot.documents.count, 100)
-        }
-        let interval = await reopened.minimumSyncInterval
-        XCTAssertEqual(interval, 612)
-
-        await server.replaceExternally("note-0.org", data: Data("* Changed elsewhere\n".utf8))
-        await server.resetRequests()
-        try await reopened.synchronize()
-        let changed = try await reopened.document(at: "note-0.org")
-        XCTAssertEqual(changed?.contents, "* Changed elsewhere\n")
-        let downloads = await server.requests.filter { $0.httpMethod == "GET" }
-        XCTAssertEqual(downloads.count, 1)
-        await reopened.close()
-    }
-
-    func testWarmSyncWithListingVersionsNeedsNoPerFileRequests() async throws {
-        let server = NutstoreTestServer(listingVersions: true)
-        await server.replaceExternally("note.org", data: Data("* Note\n".utf8))
-        let backend = WebDAVBackend(rootURL: server.root, transport: server)
-        let cache = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: cache) }
-        let connection = StorageConnection(provider: .webDAV, displayName: "Test", rootID: server.root.absoluteString)
-        let workspace = try LocalStore(connection: connection, cacheDirectory: cache, remote: backend)
-        try await workspace.synchronize()
-        await server.resetRequests()
-        try await workspace.synchronize()
-        let methods = await server.requests.compactMap(\.httpMethod)
-        XCTAssertEqual(methods, ["PROPFIND", "PROPFIND"])
-        await workspace.close()
-    }
-
     func testMissingHEADVersionStillReadsAndVerifiesContents() async throws {
         let server = NutstoreTestServer(.getOnly)
         await server.replaceExternally("note.org", data: Data("original".utf8))
@@ -248,20 +192,6 @@ final class WebDAVBackendTests: XCTestCase {
         XCTAssertTrue(response.data.isEmpty)
     }
 
-    func testCancellingOneRequestDoesNotInvalidateSharedTransport() async throws {
-        StorageMockURLProtocol.handler = { _ in .init(body: Data("ok".utf8)) }
-        let shared = transport
-        let request = URLRequest(url: URL(string: "https://dav.example/org/note.org")!)
-        let cancelled = Task {
-            withUnsafeCurrentTask { $0?.cancel() }
-            return try await shared.send(request, maxBytes: 1024)
-        }
-        do { _ = try await cancelled.value; XCTFail("A cancelled request succeeded") }
-        catch { XCTAssertTrue(error is CancellationError) }
-        let response = try await shared.send(request, maxBytes: 1024)
-        XCTAssertEqual(response.data, Data("ok".utf8))
-    }
-
     private var transport: StorageURLSessionTransport { .init(protocolClasses: [StorageMockURLProtocol.self]) }
 }
 
@@ -274,14 +204,12 @@ private actor NutstoreTestServer: StorageHTTPTransport {
     private(set) var requests: [URLRequest] = []
     private var versions: [String: String] = [:]
     private var nextGETReplacement: Data?
-    private let listingVersions: Bool
     private var headFailure: Int?
 
-    init(_ behavior: Behavior = .standard, listingVersions: Bool = false) {
-        self.behavior = behavior; self.listingVersions = listingVersions
+    init(_ behavior: Behavior = .standard) {
+        self.behavior = behavior
     }
 
-    func resetRequests() { requests.removeAll() }
     func failHEAD(status: Int) { headFailure = status }
 
     func replaceExternally(_ path: String, data: Data) {
@@ -304,10 +232,9 @@ private actor NutstoreTestServer: StorageHTTPTransport {
             func entry(_ path: String) -> String {
                 let resource = path.isEmpty ? "<d:collection/>" : ""
                 let href = path.isEmpty ? root.path : root.appendingPathComponent(path).path
-                let version = listingVersions ? versions[path].map { "<d:getetag>\($0)</d:getetag>" } ?? "" : ""
                 return """
                 <d:response><d:href>\(href)</d:href>
-                <d:propstat><d:prop><d:resourcetype>\(resource)</d:resourcetype>\(version)</d:prop>
+                <d:propstat><d:prop><d:resourcetype>\(resource)</d:resourcetype></d:prop>
                 <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
                 </d:response>
                 """

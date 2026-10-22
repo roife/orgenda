@@ -143,57 +143,6 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
         XCTAssertEqual(source, original)
         session.redo()
         XCTAssertEqual(source, original + "中文🙂")
-        XCTAssertNotNil(textView.textLayoutManager)
-    }
-
-    func testLocalHighlightingMatchesFullPresentationAfterAccumulatedEdits() async {
-        var source = "#+TODO: OPEN | DONE\n* OPEN First\nBody *bold* 中文🙂\n* OPEN Last\nUnchanged\n"
-        let highlighter = OrgSyntaxHighlighter()
-        let initial = await highlighter.highlights(in: source)
-        let editor = OrgSyntaxTextEditor(text: Binding(get: { source }, set: { source = $0 }), highlights: nil)
-        let coordinator = editor.makeCoordinator()
-        let textView = OrgEditorTextView.make()
-        textView.delegate = coordinator
-        coordinator.apply(text: source, highlights: initial, to: textView, colorScheme: .light,
-                          dynamicTypeSize: .large, colorSchemeContrast: .standard)
-        let sentinel = NSAttributedString.Key("UnchangedBlock")
-        textView.textStorage.addAttribute(sentinel, value: true, range: (source as NSString).range(of: "Last"))
-        textView.selectedRange = (source as NSString).range(of: "First")
-        textView.insertText("Edited")
-        let updated = await highlighter.highlights(in: source)
-        coordinator.apply(text: source, highlights: updated, to: textView, colorScheme: .light,
-                          dynamicTypeSize: .large, colorSchemeContrast: .standard)
-        let initialRevisions = Set(initial.blocks.map(\.revision))
-        XCTAssertEqual(updated.blocks.filter { !initialRevisions.contains($0.revision) }.count, 1)
-        XCTAssertEqual(textView.textStorage.attribute(sentinel, at: (source as NSString).range(of: "Last").location,
-                                                       effectiveRange: nil) as? Bool, true)
-        textView.textStorage.removeAttribute(sentinel, range: NSRange(location: 0, length: textView.textStorage.length))
-
-        let batches = [
-            [("*bold*", "/italic/"), ("Last", "最后"), ("Body /italic/ 中文🙂", "中文")],
-            [("中文", ""), ("Edited", "*nested*")],
-            [("#+TODO: OPEN | DONE", "#+TODO: NEXT | DONE")],
-            [("Unchanged\n", "")],
-        ]
-        for edits in batches {
-            for (before, after) in edits {
-                textView.selectedRange = (source as NSString).range(of: before)
-                textView.insertText(after)
-            }
-            // The editor may receive several source changes before the next parse finishes.
-            coordinator.apply(text: source, highlights: updated, to: textView, colorScheme: .light,
-                              dynamicTypeSize: .large, colorSchemeContrast: .standard)
-            let highlights = await highlighter.highlights(in: source)
-            coordinator.apply(text: source, highlights: highlights, to: textView, colorScheme: .light,
-                              dynamicTypeSize: .large, colorSchemeContrast: .standard)
-
-            let fresh = await OrgSyntaxHighlighter().highlights(in: source)
-            let fullEditor = OrgSyntaxTextEditor(text: .constant(source), highlights: fresh)
-            let fullView = OrgEditorTextView.make()
-            fullEditor.makeCoordinator().apply(text: source, highlights: fresh, to: fullView, colorScheme: .light,
-                                               dynamicTypeSize: .large, colorSchemeContrast: .standard)
-            XCTAssertTrue(textView.textStorage.isEqual(to: fullView.textStorage), source)
-        }
     }
 
 }

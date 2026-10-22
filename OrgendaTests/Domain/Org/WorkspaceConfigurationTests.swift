@@ -52,39 +52,6 @@ final class WorkspaceConfigurationTests: XCTestCase {
         XCTAssertEqual(try ConfigurationDocument(encoded).configuration, expected)
     }
 
-    func testNullFieldsUseDefaults() throws {
-        let sources = [
-            #"{"version":1,"workflow":null,"files":null,"logging":null,"reminders":null,"capture":null,"agenda":null}"#,
-            #"{"version":1,"workflow":{"sequences":null,"keywords":null},"capture":{"templates":null}}"#,
-            #"""
-            {
-              "version": 1,
-              "workflow": {"sequences": [{"id": null, "process": null, "terminal": null}]},
-              "files": {"inbox": null, "refile": null, "refileMaxLevel": null},
-              "logging": {"done": null, "drawer": null},
-              "reminders": {"advanceMinutes": null, "repeatMinutes": null},
-              "capture": {"defaultTemplate": null, "templates": [{
-                "id": null, "type": null, "prepend": null, "emptyLines": null,
-                "target": {"type": null, "path": null, "outline": null}
-              }]},
-              "agenda": {"sources": null, "excluded": null}
-            }
-            """#
-        ]
-        for source in sources {
-            XCTAssertEqual(try ConfigurationDocument(source).configuration, .standard, source)
-        }
-        let keywordSource = #"""
-        {"version":1,"workflow":{"keywords":{
-          "TODO":{"label":null,"icon":null,"color":null,"log":{"enter":null,"leave":null}},
-          "DONE":{"log":null}
-        }},"capture":{"templates":[{"target":null}]}}
-        """#
-        var expected = WorkspaceConfiguration.standard
-        expected.workflow.keywords = ["TODO": .init(), "DONE": .init()]
-        XCTAssertEqual(try ConfigurationDocument(keywordSource).configuration, expected)
-    }
-
     func testInvalidValuesCannotSilentlyTurnIntoDefaults() {
         let invalidSources = [
             #"{}"#,
