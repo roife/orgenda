@@ -354,8 +354,7 @@ actor LocalStore {
             return cached
         }
         guard let string = String(data: try data(blob), encoding: .utf8) else { throw StorageError.invalidResponse }
-        blobCache[blob]?.text = string
-        blobCache[blob]?.data = nil
+        blobCache[blob] = CachedWorkspaceBlob(text: string)
         return string
     }
 
