@@ -254,7 +254,7 @@ struct WorkspaceConfiguration: Equatable, Sendable {
         func check(_ message: String?, field: String) throws {
             if let message { throw ConfigurationFailure(message: field + ": " + message) }
         }
-        try require(version == 1, "version: unsupported configuration version \(version).")
+        try require(version == 1, String(localized: "Use an Orgenda configuration with version set to 1."))
         try require(workflow.sequences.count == 1, "workflow.sequences: exactly one default sequence is required.")
         try unique(workflow.sequences.map(\.id), "workflow.sequences.id")
         try unique(workflow.tokens, "workflow keywords")
@@ -349,6 +349,9 @@ struct ConfigurationDocument: Sendable {
         do {
             configuration = try JSONDecoder().decode(WorkspaceConfiguration.self, from: Data(source.utf8))
         } catch let DecodingError.dataCorrupted(context) {
+            if context.codingPath.isEmpty {
+                throw ConfigurationFailure(message: String(localized: "Paste valid JSON only, without code fences or the conversion report. Check commas, quotes and brackets."))
+            }
             throw Self.decodingFailure(context)
         } catch let DecodingError.typeMismatch(_, context) {
             throw Self.decodingFailure(context)
@@ -370,6 +373,7 @@ struct ConfigurationDocument: Sendable {
         return String(decoding: data, as: UTF8.self) + "\n"
     }
     private static func decodingFailure(_ context: DecodingError.Context) -> ConfigurationFailure {
-        ConfigurationFailure(message: context.codingPath.map(\.stringValue).joined(separator: ".") + ": " + context.debugDescription)
+        let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+        return ConfigurationFailure(message: (path.isEmpty ? "" : path + ": ") + context.debugDescription)
     }
 }

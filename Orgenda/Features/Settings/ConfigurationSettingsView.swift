@@ -175,7 +175,7 @@ struct ConfigurationSettingsView: View {
             } catch {
                 let nsError = error as NSError
                 if nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError { return }
-                self.error = ConfigurationImportFailure.message(for: error)
+                self.error = error.localizedDescription
                 showsSaveError = true
             }
         }

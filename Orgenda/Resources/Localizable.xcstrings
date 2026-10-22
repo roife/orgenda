@@ -2412,57 +2412,6 @@
         }
       }
     },
-    "Check capture templates, their default selection, destination paths and required headings." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请检查捕获模板、默认模板、目标路径和必需的标题。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "請檢查擷取範本、預設範本、目標路徑和必要的標題。"
-          }
-        }
-      }
-    },
-    "Check file paths: use relative paths inside the workspace and .org files for task and capture destinations." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请检查文件路径：使用工作区内的相对路径，任务和捕获目标必须为 .org 文件。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "請檢查檔案路徑：使用工作區內的相對路徑，任務和擷取目標必須為 .org 檔案。"
-          }
-        }
-      }
-    },
-    "Check task states: include one sequence with both active and completed states, and choose valid default actions." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请检查任务状态：只保留一个默认序列，包含进行中与结束状态，并为默认操作选择有效状态。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "請檢查任務狀態：只保留一個預設序列，包含進行中與結束狀態，並為預設操作選擇有效狀態。"
-          }
-        }
-      }
-    },
     "Check the highlighted fields and task defaults before saving." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15052,23 +15001,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%s 代表來源檔名，:: 後面填寫目標標題。封存路徑相對於各來源檔案所在的資料夾。"
-          }
-        }
-      }
-    },
-    "Use 0–1440 minutes of advance notice, a 1–1440 minute repeat interval, and 0–365 days of deadline lookahead." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "提前提醒应为 0–1440 分钟，重复间隔为 1–1440 分钟，截止日期预览为 0–365 天。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "提前提醒應為 0–1440 分鐘，重複間隔為 1–1440 分鐘，截止日期預覽為 0–365 天。"
           }
         }
       }

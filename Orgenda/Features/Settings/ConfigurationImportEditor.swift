@@ -39,7 +39,7 @@ struct ConfigurationImportEditor: View {
                     Button("Import configuration", role: .confirm) {
                         do { try importConfiguration(source); dismiss() }
                         catch {
-                            self.error = ConfigurationImportFailure.message(for: error)
+                            self.error = error.localizedDescription
                         }
                     }
                     .disabled(source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
