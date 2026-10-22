@@ -55,24 +55,9 @@ actor WorkspaceFileStore {
         recoveryIdentity = rootURL.resolvingSymlinksInPath().standardizedFileURL.path
     }
 
-    /// Returns a complete load or throws. An inaccessible file must never look
-    /// like a remote deletion to the caller's reconciliation logic.
-    func load() throws -> [WorkspaceDocument] {
-        try Task.checkCancellation()
-        let root = try resolvedRoot()
-        let coordinator = NSFileCoordinator(filePresenter: nil)
-        return try coordinatedRead(at: root, coordinator: coordinator) { coordinatedRoot in
-            let root = coordinatedRoot.resolvingSymlinksInPath().standardizedFileURL
-            var documents: [WorkspaceDocument] = []
-            try self.collect(directory: root, relativePath: "", root: root,
-                             ancestors: [], coordinator: coordinator, documents: &documents)
-            return documents.sorted { $0.path < $1.path }
-        }
-    }
-
     /// Reads an attachment directly, including hidden Org attachment folders,
     /// without adding binary files to the workspace's document index. The
-    /// caller owns the selected folder's security scope, as with `load()`.
+    /// caller owns the selected folder's security scope, as with `scan(known:changedPaths:)`.
     func readImageData(path: String, maxBytes: Int = 20 * 1024 * 1024) throws -> Data {
         try Task.checkCancellation()
         guard !path.isEmpty, !path.contains("\0") else { throw Failure.unsafePath(path) }
@@ -156,69 +141,6 @@ actor WorkspaceFileStore {
         if let coordinationError { throw coordinationError }
         guard let result else { throw Failure.unreadable(path) }
         return try result.get()
-    }
-
-    private func collect(
-        directory: URL, relativePath: String, root: URL,
-        ancestors: Set<String>, coordinator: NSFileCoordinator,
-        documents: inout [WorkspaceDocument]
-    ) throws {
-        let resolvedDirectory = try containedURL(directory, root: root, path: relativePath)
-        guard !ancestors.contains(resolvedDirectory.path) else {
-            throw Failure.unsafePath(relativePath)
-        }
-        var ancestors = ancestors
-        ancestors.insert(resolvedDirectory.path)
-        let children = try fileManager.contentsOfDirectory(
-            at: resolvedDirectory,
-            includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey],
-            options: []
-        ).sorted { $0.lastPathComponent < $1.lastPathComponent }
-
-        for child in children {
-            try Task.checkCancellation()
-            let name = child.lastPathComponent
-            let path = relativePath.isEmpty ? name : relativePath + "/" + name
-            if name.hasPrefix(".") {
-                // Legacy iCloud placeholders have hidden `.name.org.icloud`
-                // names. Ignoring one would report an evicted file as deleted.
-                if name.hasSuffix(".icloud") {
-                    let originalName = String(name.dropFirst().dropLast(".icloud".count))
-                    if WorkspaceDocument.Kind(path: originalName) != nil {
-                        throw Failure.unreadable(relativePath.isEmpty ? originalName : relativePath + "/" + originalName)
-                    }
-                }
-                continue
-            }
-            // Validate links even if their extension is not supported: an
-            // escaping directory link must not become a hidden partial import.
-            let safeURL = try containedURL(child, root: root, path: path)
-            let values = try safeURL.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey])
-            if values.isDirectory == true {
-                documents.append(WorkspaceDocument(path: path, title: name, contents: "", kind: .folder))
-                try collect(directory: safeURL, relativePath: path, root: root,
-                            ancestors: ancestors, coordinator: coordinator, documents: &documents)
-            } else if let kind = WorkspaceDocument.Kind(path: path) {
-                guard values.isRegularFile == true else { throw Failure.unreadable(path) }
-                // Directory coordination does not coordinate its ordinary child
-                // files. Each read also gives a file provider a chance to finish
-                // downloading an evicted document before its contents are read.
-                let data = try coordinatedRead(at: safeURL, coordinator: coordinator) { coordinatedURL in
-                    let currentURL = try self.containedURL(coordinatedURL, root: root, path: path)
-                    guard currentURL == safeURL else { throw Failure.unreadable(path) }
-                    return try Data(contentsOf: currentURL)
-                }
-                guard let contents = String(data: data, encoding: .utf8) else {
-                    throw Failure.invalidUTF8(path)
-                }
-                documents.append(WorkspaceDocument(
-                    path: path,
-                    title: child.deletingPathExtension().lastPathComponent,
-                    contents: contents,
-                    kind: kind
-                ))
-            }
-        }
     }
 
     private func resolvedRoot() throws -> URL {
@@ -424,6 +346,8 @@ struct FolderInventory: Sendable {
 }
 
 extension WorkspaceFileStore {
+    /// Returns a complete inventory or throws. An inaccessible file must never
+    /// look like a remote deletion to the caller's reconciliation logic.
     /// Metadata is read inside coordinated access. Only changed files are read
     /// and hashed; explicit presenter notifications bypass the fingerprint.
     func scan(known: [String: WorkspaceFileRecord], changedPaths: Set<String>? = nil) throws -> FolderInventory {

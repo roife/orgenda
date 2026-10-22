@@ -43,7 +43,7 @@ final class WorkspaceFileStoreTests: XCTestCase {
         }
     }
 
-    func testNestedEscapingSymlinkRejectsImportAndWrites() async throws {
+    func testNestedEscapingSymlinkRejectsScanAndWrites() async throws {
         let outside = temporaryDirectory.appendingPathComponent("outside")
         try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
         let outsideFile = outside.appendingPathComponent("private.org")
@@ -52,7 +52,7 @@ final class WorkspaceFileStoreTests: XCTestCase {
         let store = WorkspaceFileStore(rootURL: root)
 
         do {
-            _ = try await store.load()
+            _ = try await store.scan(known: [:])
             XCTFail("Escaping folder link accepted")
         } catch let failure as WorkspaceFileStore.Failure {
             XCTAssertEqual(failure, .unsafePath("linked"))
@@ -69,12 +69,12 @@ final class WorkspaceFileStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: outside.appendingPathComponent("new").path))
     }
 
-    func testInvalidUTF8FailsWholeLoadInsteadOfReturningPartialSnapshot() async throws {
+    func testInvalidUTF8FailsWholeScanInsteadOfReturningPartialInventory() async throws {
         try fixture("a-valid.org", contents: "* TODO Valid\n")
         try Data([0xFF, 0xFE, 0x80]).write(to: root.appendingPathComponent("z-invalid.org"))
         do {
-            _ = try await WorkspaceFileStore(rootURL: root).load()
-            XCTFail("A partial load must not be reported as successful")
+            _ = try await WorkspaceFileStore(rootURL: root).scan(known: [:])
+            XCTFail("A partial scan must not be reported as successful")
         } catch let failure as WorkspaceFileStore.Failure {
             XCTAssertEqual(failure, .invalidUTF8("z-invalid.org"))
         }
@@ -83,10 +83,10 @@ final class WorkspaceFileStoreTests: XCTestCase {
     func testHiddenCloudPlaceholderDoesNotLookLikeDeletion() async throws {
         try fixture(".inbox.org.icloud", contents: "provider placeholder")
         do {
-            _ = try await WorkspaceFileStore(rootURL: root).load()
+            _ = try await WorkspaceFileStore(rootURL: root).scan(known: [:])
             XCTFail("An evicted document must not silently disappear from the workspace")
         } catch let failure as WorkspaceFileStore.Failure {
-            XCTAssertEqual(failure, .unreadable("inbox.org"))
+            XCTAssertEqual(failure, .unreadable(".inbox.org.icloud"))
         }
     }
 
