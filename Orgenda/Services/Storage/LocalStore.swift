@@ -29,13 +29,6 @@ actor LocalStore {
     var deltaListeners: [UUID: AsyncStream<WorkspaceDelta>.Continuation] = [:]
     let blobCache: WorkspaceBlobCache
     let textLimit = 64 * 1024 * 1024
-    // Opt-in logical IO counters for storage benchmarks. OS caching and
-    // filesystem metadata operations are outside these measurements.
-    private(set) var ioMetrics: LocalStoreIOMetrics?
-
-    func beginMeasuringIO() {
-        ioMetrics = LocalStoreIOMetrics()
-    }
 
     init(connection: StorageConnection, cacheDirectory: URL, folder: WorkspaceFileStore,
          recoveryDirectory: URL? = nil) throws {
@@ -270,9 +263,7 @@ actor LocalStore {
     func commit(_ updated: WorkspaceState, changedPaths: Set<String>? = nil) throws {
         var next = updated
         next.commitSequence = state.commitSequence + 1
-        let written = try database.save(next, previous: state, paths: changedPaths) { try storeBlob(Data($0.utf8)) }
-        ioMetrics?.stateTransactions += 1
-        ioMetrics?.stateBytesWritten += written
+        try database.save(next, previous: state, paths: changedPaths) { try storeBlob(Data($0.utf8)) }
         state = next
         if changedPaths == nil { filePathsByID = Self.filePaths(state) }
         updateView(changedPaths: changedPaths)
@@ -296,15 +287,13 @@ actor LocalStore {
         next.pending[path] = draft
         next.conflicts[path] = conflict
         next.commitSequence += 1
-        let written = try database.save(next, previous: previous, paths: [path]) { try storeBlob(Data($0.utf8)) }
+        try database.save(next, previous: previous, paths: [path]) { try storeBlob(Data($0.utf8)) }
         if let oldID = state.entries[path]?.fileID ?? state.pending[path]?.fileID { filePathsByID.removeValue(forKey: oldID) }
         if let id = file?.fileID ?? draft?.fileID { filePathsByID[id] = path }
         state.entries[path] = file
         state.pending[path] = draft
         state.conflicts[path] = conflict
         state.commitSequence = next.commitSequence
-        ioMetrics?.stateTransactions += 1
-        ioMetrics?.stateBytesWritten += written
         updateView(changedPaths: [path])
         commitsSinceBlobCleanup += 1
     }
@@ -333,21 +322,16 @@ actor LocalStore {
 
     func storeBlob(_ data: Data) throws -> String {
         let hash = Self.digest(data)
-        ioMetrics?.blobBytesHashed += data.count
         let url = directory.appendingPathComponent("blobs").appendingPathComponent(hash)
         var needsWrite = true
         if FileManager.default.fileExists(atPath: url.path) {
             // A matching filename does not prove an earlier blob is intact.
             // Verify its bytes before acknowledging a new durable reference.
             let existing = try Data(contentsOf: url)
-            ioMetrics?.blobReads += 1
-            ioMetrics?.blobBytesRead += existing.count
             needsWrite = existing != data
         }
         if needsWrite {
             try data.write(to: url, options: .atomic)
-            ioMetrics?.blobWrites += 1
-            ioMetrics?.blobBytesWritten += data.count
         }
         cacheBlob(data, hash: hash)
         return hash
@@ -360,9 +344,6 @@ actor LocalStore {
             return Data((cached.text ?? "").utf8)
         }
         let value = try Data(contentsOf: directory.appendingPathComponent("blobs").appendingPathComponent(blob))
-        ioMetrics?.blobReads += 1
-        ioMetrics?.blobBytesRead += value.count
-        ioMetrics?.blobBytesHashed += value.count
         guard Self.digest(value) == blob else { throw StorageError.invalidResponse }
         cacheBlob(value, hash: blob)
         return value
@@ -529,17 +510,6 @@ actor LocalStore {
         return (error as? WorkspaceFileStore.Failure) == .unavailableRoot
     }
 }
-
-struct LocalStoreIOMetrics: Sendable, Codable {
-    var blobReads = 0
-    var blobBytesRead = 0
-    var blobWrites = 0
-    var blobBytesWritten = 0
-    var blobBytesHashed = 0
-    var stateTransactions = 0
-    var stateBytesWritten = 0
-}
-
 
 struct WorkspaceDelta: Sendable {
     var revision: UInt64

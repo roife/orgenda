@@ -88,8 +88,7 @@ final class WorkspaceStateDatabase {
     /// With explicit paths, ordinary saves touch only those rows and one small
     /// metadata row. Bulk refreshes compare metadata without re-encoding text.
     func save(_ next: WorkspaceState, previous: WorkspaceState, paths: Set<String>?,
-              storeText: (String) throws -> String) throws -> Int {
-        var written = 0
+              storeText: (String) throws -> String) throws {
         try execute("BEGIN IMMEDIATE")
         do {
             if let saved = try records("meta")["workspace"] {
@@ -125,10 +124,9 @@ final class WorkspaceStateDatabase {
                     try run("DELETE FROM files WHERE remote_path = ? AND file_id <> ?", strings: [path, id.uuidString])
                     try run("INSERT INTO files (file_id,path,remote_path,folded_path,payload) VALUES (?,?,?,?,?) ON CONFLICT(file_id) DO UPDATE SET path=excluded.path,remote_path=excluded.remote_path,folded_path=excluded.folded_path,payload=excluded.payload",
                         strings: [id.uuidString, localPath, path, LocalStore.fold(localPath)], payload: payload)
-                    written += payload?.count ?? 0
                 }
                 if pending != previous.pending[path] {
-                    if let pending { written += try put("drafts", key: id.uuidString, value: pending) }
+                    if let pending { try put("drafts", key: id.uuidString, value: pending) }
                     else { try remove("drafts", key: id.uuidString) }
                 }
             }
@@ -152,7 +150,7 @@ final class WorkspaceStateDatabase {
                     var old = oldConflicts[newKey]
                     old?.path = path
                     if old != conflict {
-                        written += try put("conflicts", key: newKey, value: StoredConflict(conflict, storeText: storeText))
+                        try put("conflicts", key: newKey, value: StoredConflict(conflict, storeText: storeText))
                     }
                 }
             }
@@ -161,33 +159,31 @@ final class WorkspaceStateDatabase {
                 for operation in previous.operations where !retained.contains(operation.id) { try remove("ops", key: operation.id.uuidString) }
                 let old = Dictionary(uniqueKeysWithValues: previous.operations.map { ($0.id, $0) })
                 for operation in next.operations where old[operation.id] != operation {
-                    written += try put("ops", key: operation.id.uuidString, value: StoredOperation(operation, storeText: storeText))
+                    try put("ops", key: operation.id.uuidString, value: StoredOperation(operation, storeText: storeText))
                 }
             }
             if next.trash != previous.trash {
                 try execute("DELETE FROM trash")
-                for entry in next.trash { written += try put("trash", key: entry.id.uuidString, value: entry) }
+                for entry in next.trash { try put("trash", key: entry.id.uuidString, value: entry) }
             }
             if next.attachments != previous.attachments {
                 for path in Set(previous.attachments.keys).union(next.attachments.keys) where previous.attachments[path] != next.attachments[path] {
-                    if let value = next.attachments[path] { written += try put("attachments", key: path, value: value) }
+                    if let value = next.attachments[path] { try put("attachments", key: path, value: value) }
                     else { try remove("attachments", key: path) }
                 }
             }
-            written += try put("meta", key: "workspace", value: Meta(identity: next.identity,
+            try put("meta", key: "workspace", value: Meta(identity: next.identity,
                 initialized: next.initialized, revision: next.commitSequence, lastSync: next.lastSync))
             try execute("COMMIT")
-            return written
         } catch {
             try? execute("ROLLBACK")
             throw error
         }
     }
 
-    private func put<T: Encodable>(_ table: String, key: String, value: T) throws -> Int {
+    private func put<T: Encodable>(_ table: String, key: String, value: T) throws {
         let data = try encoder.encode(value)
         try run("INSERT INTO \(table) (record_key,payload) VALUES (?,?) ON CONFLICT(record_key) DO UPDATE SET payload=excluded.payload", strings: [key], payload: data)
-        return data.count
     }
 
     private func remove(_ table: String, key: String) throws { try run("DELETE FROM \(table) WHERE record_key = ?", strings: [key]) }
