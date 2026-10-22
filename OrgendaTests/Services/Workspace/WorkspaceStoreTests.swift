@@ -5,6 +5,53 @@ import XCTest
 final class WorkspaceStoreTests: XCTestCase {
     private let referenceDate = Date(timeIntervalSince1970: 1_788_048_000)
 
+    func testItemSourceIncludesOnlyItsAncestorHeadings() throws {
+        let store = parsedStore("""
+        #+TODO: OPEN | FINISHED
+        * OPEN [#A] Morning :routine:
+        ** Preparation
+        **** OPEN Stretch
+        SCHEDULED: <2026-08-30 Sun 08:00 +1d>
+        ** OPEN Breakfast
+        * Evening
+        *** Reading
+        <2026-08-30 Sun 20:00>
+        * OPEN Top level
+        """, path: "agenda/routines.org")
+
+        func ancestors(_ title: String) throws -> [String] {
+            try XCTUnwrap(store.items.first { $0.title == title }).source.ancestorTitles
+        }
+        XCTAssertEqual(try ancestors("Morning"), [])
+        XCTAssertEqual(try ancestors("Stretch"), ["Morning", "Preparation"])
+        XCTAssertEqual(try ancestors("Breakfast"), ["Morning"])
+        XCTAssertEqual(try ancestors("Reading"), ["Evening"])
+        XCTAssertEqual(try ancestors("Top level"), [])
+
+        store.hasWorkspaceConfiguration = true
+        let projected = try XCTUnwrap(store.items(on: referenceDate.adding(days: 1)).first { $0.title == "Stretch" })
+        XCTAssertEqual(projected.source.ancestorTitles, ["Morning", "Preparation"])
+    }
+
+    func testItemAncestorsRefreshAfterRenamingAndReparenting() async throws {
+        let store = parsedStore("* Morning\n** TODO Stretch\n* Evening\n")
+        let original = try XCTUnwrap(store.items.first)
+        store.updateDocument(path: "inbox.org", contents: "* Morning\n* Night\n** TODO Stretch\n")
+        await store.waitForWorkspaceIndex()
+
+        let refreshed = try XCTUnwrap(store.item(withID: original.id))
+        XCTAssertEqual(refreshed.source.ancestorTitles, ["Night"])
+        XCTAssertTrue(refreshed.hasSameEditableValues(as: original))
+    }
+
+    func testSourceLocationDecodesOlderPayloadsAndPreservesAncestors() throws {
+        let legacy = Data(#"{"file":"routines.org","startByte":0,"endByte":20,"startLine":1}"#.utf8)
+        var source = try JSONDecoder().decode(SourceLocation.self, from: legacy)
+        XCTAssertEqual(source.ancestorTitles, [])
+        source.ancestorTitles = ["a", "b"]
+        XCTAssertEqual(try JSONDecoder().decode(SourceLocation.self, from: JSONEncoder().encode(source)), source)
+    }
+
     func testStaleEditorBaselineRejectsNewerSourceNotesBeforeAndAfterReindex() throws {
         for reindex in [false, true] {
             let store = parsedStore("* TODO Original\nOriginal notes.\n")

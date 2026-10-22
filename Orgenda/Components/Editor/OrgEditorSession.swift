@@ -14,8 +14,10 @@ final class OrgEditorSession {
     @ObservationIgnored var performEdit: ((OrgTextEdit, String) -> Void)?
     @ObservationIgnored var finishTyping: (() -> Void)?
     @ObservationIgnored var updateAccessory: ((Bool, Bool) -> Void)?
+    @ObservationIgnored var onReadingPositionChange: ((Int) -> Void)?
+    @ObservationIgnored private var pendingReadingByte: Int?
+    @ObservationIgnored private(set) var isRestoringReadingPosition = false
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
-    @ObservationIgnored private var savedOffset: CGPoint?
     @ObservationIgnored private var resumesKeyboard = false
     @ObservationIgnored private var dateSelection: NSRange?
     @ObservationIgnored private var pendingSearchQuery: String?
@@ -59,22 +61,65 @@ final class OrgEditorSession {
 
     func suspendEditing() {
         guard let textView else { return }
-        savedOffset = textView.contentOffset
         resumesKeyboard = textView.isFirstResponder
         textView.unmarkText()
         finishTyping?()
         textView.resignFirstResponder()
     }
 
-    func restorePosition() {
-        guard let textView, let savedOffset else { return }
+    func captureReadingPosition() {
+        guard !isRestoringReadingPosition, let textView, !textView.isHidden,
+              textView.bounds.width > 0, textView.bounds.height > 0 else { return }
+        let point = CGPoint(x: textView.textContainerInset.left,
+                            y: max(textView.textContainerInset.top,
+                                   textView.contentOffset.y + textView.adjustedContentInset.top))
+        guard let position = textView.closestPosition(to: point) else { return }
+        let offset = textView.offset(from: textView.beginningOfDocument, to: position)
+        let source = textView.text as NSString? ?? ""
+        onReadingPositionChange?(source.substring(to: min(max(0, offset), source.length)).utf8.count)
+    }
+
+    func restoreReadingPosition(sourceByte: Int) {
+        pendingReadingByte = max(0, sourceByte)
+        isRestoringReadingPosition = true
+        textView?.superview?.setNeedsLayout()
+    }
+
+    /// Called after the previously hidden editor has its full viewport again.
+    func applyPendingReadingPosition() {
+        guard let byte = pendingReadingByte, let textView, !textView.isHidden,
+              textView.bounds.width > 0, textView.bounds.height > 0 else { return }
+        pendingReadingByte = nil
+        let source = textView.text ?? ""
+        var index = source.utf8.index(source.utf8.startIndex, offsetBy: min(byte, source.utf8.count))
+        while String.Index(index, within: source) == nil, index > source.utf8.startIndex {
+            source.utf8.formIndex(before: &index)
+        }
+        let location = source[..<String.Index(index, within: source)!].utf16.count
+        guard let position = textView.position(from: textView.beginningOfDocument, offset: location) else {
+            isRestoringReadingPosition = false
+            return
+        }
+        // An old offscreen caret must not pull the viewport back when typing
+        // resumes. Updating the selection leaves text and undo history intact.
+        textView.selectedRange = NSRange(location: location, length: 0)
         if resumesKeyboard { textView.becomeFirstResponder() }
-        textView.layoutIfNeeded()
-        textView.setContentOffset(savedOffset, animated: false)
-        self.savedOffset = nil
+        let caret = textView.caretRect(for: position)
+        let minimum = -textView.adjustedContentInset.top
+        let maximum = max(minimum, textView.contentSize.height - textView.bounds.height
+                          + textView.adjustedContentInset.bottom)
+        let y = byte == 0 ? minimum : caret.minY - textView.adjustedContentInset.top
+        textView.setContentOffset(CGPoint(x: 0, y: min(maximum, max(minimum, y))), animated: false)
+        Task { @MainActor [weak self] in
+            await Task.yield()
+            guard self?.pendingReadingByte == nil else { return }
+            self?.isRestoringReadingPosition = false
+        }
     }
 
     func selectHeading(startByte: Int) {
+        pendingReadingByte = nil
+        isRestoringReadingPosition = false
         synchronizeSource?()
         guard let textView else { return }
         let source = textView.text ?? ""
@@ -83,7 +128,7 @@ final class OrgEditorSession {
         textView.becomeFirstResponder()
         textView.selectedRange = NSRange(location: location, length: 0)
         textView.scrollRangeToVisible(textView.selectedRange)
-        savedOffset = nil
+        onReadingPositionChange?(startByte)
     }
 
     func selectSearchMatch(_ query: String) {
@@ -100,11 +145,13 @@ final class OrgEditorSession {
             return
         }
         pendingSearchQuery = nil
-        savedOffset = nil
+        pendingReadingByte = nil
+        isRestoringReadingPosition = false
         textView.becomeFirstResponder()
         textView.selectedRange = NSRange(match, in: source)
         textView.layoutIfNeeded()
         textView.scrollRangeToVisible(textView.selectedRange)
+        captureReadingPosition()
     }
 
     func perform(_ command: OrgInputCommand) {

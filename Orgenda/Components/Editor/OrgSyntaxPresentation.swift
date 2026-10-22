@@ -12,20 +12,6 @@ enum OrgSyntaxPresentation {
         return UIFont(descriptor: monospacedDescriptor, size: 0)
     }
 
-    static func clamped(_ range: NSRange, to textLength: Int) -> NSRange? {
-        guard range.location != NSNotFound,
-              range.location >= 0,
-              range.length > 0,
-              range.location < textLength else {
-            return nil
-        }
-
-        return NSRange(
-            location: range.location,
-            length: min(range.length, textLength - range.location)
-        )
-    }
-
     static func clampedSelection(_ range: NSRange, to textLength: Int) -> NSRange {
         guard range.location != NSNotFound else {
             return NSRange(location: 0, length: 0)
@@ -187,15 +173,14 @@ enum OrgSyntaxPresentation {
     }
 
     static func applyWorkflowHeadingColors(_ highlights: [OrgHighlightSpan], to storage: NSTextStorage,
-                                          workflow: WorkspaceConfiguration.Workflow = WorkspaceConfiguration.classic.workflow) {
+                                          workflow: WorkspaceConfiguration.Workflow) {
         let source = storage.string as NSString
         for span in highlights where span.kind == .heading {
-            guard let range = clamped(span.range, to: storage.length) else { continue }
-            let line = source.substring(with: source.lineRange(for: range))
+            let line = source.substring(with: source.lineRange(for: span.range))
             let tokens = line.split(whereSeparator: \.isWhitespace)
             guard tokens.count > 1, tokens[0].allSatisfy({ $0 == "*" }),
                   let state = workflow.state(String(tokens[1])) else { continue }
-            storage.addAttribute(.foregroundColor, value: UIColor(OrgendaTheme.workflowColor(state)), range: range)
+            storage.addAttribute(.foregroundColor, value: UIColor(OrgendaTheme.workflowColor(state)), range: span.range)
         }
     }
 

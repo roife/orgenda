@@ -16,9 +16,10 @@ enum OrgHeadingContinuity {
                 $0.type == "heading" && starts.contains($0.startByte)
             }.map(\.id))
         }
+        let retained = collapsed.intersection(Set(new.root.children.filter { $0.type == "heading" }.map(\.id)))
         let oldKeys = keys(in: old)
-        let selectedKeys = Set(collapsed.compactMap { oldKeys[$0] })
-        return Set(keys(in: new).filter { selectedKeys.contains($0.value) }.map(\.key))
+        let selectedKeys = Set(collapsed.subtracting(retained).compactMap { oldKeys[$0] })
+        return retained.union(keys(in: new).filter { selectedKeys.contains($0.value) }.map(\.key))
     }
 
     private static func keys(in document: ParsedOrgDocument) -> [String: String] {

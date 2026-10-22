@@ -6,7 +6,7 @@ struct OrgPreviewKeyword: View {
     @ViewBuilder
     var body: some View {
         if node.text.lowercased().hasPrefix("#+title:") {
-            Text(node.text.dropFirst(8).trimmingCharacters(in: .whitespacesAndNewlines))
+            OrgPreviewSearchText(node.text.dropFirst(8).trimmingCharacters(in: .whitespacesAndNewlines))
                 .font(.title2.bold())
                 .padding(.bottom, 4)
                 .accessibilityAddTraits(.isHeader)
@@ -17,7 +17,7 @@ struct OrgPreviewKeyword: View {
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
         } else {
-            Text(node.text.trimmingCharacters(in: .newlines))
+            OrgPreviewSearchText(node.text.trimmingCharacters(in: .newlines))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
@@ -39,10 +39,10 @@ struct OrgPreviewFallback: View {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(parts[0]).foregroundStyle(.secondary)
                             OrgWorkflowIcon(state)
-                            Text(parts[2]).foregroundStyle(OrgendaTheme.workflowColor(state))
+                            OrgPreviewSearchText(parts[2]).foregroundStyle(OrgendaTheme.workflowColor(state))
                         }
                     } else {
-                        Text(line.element.isEmpty ? " " : line.element)
+                        OrgPreviewSearchText(line.element.isEmpty ? " " : line.element)
                     }
                 }
                     .font(.body)

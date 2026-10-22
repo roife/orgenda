@@ -16,7 +16,7 @@ struct OrgendaRootView: View {
     @State private var store = WorkspaceStore.startup()
     @State private var selectedTab: OrgendaTab = .dashboard
     @State private var searchQuery = ""
-    @State private var dashboardPerspective: OrgAgendaPerspective = .todos
+    @State private var dashboardPerspective: OrgAgendaPerspective = .dashboard
     @State private var capture: CaptureDestination?
     @State private var fileNavigationRequest: WorkspaceFileNavigationRequest?
     @State private var showsWorkspaceSettings = false
@@ -56,6 +56,10 @@ struct OrgendaRootView: View {
         }
         .task {
             await store.startWorkspace()
+            if !store.dashboardPerspectives.contains(dashboardPerspective) {
+                dashboardPerspective = store.primaryConfiguredPerspective
+                if isDashboardSelected { selectDashboard() }
+            }
         }
         .task(id: actionableShortcutID) {
             guard let requestID = actionableShortcutID else { return }

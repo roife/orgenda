@@ -82,7 +82,7 @@ struct OrgPreviewHeading: View {
     @ViewBuilder
     private var tagText: some View {
         if !tags.isEmpty {
-            Text(tags.map { "#\($0)" }.joined(separator: "  "))
+            OrgPreviewSearchText(tags.map { "#\($0)" }.joined(separator: "  "))
                 .font(.subheadline)
                 .foregroundStyle(OrgendaTheme.previewMetadata)
                 .fixedSize(horizontal: false, vertical: true)
@@ -93,7 +93,7 @@ struct OrgPreviewHeading: View {
     @ViewBuilder
     private var priorityBadge: some View {
         if let priority {
-            Text(priority)
+            OrgPreviewSearchText(priority)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(OrgendaTheme.previewMetadata)
                 .padding(.horizontal, 5)

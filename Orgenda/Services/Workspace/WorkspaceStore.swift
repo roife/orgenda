@@ -12,14 +12,20 @@ final class WorkspaceStore {
     var configurationSource: String?
     /// Connected workspaces use their persisted configuration.
     var hasWorkspaceConfiguration = false
+    private(set) var searchRevision: UInt64 = 0
     var items: [OrgItem] {
         didSet { rebuildDerivedCollections() }
     }
-    var journalEntries: [JournalEntry]
+    var journalEntries: [JournalEntry] {
+        didSet { searchRevision &+= 1 }
+    }
     /// Edits and storage deltas address documents by path; the sorted array is
     /// a lazily rebuilt projection for views.
     var documentsByPath: [String: WorkspaceDocument] = [:] {
-        didSet { sortedDocuments = nil }
+        didSet {
+            sortedDocuments = nil
+            searchRevision &+= 1
+        }
     }
     @ObservationIgnored private var sortedDocuments: [WorkspaceDocument]?
     var documents: [WorkspaceDocument] {
@@ -104,7 +110,7 @@ final class WorkspaceStore {
     @ObservationIgnored var hasStarted = false
 
     // Internal state shared by the indexing and editing extensions.
-    @ObservationIgnored let indexService = OrgIndexService()
+    @ObservationIgnored var indexService = OrgIndexService()
     @ObservationIgnored var parseTask: Task<Void, Never>?
     @ObservationIgnored var parseGeneration: UInt64 = 0
     @ObservationIgnored var pendingDirtyPaths: Set<String> = []
@@ -151,6 +157,7 @@ final class WorkspaceStore {
             uniquingKeysWith: { first, _ in first }
         )
         itemsByDayCache.removeAll()
+        searchRevision &+= 1
     }
 
 }

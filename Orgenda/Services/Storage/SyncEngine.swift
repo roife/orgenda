@@ -9,12 +9,14 @@ struct SyncEngineStatus: Sendable {
 }
 
 /// The only owner of sync scheduling. Requests arriving during a pass join the
-/// same task; a requested full pull is retained for the next pass.
+/// same task. Edits and source-change events retain a follow-up pass.
 actor SyncEngine {
     private let store: LocalStore
     private var running: Task<Void, Error>?
     private var requested: LocalStore.SyncMode?
     private var requestedPaths: Set<String>?
+    private var isFullScan = false
+    private var lastFullSync: Date?
     private var retryTask: Task<Void, Never>?
     private var periodicTask: Task<Void, Never>?
     private var retryAt: Date?
@@ -86,11 +88,21 @@ actor SyncEngine {
         guard active else { return }
         periodicTask = Task { [weak self] in
             while !Task.isCancelled {
-                do { try await Task.sleep(for: .seconds(30)) } catch { return }
-                try? await self?.request(.full, automatic: true)
+                guard let interval = await self?.store.minimumSyncInterval else { return }
+                do { try await Task.sleep(for: .seconds(interval)) } catch { return }
+                try? await self?.poll()
             }
         }
-        try? await request(.full, automatic: true)
+        try? await poll()
+    }
+
+    /// Foreground/timer refreshes can join an existing pass. Actual source
+    /// notifications and pending edits must still schedule follow-up work.
+    func poll() async throws {
+        if isFullScan, let running { try await running.value; return }
+        let interval = await store.minimumSyncInterval
+        if let lastFullSync, Date.now.timeIntervalSince(lastFullSync) < interval { return }
+        try await request(.full, automatic: true)
     }
 
     func waitUntilIdle() async throws { try await running?.value }
@@ -122,18 +134,21 @@ actor SyncEngine {
     }
 
     func sourceChanged(paths: Set<String>?) async throws {
-        try await request(.full, automatic: true, paths: paths)
+        try await request(.full, automatic: true, paths: paths, requiresFollowUp: true)
     }
 
-    func request(_ mode: LocalStore.SyncMode, automatic: Bool = false, paths: Set<String>? = nil) async throws {
+    func request(_ mode: LocalStore.SyncMode, automatic: Bool = false, paths: Set<String>? = nil,
+                 requiresFollowUp: Bool = false) async throws {
         if let active = running, active.isCancelled { try? await active.value }
-        try await schedule(mode, automatic: automatic, paths: paths).value
+        try await schedule(mode, automatic: automatic, paths: paths, requiresFollowUp: requiresFollowUp).value
     }
 
-    func schedule(_ mode: LocalStore.SyncMode, automatic: Bool = false, paths: Set<String>? = nil) -> Task<Void, Error> {
+    func schedule(_ mode: LocalStore.SyncMode, automatic: Bool = false, paths: Set<String>? = nil,
+                  requiresFollowUp: Bool = false) -> Task<Void, Error> {
         guard !stopped else { return Task { throw CancellationError() } }
         if let serverRetryAt, serverRetryAt > .now { return Task {} }
         if automatic, let retryAt, retryAt > .now { return Task {} }
+        if !requiresFollowUp, mode == .full, isFullScan, let running { return running }
         if requested == nil {
             requested = mode
             requestedPaths = paths
@@ -153,14 +168,16 @@ actor SyncEngine {
         status.error = nil
         status.storageError = nil
         publish()
-        defer { running = nil; status.isSynchronizing = false; publish() }
+        defer { running = nil; isFullScan = false; status.isSynchronizing = false; publish() }
         do {
             while let mode = requested {
                 let paths = requestedPaths
                 requested = nil
                 requestedPaths = nil
+                isFullScan = mode == .full && paths == nil
                 try Task.checkCancellation()
                 try await store.synchronize(mode: mode, paths: paths)
+                if isFullScan { lastFullSync = .now }
             }
             failures = 0
             retryAt = nil

@@ -6,17 +6,23 @@ import OrgTreeSitter
 /// particular year or on the lifetime of the workspace store.
 enum JournalFileIndex {
     /// Extract cards from the tree already parsed for this document.
-    static func entries(in document: WorkspaceDocument, root: OrgSyntaxNode,
-                        directory: String = "journal") -> [JournalEntry] {
+    static func entries(in document: WorkspaceDocument, directory: String,
+                        previous: [JournalEntry], update: OrgSyntaxUpdate) -> [JournalEntry] {
         guard document.path.hasPrefix(directory + "/")
             || (directory == "journal" && document.path.split(separator: "/").dropLast().contains(where: {
                 $0.lowercased() == "journal"
             })) else { return [] }
         var entries: [JournalEntry] = []
         var occurrences: [String: Int] = [:]
+        var reusable: [Int: JournalEntry] = [:]
+        for entry in previous {
+            let range = entry.source.startByte..<entry.source.endByte
+            guard let relocated = update.relocating(range), !update.affects(relocated) else { continue }
+            reusable[relocated.lowerBound] = entry
+        }
 
         let bytes = Array(document.contents.utf8)
-        let headings = root.namedChildren
+        let headings = update.tree.rootNode.namedChildren
             .filter { $0.type == "heading" }
             .map { node in
                 Heading(
@@ -31,18 +37,24 @@ enum JournalFileIndex {
         let filenameDay = Day(filename: filename)
 
         func append(day: Day, title: String, bodyStart: Int, sourceStart: Int, end: Int, line: Int) {
-            let body = String(decoding: bytes[bodyStart..<end], as: UTF8.self)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
             let (date, displayTitle) = day.entry(title: title)
             let identity = "\(document.path)\u{0}\(day.key)\u{0}\(title)"
             let occurrence = occurrences[identity, default: 0]
             occurrences[identity] = occurrence + 1
+            let id = stableID("\(identity)\u{0}\(occurrence)")
+            let source = SourceLocation(file: document.path, startByte: sourceStart, endByte: end, startLine: line)
+            let body: String
+            if let cached = reusable[sourceStart],
+               cached.source.endByte - cached.source.startByte == end - sourceStart {
+                body = cached.body
+            } else {
+                body = String(decoding: bytes[bodyStart..<end], as: UTF8.self)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             entries.append(JournalEntry(
-                id: stableID("\(identity)\u{0}\(occurrence)"),
+                id: id,
                 date: date, title: displayTitle, body: body,
-                source: SourceLocation(
-                    file: document.path, startByte: sourceStart, endByte: end, startLine: line
-                )
+                source: source
             ))
         }
 

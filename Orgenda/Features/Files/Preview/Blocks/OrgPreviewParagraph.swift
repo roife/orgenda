@@ -10,7 +10,7 @@ enum OrgPreviewParagraphs {
         func appendParagraph() {
             guard let first = lines.first, let last = lines.last else { return }
             result.append(ParsedOrgNode(
-                id: "paragraph:\(first.id):\(last.endByte)",
+                id: "paragraph:\(first.id):\(last.id)",
                 type: "paragraph_group",
                 text: lines.map(\.text).joined(),
                 startByte: first.startByte,

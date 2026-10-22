@@ -13,6 +13,7 @@ struct RemoteScan: Sendable {
     var files: [RemoteFile]
     /// Explicitly incomplete subtrees. Their previous cache must be retained.
     var unavailablePaths: [String: String] = [:]
+    var minimumSyncInterval: TimeInterval = 30
 }
 
 struct RemoteDownload: Sendable {
@@ -25,9 +26,17 @@ struct RemoteDownload: Sendable {
 protocol RemoteWorkspaceBackend: Sendable {
     func scan() async throws -> RemoteScan
     func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload
+    /// Nil confirms that the cached revision still identifies the current bytes.
+    func downloadIfChanged(_ file: RemoteFile, since revision: String, maxBytes: Int) async throws -> RemoteDownload?
     func upload(path: String, data: Data, existing: RemoteFile?) async throws -> RemoteFile
     func createDirectory(path: String) async throws -> RemoteFile
     func move(_ file: RemoteFile, to path: String) async throws -> RemoteFile
+}
+
+extension RemoteWorkspaceBackend {
+    func downloadIfChanged(_ file: RemoteFile, since revision: String, maxBytes: Int) async throws -> RemoteDownload? {
+        try await download(file, maxBytes: maxBytes)
+    }
 }
 
 enum StorageError: Error, LocalizedError, Equatable {

@@ -15,6 +15,7 @@ struct OrgPreviewRichText: View {
 }
 
 struct OrgPreviewInlineText: View {
+    @Environment(\.orgPreviewSearchQuery) private var searchQuery
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -22,7 +23,7 @@ struct OrgPreviewInlineText: View {
     var textStyle: UIFont.TextStyle = .body
 
     var body: some View {
-        fragments.reduce(Text("")) { result, fragment in
+        OrgPreviewSearchHighlight.fragments(fragments, query: searchQuery).reduce(Text("")) { result, fragment in
             switch fragment {
             case .text(let value):
                 return Text("\(result)\(Text(value))")

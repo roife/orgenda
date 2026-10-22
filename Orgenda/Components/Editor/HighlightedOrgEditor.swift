@@ -19,7 +19,7 @@ struct HighlightedOrgEditor: View {
     private let isActive: Bool
     private let externalRevision: UInt64
 
-    @State private var highlights: [OrgHighlightSpan] = []
+    @State private var highlights: OrgHighlightSnapshot?
     @State private var highlighter = OrgSyntaxHighlighter()
 
     init(text: Binding<String>, isEditable: Bool = true, session: OrgEditorSession? = nil,

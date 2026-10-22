@@ -43,7 +43,8 @@ struct SearchSuggestionsView: View {
                 if !entries.isEmpty {
                     Section {
                         ForEach(entries) { entry in
-                            SearchResultRow(result: .journal(entry), store: store, trimmedQuery: "", onPresent: onPresent)
+                            SearchResultRow(result: .journal(entry), store: store, trimmedQuery: "",
+                                            subtitle: searchExcerpt(entry.body), onPresent: onPresent)
                                 .padding(.vertical, 4)
                         }
                     } header: {
@@ -57,7 +58,8 @@ struct SearchSuggestionsView: View {
                 if !files.isEmpty {
                     Section {
                         ForEach(files) { document in
-                            SearchResultRow(result: .document(document), store: store, trimmedQuery: "", onPresent: onPresent)
+                            SearchResultRow(result: .document(document), store: store, trimmedQuery: "",
+                                            subtitle: document.path, onPresent: onPresent)
                                 .padding(.vertical, 4)
                         }
                     } header: {

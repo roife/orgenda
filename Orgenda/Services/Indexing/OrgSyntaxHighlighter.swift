@@ -44,59 +44,70 @@ struct OrgHighlightSpan: Hashable, Sendable {
     let kind: OrgHighlightKind
 }
 
-/// Serializes access to the reusable tree-sitter parser and turns its syntax
-/// nodes into editor-friendly semantic spans.
-///
-/// `highlights(in:)` is intentionally synchronous inside the actor. A caller
-/// can run it from a cancellable `Task` after a 90 ms (or longer) debounce. The
-/// traversal checks cancellation so superseded editor revisions stop promptly.
+struct OrgHighlightBlock: Sendable {
+    let id: String
+    let revision: UUID
+    let range: NSRange
+    /// Relative to the block, so inserting text earlier does not invalidate these spans.
+    let spans: [OrgHighlightSpan]
+}
+
+struct OrgHighlightSnapshot: Sendable {
+    let revision = UUID()
+    let source: String
+    let baseWorkflow: WorkspaceConfiguration.Workflow
+    let workflow: WorkspaceConfiguration.Workflow
+    let blocks: [OrgHighlightBlock]
+}
+
+/// Each editor retains its syntax snapshot and block-local UTF-16 highlights.
 actor OrgSyntaxHighlighter {
-    private let parser = OrgParser()
+    private let syntax = OrgDocumentSyntaxCache()
+    private var snapshot: OrgHighlightSnapshot?
 
-    func highlights(in source: String, configuration: WorkspaceConfiguration = .classic) -> [OrgHighlightSpan] {
-        guard !source.isEmpty, !Task.isCancelled else { return [] }
-        let tree = parser.parse(source)
+    func highlights(in source: String, configuration: WorkspaceConfiguration = .classic) -> OrgHighlightSnapshot {
+        if let snapshot, snapshot.baseWorkflow == configuration.workflow,
+           snapshot.source.utf8.elementsEqual(source.utf8) { return snapshot }
+        syntax.update(source, path: "highlight.org", configuration: configuration)
+        let previous = Dictionary(uniqueKeysWithValues: (snapshot?.blocks ?? []).map { ($0.id, $0) })
+        var blocks: [OrgHighlightBlock] = []
+        var byteOffset = 0
+        var utf16Offset = 0
+        // Random-access slices avoid walking String.UTF8View from its start for every block.
+        let bytes = Array(source.utf8)
+        for node in syntax.root!.children {
+            if node.startByte > byteOffset {
+                utf16Offset += String(decoding: bytes[byteOffset..<node.startByte], as: UTF8.self).utf16.count
+            }
+            let cached = syntax.reusedBlockIDs.contains(node.id) ? previous[node.id] : nil
+            let length = cached?.range.length ?? node.text.utf16.count
+            let spans = cached?.spans ?? Self.spans(in: node)
+            blocks.append(OrgHighlightBlock(id: node.id, revision: cached?.revision ?? UUID(),
+                                            range: NSRange(location: utf16Offset, length: length), spans: spans))
+            utf16Offset += length
+            byteOffset = node.endByte
+        }
+        let result = OrgHighlightSnapshot(source: source, baseWorkflow: configuration.workflow,
+                                          workflow: syntax.workflow!, blocks: blocks)
+        snapshot = result
+        return result
+    }
 
-        let rangeMap = UTF16RangeMap(source)
+    private nonisolated static func spans(in block: ParsedOrgNode) -> [OrgHighlightSpan] {
+        let rangeMap = UTF16RangeMap(block.text)
         var result: [OrgHighlightSpan] = []
-        var pending = [tree.rootNode]
-
+        var pending = [block]
         while let node = pending.popLast() {
-            guard !Task.isCancelled else { return [] }
-
-            if !node.isMissing,
-               let kind = Self.highlightKind(for: node.type),
-               let range = rangeMap.range(
-                   startByte: Int(node.startByte),
-                   endByte: Int(node.endByte)
-               ) {
+            if let kind = highlightKind(for: node.type),
+               let range = rangeMap.range(startByte: node.startByte - block.startByte,
+                                                    endByte: node.endByte - block.startByte) {
                 result.append(OrgHighlightSpan(range: range, kind: kind))
             }
-
-            // Push in reverse so traversal and equal-location ordering remain
-            // deterministic and follow source order.
-            pending.append(contentsOf: node.namedChildren.reversed())
+            pending.append(contentsOf: node.children.reversed())
         }
-
-        // Workflow metadata comes only from the configuration-aware headings.
-        let workflow = OrgConfiguredHeading.workflow(in: source, base: configuration.workflow)
-        for node in tree.rootNode.namedChildren where node.type == "heading" {
-            let heading = OrgConfiguredHeading.normalize(ParsedOrgNode(node, path: "highlight.org"), workflow: workflow)
-            for child in heading.children where child.type == "todo_keyword" || child.type == "priority" {
-                if let range = rangeMap.range(startByte: child.startByte, endByte: child.endByte) {
-                    result.append(OrgHighlightSpan(range: range, kind: child.type == "priority" ? .priority : .todo))
-                }
-            }
-        }
-        // Broad structural spans come first at the same location, allowing a
-        // consumer to apply nested token styles afterwards.
         return result.sorted { lhs, rhs in
-            if lhs.range.location != rhs.range.location {
-                return lhs.range.location < rhs.range.location
-            }
-            if lhs.range.length != rhs.range.length {
-                return lhs.range.length > rhs.range.length
-            }
+            if lhs.range.location != rhs.range.location { return lhs.range.location < rhs.range.location }
+            if lhs.range.length != rhs.range.length { return lhs.range.length > rhs.range.length }
             return lhs.kind.rawValue < rhs.kind.rawValue
         }
     }
@@ -105,6 +116,10 @@ actor OrgSyntaxHighlighter {
         switch nodeType {
         case "heading_marker", "heading_title":
             return .heading
+        case "todo_keyword":
+            return .todo
+        case "priority":
+            return .priority
         case "tag_list":
             return .tag
         case "planning_keyword":

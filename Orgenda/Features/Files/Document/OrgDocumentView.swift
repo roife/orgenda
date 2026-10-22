@@ -3,6 +3,7 @@ import SwiftUI
 struct OrgDocumentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenePhase) private var scenePhase
     @ScaledMetric(relativeTo: .subheadline) private var modePickerWidth: CGFloat = 190
     let store: WorkspaceStore
     let path: String
@@ -17,6 +18,20 @@ struct OrgDocumentView: View {
     @State private var handledLocationRequestID: UUID?
     @State private var outlineMove: OrgHeadingMove?
     @State private var handledSearchQuery: String?
+    @State private var readingPosition: OrgDocumentReadingPosition
+    @State private var requestedPreviewByte: Int?
+
+    init(store: WorkspaceStore, path: String, searchQuery: String? = nil,
+         locationRequest: WorkspaceFileNavigationRequest? = nil, onBack: (() -> Void)? = nil) {
+        self.store = store
+        self.path = path
+        self.searchQuery = searchQuery
+        self.locationRequest = locationRequest
+        self.onBack = onBack
+        let position = OrgDocumentReadingPosition(store: store, path: path)
+        _readingPosition = State(initialValue: position)
+        _requestedPreviewByte = State(initialValue: position.sourceByte)
+    }
 
     private enum Mode: Int {
         case edit
@@ -29,8 +44,11 @@ struct OrgDocumentView: View {
                 store: store,
                 path: path,
                 requestedHeadingID: $requestedHeadingID,
+                requestedSourceByte: $requestedPreviewByte,
+                onReadingPositionChange: readingPosition.record,
                 isActive: mode == .preview,
-                outlineMove: outlineMove
+                outlineMove: outlineMove,
+                searchQuery: searchQuery
             )
             .opacity(mode == .preview ? 1 : 0)
             .zIndex(mode == .preview ? 1 : 0)
@@ -59,6 +77,7 @@ struct OrgDocumentView: View {
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .modifier(DocumentSaveFailureFeedback(store: store, path: path))
             .task(id: path) { store.recordDocumentOpened(path: path) }
+            .onAppear { editorSession.onReadingPositionChange = readingPosition.record }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             // Pushed pages keep the system back button and interactive edge pop.
@@ -117,14 +136,13 @@ struct OrgDocumentView: View {
             .onChange(of: mode) { _, newMode in
                 if newMode == .preview {
                     store.refreshDocumentIndex(path: path)
-                } else {
-                    Task { @MainActor in
-                        await Task.yield()
-                        editorSession.restorePosition()
-                    }
                 }
             }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { saveReadingPosition() }
+            }
             .onDisappear {
+                saveReadingPosition()
                 editorSession.suspendEditing()
                 store.refreshDocumentIndex(path: path)
             }
@@ -201,9 +219,21 @@ struct OrgDocumentView: View {
     private var modeBinding: Binding<Mode> {
         Binding(get: { mode }, set: { next in
             guard next != mode else { return }
-            if mode == .edit { editorSession.suspendEditing() }
+            if mode == .edit {
+                editorSession.captureReadingPosition()
+                editorSession.suspendEditing()
+                requestedPreviewByte = readingPosition.sourceByte
+            } else {
+                editorSession.restoreReadingPosition(sourceByte: readingPosition.sourceByte)
+            }
+            readingPosition.save()
             mode = next
         })
+    }
+
+    private func saveReadingPosition() {
+        if mode == .edit { editorSession.captureReadingPosition() }
+        readingPosition.save()
     }
 
     private func navigateToHeading(_ node: DocumentOutlineNode) {

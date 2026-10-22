@@ -8,9 +8,14 @@ struct InteractiveOrgPreview: View {
     let store: WorkspaceStore
     let path: String
     @Binding var requestedHeadingID: String?
+    @Binding var requestedSourceByte: Int?
+    let onReadingPositionChange: (Int) -> Void
     var isActive = true
     var outlineMove: OrgHeadingMove?
+    var searchQuery: String?
 
+    @State private var handledSearchQuery: String?
+    @State private var highlightedSearchQuery = ""
     @State private var collapsedHeadingIDs: Set<String> = []
     @State private var pendingReplacements: [String: PendingSourceReplacement] = [:]
     @State private var planningEditor: OrgPlanningEditorPresentation?
@@ -21,9 +26,10 @@ struct InteractiveOrgPreview: View {
     /// Final presentation rows, including math grouping, rebuilt only when
     /// the parsed document changes rather than on disclosure or drag updates.
     @State private var previewRows: [OrgPreviewRow] = []
+    @State private var outlineCache = OrgPreviewOutline.Cache()
     /// Scroll offset kept outside SwiftUI state: per-frame scroll updates must
     /// not re-evaluate this body.
-    @State private var readingOffset = ReadingOffsetStorage()
+    @State private var readingTracker = OrgPreviewReadingTracker()
     @State private var headingDrag: OrgHeadingDrag?
     @State private var headingDropTarget: OrgHeadingDrop?
     @State private var pendingHeadingMove: OrgHeadingMove?
@@ -33,16 +39,20 @@ struct InteractiveOrgPreview: View {
         store: WorkspaceStore,
         path: String,
         requestedHeadingID: Binding<String?>,
+        requestedSourceByte: Binding<Int?>,
+        onReadingPositionChange: @escaping (Int) -> Void,
         isActive: Bool = true,
-        outlineMove: OrgHeadingMove? = nil
+        outlineMove: OrgHeadingMove? = nil,
+        searchQuery: String? = nil
     ) {
         self.store = store
         self.path = path
         _requestedHeadingID = requestedHeadingID
+        _requestedSourceByte = requestedSourceByte
+        self.onReadingPositionChange = onReadingPositionChange
         self.isActive = isActive
         self.outlineMove = outlineMove
-        _previewRows = State(initialValue: store.parsedDocuments[path]
-            .map { OrgPreviewOutline.rows(from: $0.root.children) } ?? [])
+        self.searchQuery = searchQuery
     }
 
     var body: some View {
@@ -63,7 +73,8 @@ struct InteractiveOrgPreview: View {
                         dropTarget: $headingDropTarget,
                         onBeginDrag: beginHeadingDrag,
                         onEndDrag: endHeadingDrag,
-                        onMoveHeading: moveHeading
+                        onMoveHeading: moveHeading,
+                        onRowGeometryChange: updateRowGeometry
                     )
                     .environment(\.orgWorkflow, store.workflow(for: path))
                 } else if let source = store.documents.first(where: { $0.path == path })?.contents {
@@ -83,17 +94,47 @@ struct InteractiveOrgPreview: View {
             )
             .scrollIndicators(.hidden)
             .environment(\.orgPreviewImageContext, OrgPreviewImageContext(store: store, documentPath: path))
+            .environment(\.orgPreviewSearchQuery, highlightedSearchQuery)
             .background(Color.clear)
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .accessibilityIdentifier("org.preview.scroll")
             .scrollPosition($scrollPosition)
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y + geometry.contentInsets.top
-            } action: { _, offset in
-                if isActive { readingOffset.value = max(0, offset) }
+            .onScrollGeometryChange(for: ReadingGeometry.self) { geometry in
+                ReadingGeometry(offset: geometry.contentOffset.y + geometry.contentInsets.top,
+                                height: geometry.containerSize.height)
+            } action: { _, geometry in
+                readingTracker.offset = max(0, geometry.offset)
+                readingTracker.viewportHeight = geometry.height
+                recordReadingPosition()
             }
-            .onChange(of: isActive) { _, active in
-                if active { scrollPosition.scrollTo(y: readingOffset.value) }
+            .onScrollPhaseChange { _, phase in
+                if phase == .tracking || phase == .interacting {
+                    requestedSourceByte = nil
+                    readingTracker.isTracking = true
+                }
+            }
+            .task(id: ReadingRequest(byte: requestedSourceByte, active: isActive)) {
+                guard isActive, requestedSourceByte != nil else { return }
+                readingTracker.isTracking = false
+                await store.waitForWorkspaceIndex()
+                guard !Task.isCancelled, requestedHeadingID == nil else { return }
+                restoreReadingPosition(using: proxy)
+            }
+            .task(id: SearchRequest(query: searchQuery, ready: isActive && !previewRows.isEmpty)) {
+                revealSearchMatch()
+            }
+            .task(id: SearchRequest(query: highlightedSearchQuery, ready: isActive && requestedSourceByte == nil)) {
+                guard isActive, requestedSourceByte == nil, !highlightedSearchQuery.isEmpty else { return }
+                do { try await Task.sleep(for: .seconds(2)) }
+                catch { return }
+                highlightedSearchQuery = ""
+            }
+            .onChange(of: previewRows.map(\.id)) { _, _ in
+                if let headingID = requestedHeadingID {
+                    revealHeading(headingID, using: proxy)
+                } else if isActive, requestedSourceByte != nil {
+                    restoreReadingPosition(using: proxy)
+                }
             }
             .sensoryFeedback(.selection, trigger: interactionFeedback)
             .onChange(of: requestedHeadingID, initial: true) { _, headingID in
@@ -110,8 +151,13 @@ struct InteractiveOrgPreview: View {
                 ? [.large] : [.medium, .large])
             .presentationDragIndicator(.visible)
         }
-        .onChange(of: store.parsedDocuments[path]) { previous, document in
-            previewRows = document.map { OrgPreviewOutline.rows(from: $0.root.children) } ?? []
+        .onChange(of: store.parsedDocuments[path], initial: true) { previous, document in
+            previewRows = outlineCache.rows(from: document?.root.children ?? [])
+            // Stable row IDs can retain their geometry when only source offsets move.
+            // Refresh the associated source nodes even if no geometry callback fires.
+            readingTracker.rows = Dictionary(uniqueKeysWithValues: previewRows.compactMap { row in
+                readingTracker.rows[row.id].map { (row.id, OrgPreviewReadingTracker.Row(node: row.node, frame: $0.frame)) }
+            })
             if let previous, let document {
                 collapsedHeadingIDs = OrgHeadingContinuity.remap(
                     collapsedHeadingIDs, from: previous, to: document,
@@ -141,9 +187,15 @@ struct InteractiveOrgPreview: View {
             Text(message)
         }
         .onChange(of: isActive) { _, active in
-            if !active { endHeadingDrag() }
+            if !active {
+                endHeadingDrag()
+                highlightedSearchQuery = ""
+            }
         }
-        .onDisappear { endHeadingDrag() }
+        .onDisappear {
+            endHeadingDrag()
+            highlightedSearchQuery = ""
+        }
     }
 
     private func beginHeadingDrag(_ id: String) -> String? {
@@ -190,6 +242,10 @@ struct InteractiveOrgPreview: View {
             return
         }
 
+        requestedSourceByte = nil
+        readingTracker.isTracking = false
+        onReadingPositionChange(row.node.startByte)
+
         withAnimation(OrgendaMotion.geometryAnimation(.content, reduceMotion: reduceMotion)) {
             collapsedHeadingIDs.subtract(Set(row.parentHeadingIDs))
         }
@@ -201,6 +257,90 @@ struct InteractiveOrgPreview: View {
             }
             requestedHeadingID = nil
         }
+    }
+
+    private struct ReadingRequest: Equatable {
+        let byte: Int?
+        let active: Bool
+    }
+
+    private struct ReadingGeometry: Equatable {
+        let offset: CGFloat
+        let height: CGFloat
+    }
+
+    private struct SearchRequest: Equatable {
+        let query: String?
+        let ready: Bool
+    }
+
+    private func revealSearchMatch() {
+        guard isActive, !previewRows.isEmpty,
+              let query = searchQuery?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !query.isEmpty, handledSearchQuery != query,
+              let source = store.parsedDocuments[path]?.root.text,
+              let match = source.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) else { return }
+        let byte = source[..<match.lowerBound].utf8.count
+        guard let row = readingRow(for: byte) else { return }
+        handledSearchQuery = query
+        readingTracker.isTracking = false
+        collapsedHeadingIDs.subtract(row.parentHeadingIDs)
+        requestedHeadingID = nil
+        requestedSourceByte = byte
+        highlightedSearchQuery = query
+        onReadingPositionChange(byte)
+    }
+
+    private func readingRow(for byte: Int) -> OrgPreviewRow? {
+        let rows = previewRows.filter { $0.node.type != "blank_line" }
+        return rows.first { $0.node.startByte <= byte && byte < $0.node.endByte }
+            ?? rows.filter { $0.node.startByte <= byte }.max { $0.node.startByte < $1.node.startByte }
+            ?? rows.first
+    }
+
+    private func restoreReadingPosition(using proxy: ScrollViewProxy) {
+        guard let byte = requestedSourceByte, let row = readingRow(for: byte) else { return }
+        readingTracker.isTracking = false
+        readingTracker.restoreRowID = row.id
+        collapsedHeadingIDs.subtract(row.parentHeadingIDs)
+        // Resolve the lazy row first, then use its measured height to restore
+        // a position inside long paragraphs, tables, or source blocks.
+        Task { @MainActor in
+            await Task.yield()
+            guard isActive, requestedSourceByte == byte, requestedHeadingID == nil else { return }
+            proxy.scrollTo(row.id, anchor: .top)
+            await Task.yield()
+            finishReadingRestore(row)
+        }
+    }
+
+    private func updateRowGeometry(_ row: OrgPreviewRow, _ frame: CGRect?) {
+        if let frame {
+            readingTracker.rows[row.id] = OrgPreviewReadingTracker.Row(node: row.node, frame: frame)
+            if readingTracker.restoreRowID == row.id { finishReadingRestore(row) }
+        } else {
+            readingTracker.rows.removeValue(forKey: row.id)
+        }
+        recordReadingPosition()
+    }
+
+    private func finishReadingRestore(_ row: OrgPreviewRow) {
+        guard isActive, let byte = requestedSourceByte,
+              readingTracker.restoreRowID == row.id,
+              let measured = readingTracker.rows[row.id], measured.frame.height > 0 else { return }
+        let fraction = CGFloat(min(max(0, byte - row.node.startByte), max(0, row.node.endByte - row.node.startByte - 1)))
+            / CGFloat(max(1, row.node.endByte - row.node.startByte))
+        // Leave context above a search hit, clear of the floating toolbar.
+        let searchInset = highlightedSearchQuery.isEmpty ? 0 : readingTracker.viewportHeight / 3
+        scrollPosition.scrollTo(y: byte == 0 ? 0 : max(0, measured.frame.minY + measured.frame.height * fraction - searchInset))
+        readingTracker.restoreRowID = nil
+        requestedSourceByte = nil
+    }
+
+    private func recordReadingPosition() {
+        guard isActive, readingTracker.isTracking, requestedSourceByte == nil,
+              let byte = readingTracker.sourceByte else { return }
+        onReadingPositionChange(byte)
     }
 
     private func toggleHeading(_ id: String) {
@@ -342,6 +482,24 @@ private struct OrgPlanningEditorPresentation: Identifiable {
 
 /// Mutable scroll offset that lives outside SwiftUI's observation, so writing
 /// it on every scroll frame does not schedule a body evaluation.
-private final class ReadingOffsetStorage {
-    var value: CGFloat = 0
+private final class OrgPreviewReadingTracker {
+    struct Row {
+        let node: ParsedOrgNode
+        let frame: CGRect
+    }
+
+    var offset: CGFloat = 0
+    var viewportHeight: CGFloat = 0
+    var rows: [String: Row] = [:]
+    var isTracking = false
+    var restoreRowID: String?
+
+    var sourceByte: Int? {
+        guard offset > 0 else { return 0 }
+        guard let row = rows.values.filter({ $0.frame.maxY > offset })
+            .min(by: { $0.frame.minY < $1.frame.minY }) else { return nil }
+        let fraction = min(1, max(0, (offset - row.frame.minY) / max(1, row.frame.height)))
+        let length = max(0, row.node.endByte - row.node.startByte - 1)
+        return row.node.startByte + Int(fraction * CGFloat(length))
+    }
 }

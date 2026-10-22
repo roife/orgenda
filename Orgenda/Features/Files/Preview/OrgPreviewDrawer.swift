@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct OrgPreviewDrawer: View {
+    @Environment(\.orgPreviewSearchQuery) private var searchQuery
     let node: ParsedOrgNode
     @State private var isExpanded = false
 
@@ -9,7 +10,7 @@ struct OrgPreviewDrawer: View {
             OrgPreviewReadOnlyContent(nodes: OrgPreviewMarkup.contents(of: node))
                 .padding(.top, 2)
         } label: {
-            Text(name)
+            OrgPreviewSearchText(name)
                 .font(.caption2)
                 .foregroundStyle(OrgendaTheme.previewMetadata)
                 .frame(minHeight: 24, alignment: .leading)
@@ -19,6 +20,11 @@ struct OrgPreviewDrawer: View {
         .padding(.horizontal, 6)
         .background(OrgendaTheme.accentSoft.opacity(0.55), in: RoundedRectangle(cornerRadius: 6))
         .accessibilityIdentifier("org.preview.drawer.\(node.startByte)")
+        .onChange(of: searchQuery, initial: true) { _, query in
+            if !query.isEmpty, node.text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
+                isExpanded = true
+            }
+        }
     }
 
     private var name: String {
@@ -81,7 +87,7 @@ struct OrgPreviewReadOnlyContent: View {
                 case "latex_block": OrgPreviewMathBlock(expression: OrgMathExpression(node))
                 case "property":
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(node.child(ofType: "property_name")?.text ?? "")
+                        OrgPreviewSearchText(node.child(ofType: "property_name")?.text ?? "")
                             .font(.caption.monospaced().weight(.semibold)).foregroundStyle(.secondary)
                         if let value = node.child(ofType: "property_value") {
                             OrgPreviewRichText(
@@ -219,11 +225,13 @@ private extension Array where Element == OrgPreviewInlineFragment {
 }
 
 struct OrgPreviewComment: View {
+    @Environment(\.orgPreviewSearchQuery) private var searchQuery
     let node: ParsedOrgNode
+    @State private var isExpanded = false
 
     var body: some View {
-        DisclosureGroup {
-            Text(node.type == "comment_block" ? OrgPreviewMarkup.literalText(node) : node.child(ofType: "comment_text")?.text ?? "")
+        DisclosureGroup(isExpanded: $isExpanded) {
+            OrgPreviewSearchText(node.type == "comment_block" ? OrgPreviewMarkup.literalText(node) : node.child(ofType: "comment_text")?.text ?? "")
                 .font(.subheadline.italic()).foregroundStyle(.secondary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -231,6 +239,11 @@ struct OrgPreviewComment: View {
             Label("Comment", systemImage: "text.bubble").font(.subheadline).frame(minHeight: 44)
         }
         .tint(.secondary)
+        .onChange(of: searchQuery, initial: true) { _, query in
+            if !query.isEmpty, node.text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
+                isExpanded = true
+            }
+        }
     }
 }
 

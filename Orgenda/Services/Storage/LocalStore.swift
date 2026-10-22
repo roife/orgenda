@@ -16,6 +16,7 @@ actor LocalStore {
     var state: WorkspaceState
     let database: WorkspaceStateDatabase
     var isSynchronizing = false
+    var minimumSyncInterval: TimeInterval = 30
     var isPerformingFileOperation = false
     var lastBlobCleanup: Date?
     var commitsSinceBlobCleanup = 0

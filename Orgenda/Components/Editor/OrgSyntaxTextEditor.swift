@@ -7,7 +7,7 @@ import UIKit
 /// TextKit 2's layout state stay intact.
 struct OrgSyntaxTextEditor: UIViewRepresentable {
     @Binding private var text: String
-    private let highlights: [OrgHighlightSpan]
+    private let highlights: OrgHighlightSnapshot?
     private let isEditable: Bool
     private let session: OrgEditorSession?
     private let isActive: Bool
@@ -20,7 +20,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
 
     init(
         text: Binding<String>,
-        highlights: [OrgHighlightSpan],
+        highlights: OrgHighlightSnapshot?,
         isEditable: Bool = true,
         session: OrgEditorSession? = nil,
         isActive: Bool = true,
@@ -95,7 +95,10 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             colorSchemeContrast: colorSchemeContrast
         )
         if !isActive, textView.isFirstResponder { textView.resignFirstResponder() }
-        if isActive { session?.applyPendingSearchSelection() }
+        if isActive {
+            container.setNeedsLayout()
+            session?.applyPendingSearchSelection()
+        }
     }
 
     private func configureInteraction(for textView: UITextView) {
@@ -122,8 +125,11 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
         private var lastTypingSelection: NSRange?
         private var ownsTypingGroup = false
         private var typingTask: Task<Void, Never>?
+        private var readingTask: Task<Void, Never>?
         private var lastText: String?
-        private var lastHighlights: [OrgHighlightSpan] = []
+        private var lastHighlightRevision: UUID?
+        private var presentedBlocks: [String: UUID] = [:]
+        private var dirtyPresentationRange: NSRange?
         private var lastColorScheme: ColorScheme?
         private var lastDynamicTypeSize: DynamicTypeSize?
         private var lastColorSchemeContrast: ColorSchemeContrast?
@@ -187,6 +193,17 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             (textView.superview as? OrgEditorContainer)?.setKeyboardFocused(false)
             finishTyping()
             Task { @MainActor [weak self] in self?.parent.session?.isKeyboardFocused = false }
+        }
+
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            guard parent.isActive, !isApplyingPresentation,
+                  parent.session?.isRestoringReadingPosition == false else { return }
+            readingTask?.cancel()
+            readingTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(150))
+                guard !Task.isCancelled, let self, self.parent.isActive else { return }
+                self.parent.session?.captureReadingPosition()
+            }
         }
 
         /// Registers only text mutations; syntax presentation never enters history.
@@ -261,6 +278,9 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             // The storage already contains this user edit. Mark the revision as
             // current before SwiftUI echoes the binding back, otherwise every
             // keystroke would restyle the whole document using stale spans.
+            if let lastText, !lastText.utf8.elementsEqual(newText.utf8) {
+                recordPresentationEdit(OrgInputCommands.difference(from: lastText, to: newText))
+            }
             lastText = newText
             lastTypingSelection = textView.selectedRange
             if sourceChanged {
@@ -269,9 +289,17 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             Task { @MainActor [weak self] in self?.parent.session?.refreshHistory() }
         }
 
+        private func recordPresentationEdit(_ edit: OrgTextEdit) {
+            let inserted = edit.replacement.utf16.count
+            let dirty = dirtyPresentationRange ?? edit.range
+            let start = min(dirty.location, edit.range.location)
+            let end = max(NSMaxRange(dirty) + inserted - edit.range.length, edit.range.location + inserted)
+            dirtyPresentationRange = NSRange(location: start, length: end - start)
+        }
+
         func apply(
             text: String,
-            highlights: [OrgHighlightSpan],
+            highlights: OrgHighlightSnapshot?,
             to textView: UITextView,
             colorScheme: ColorScheme,
             dynamicTypeSize: DynamicTypeSize,
@@ -282,13 +310,15 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             // delegate updates; SwiftUI will call us again once composition ends.
             guard textView.markedTextRange == nil else { return }
 
-            let needsRefresh = lastText?.utf8.elementsEqual(text.utf8) != true
+            let appearanceChanged = lastColorScheme != colorScheme
+                || lastDynamicTypeSize != dynamicTypeSize || lastColorSchemeContrast != colorSchemeContrast
                 || lastWorkflow != parent.configuration.workflow
-                || lastHighlights != highlights
-                || lastColorScheme != colorScheme
-                || lastDynamicTypeSize != dynamicTypeSize
-                || lastColorSchemeContrast != colorSchemeContrast
-            guard needsRefresh else { return }
+            let validHighlights = highlights.flatMap {
+                $0.source.utf8.elementsEqual(text.utf8) && $0.baseWorkflow == parent.configuration.workflow ? $0 : nil
+            }
+            let sourceChanged = lastText?.utf8.elementsEqual(text.utf8) != true
+            guard sourceChanged || appearanceChanged || validHighlights.map({ $0.revision != lastHighlightRevision }) == true
+                || dirtyPresentationRange != nil else { return }
 
             if lastText != nil, !(textView.text ?? "").utf8.elementsEqual(text.utf8), parent.session != nil, !skipsSourceUndo {
                 let difference = OrgInputCommands.difference(from: textView.text ?? "", to: text)
@@ -321,36 +351,49 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             isApplyingPresentation = true
             let undoManager = (textView as? OrgEditorTextView)?.undoManager
             undoManager?.disableUndoRegistration()
-            // These UIKit defaults feed the insertion point. They are set before
-            // syntax attributes so they cannot flatten highlighted fonts/colors.
-            textView.font = font
-            textView.textColor = .label
+            // Setting UITextView.font/textColor also restyles its entire backing storage.
+            if appearanceChanged {
+                textView.font = font
+                textView.textColor = .label
+                presentedBlocks.removeAll()
+            }
             textStorage.beginEditing()
 
             if !textStorage.string.utf8.elementsEqual(text.utf8) {
-                textStorage.replaceCharacters(
-                    in: NSRange(location: 0, length: textStorage.length),
-                    with: text
-                )
+                let difference = OrgInputCommands.difference(from: textStorage.string, to: text)
+                recordPresentationEdit(difference)
+                textStorage.replaceCharacters(in: difference.range, with: difference.replacement)
             }
 
-            let fullRange = NSRange(location: 0, length: textStorage.length)
-            if fullRange.length > 0 {
-                textStorage.setAttributes(baseAttributes, range: fullRange)
-
-                for highlight in highlights {
-                    guard let range = OrgSyntaxPresentation.clamped(highlight.range, to: fullRange.length) else {
-                        continue
-                    }
-                    OrgSyntaxPresentation.apply(
-                        highlight.kind,
-                        to: textStorage,
-                        range: range,
-                        colorSchemeContrast: colorSchemeContrast
-                    )
+            var ranges = IndexSet()
+            if appearanceChanged {
+                ranges.insert(integersIn: 0..<textStorage.length)
+            } else if validHighlights != nil, let dirtyPresentationRange {
+                let lineRange = (text as NSString).lineRange(for: dirtyPresentationRange)
+                ranges.insert(integersIn: Range(lineRange)!)
+            }
+            let blocks = validHighlights?.blocks ?? []
+            let changedBlocks = blocks.filter { block in
+                presentedBlocks[block.id] != block.revision || ranges.intersects(integersIn: Range(block.range)!)
+            }
+            for block in changedBlocks { ranges.insert(integersIn: Range(block.range)!) }
+            for range in ranges.rangeView {
+                textStorage.setAttributes(baseAttributes, range: NSRange(range))
+            }
+            var applied: [OrgHighlightSpan] = []
+            for block in changedBlocks {
+                for span in block.spans {
+                    let range = NSRange(location: block.range.location + span.range.location, length: span.range.length)
+                    OrgSyntaxPresentation.apply(span.kind, to: textStorage, range: range,
+                                                colorSchemeContrast: colorSchemeContrast)
+                    applied.append(OrgHighlightSpan(range: range, kind: span.kind))
                 }
-                OrgSyntaxPresentation.applyWorkflowHeadingColors(highlights, to: textStorage,
-                    workflow: OrgConfiguredHeading.workflow(in: text, base: parent.configuration.workflow))
+            }
+            if let validHighlights {
+                OrgSyntaxPresentation.applyWorkflowHeadingColors(applied, to: textStorage, workflow: validHighlights.workflow)
+                presentedBlocks = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, $0.revision) })
+                dirtyPresentationRange = nil
+                lastHighlightRevision = validHighlights.revision
             }
 
             textStorage.endEditing()
@@ -361,7 +404,6 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             undoManager?.enableUndoRegistration()
 
             lastText = text
-            lastHighlights = highlights
             lastColorScheme = colorScheme
             lastDynamicTypeSize = dynamicTypeSize
             lastColorSchemeContrast = colorSchemeContrast

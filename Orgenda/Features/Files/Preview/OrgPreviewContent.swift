@@ -20,6 +20,7 @@ struct OrgPreviewContent: View {
     let onBeginDrag: (String) -> String?
     let onEndDrag: () -> Void
     let onMoveHeading: (String, String, OrgHeadingPlacement) -> Bool
+    let onRowGeometryChange: (OrgPreviewRow, CGRect?) -> Void
 
     var body: some View {
         let visibleRows = rows.filter {
@@ -107,6 +108,12 @@ struct OrgPreviewContent: View {
                     }
                 }
                 .transition(.opacity)
+                .onGeometryChange(for: CGRect.self) { geometry in
+                    geometry.frame(in: .named("org.preview.content"))
+                } action: { frame in
+                    onRowGeometryChange(row, frame)
+                }
+                .onDisappear { onRowGeometryChange(row, nil) }
                 .id(row.id)
             }
         }
@@ -117,6 +124,7 @@ struct OrgPreviewContent: View {
         .padding(.bottom, 20)
         .frame(maxWidth: 900, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .center)
+        .coordinateSpace(name: "org.preview.content")
     }
 
 }
@@ -199,7 +207,7 @@ private struct OrgPreviewRowView: View {
         case "keyword":
             OrgPreviewKeyword(node: row.node)
         default:
-            Text(row.node.text.trimmingCharacters(in: .newlines))
+            OrgPreviewSearchText(row.node.text.trimmingCharacters(in: .newlines))
                 .font(.body)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
@@ -210,7 +218,7 @@ private struct OrgPreviewRowView: View {
         let children = OrgPreviewOutline.rows(from: row.node.children)
             .filter { $0.node.type != "blank_line" }
         return VStack(alignment: .leading, spacing: 4) {
-            Text(OrgPreviewCustomBlocks.title(for: row.node))
+            OrgPreviewSearchText(OrgPreviewCustomBlocks.title(for: row.node))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)

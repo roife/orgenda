@@ -2,7 +2,20 @@ import Foundation
 import OrgTreeSitter
 
 actor OrgIndexService {
-    private let parser = OrgParser()
+    private final class Entry {
+        let syntax = OrgDocumentSyntaxCache()
+        var result: ParsedOrgDocument?
+        var configuration: WorkspaceConfiguration?
+        var title: String?
+        var headings: [String: IndexedOrgHeading] = [:]
+        var accessed: UInt64 = 0
+    }
+    private var documents: [String: Entry] = [:]
+    private var access: UInt64 = 0
+
+    func remove(paths: Set<String>) {
+        for path in paths { documents.removeValue(forKey: path) }
+    }
 
     func parse(_ documents: [WorkspaceDocument], configuration: WorkspaceConfiguration = .classic) -> [ParsedOrgDocument] {
         var parsed: [ParsedOrgDocument] = []
@@ -10,47 +23,89 @@ actor OrgIndexService {
 
         for document in documents {
             guard !Task.isCancelled else { break }
-            if let result = Self.parse(document, using: parser, configuration: configuration) {
+            let entry = self.documents[document.path] ?? Entry()
+            if let result = Self.parse(document, using: entry, configuration: configuration) {
+                access &+= 1
+                entry.accessed = access
+                self.documents[document.path] = entry
                 parsed.append(result)
+                trimCache(keeping: document.path)
             }
         }
 
         return parsed
     }
 
+    private func trimCache(keeping path: String) {
+        var bytes = documents.values.reduce(0) { $0 + ($1.result?.root.endByte ?? 0) }
+        guard documents.count > 128 || bytes > 32 * 1024 * 1024 else { return }
+        for (key, entry) in documents.sorted(by: { $0.value.accessed < $1.value.accessed }) where key != path {
+            guard documents.count > 128 || bytes > 32 * 1024 * 1024 else { break }
+            bytes -= entry.result?.root.endByte ?? 0
+            documents.removeValue(forKey: key)
+        }
+    }
+
     nonisolated static func parseSynchronously(
         _ documents: [WorkspaceDocument], configuration: WorkspaceConfiguration = .classic
     ) -> [ParsedOrgDocument] {
-        let parser = OrgParser()
-        return documents.compactMap { parse($0, using: parser, configuration: configuration) }
+        return documents.compactMap { parse($0, using: Entry(), configuration: configuration) }
     }
 
     private static func parse(
         _ document: WorkspaceDocument,
-        using parser: OrgParser, configuration: WorkspaceConfiguration
+        using entry: Entry, configuration: WorkspaceConfiguration
     ) -> ParsedOrgDocument? {
         guard document.kind == .org else { return nil }
-        let tree = parser.parse(document.contents)
-        let workflow = OrgConfiguredHeading.workflow(in: document.contents, base: configuration.workflow)
-        let root = OrgConfiguredHeading.normalize(ParsedOrgNode(tree.rootNode, path: document.path), workflow: workflow)
-        return ParsedOrgDocument(
+        if let result = entry.result, entry.configuration == configuration, entry.title == document.title,
+           result.root.text.utf8.elementsEqual(document.contents.utf8) { return result }
+        let update = entry.syntax.update(document.contents, path: document.path, configuration: configuration)
+        let tree = update.tree
+        let workflow = entry.syntax.workflow!
+        let root = entry.syntax.root!
+        let headings = indexHeadings(tree.rootNode.namedChildren, path: document.path, root: root, workflow: workflow,
+                                     previous: entry.headings, reused: entry.syntax.reusedBlockIDs)
+        let result = ParsedOrgDocument(
             path: document.path,
             root: root,
-            headings: indexHeadings(tree.rootNode.namedChildren, path: document.path, root: root, workflow: workflow),
+            headings: headings,
             hasError: tree.hasError,
-            journalEntries: JournalFileIndex.entries(in: document, root: tree.rootNode,
-                                                     directory: configuration.files.journal)
+            journalEntries: JournalFileIndex.entries(in: document, directory: configuration.files.journal,
+                                                     previous: entry.result?.journalEntries ?? [], update: update)
         )
+        entry.headings = Dictionary(uniqueKeysWithValues: zip(root.children.filter { $0.type == "heading" }.map(\.id), headings))
+        entry.result = result
+        entry.configuration = configuration
+        entry.title = document.title
+        return result
     }
 
     private static func indexHeadings(_ blocks: [OrgSyntaxNode], path: String, root: ParsedOrgNode,
-                                      workflow: WorkspaceConfiguration.Workflow) -> [IndexedOrgHeading] {
+                                      workflow: WorkspaceConfiguration.Workflow,
+                                      previous: [String: IndexedOrgHeading], reused: Set<String>) -> [IndexedOrgHeading] {
         var headings: [IndexedOrgHeading] = []
+        var ancestors: [(level: Int, title: String)] = []
 
         for (index, node) in blocks.enumerated() where node.type == "heading" {
             // Normalization preserves the root's children and their order.
             let semantic = root.children[index]
+            let level = semantic.text.prefix { $0 == "*" }.count
+            while let ancestor = ancestors.last, ancestor.level >= level {
+                ancestors.removeLast()
+            }
             let following = Array(root.children.dropFirst(index + 1).prefix { $0.type != "heading" })
+            let source = SourceLocation(file: path, startByte: Int(node.startByte),
+                                        endByte: following.last?.endByte ?? Int(node.endByte),
+                                        startLine: Int(node.startPoint.row) + 1,
+                                        ancestorTitles: ancestors.map(\.title))
+            if reused.contains(semantic.id), following.allSatisfy({ reused.contains($0.id) }),
+               var cached = previous[semantic.id],
+               cached.source.endByte - cached.source.startByte == source.endByte - source.startByte {
+                cached.source = source
+                headings.append(cached)
+                ancestors.append((level, cached.title))
+                continue
+            }
             let planning = following.filter { $0.type == "planning" }.map(\.text).joined(separator: "\n")
             let body = OrgHeadingBody.editableNodes(in: following)
                 .map(\.text)
@@ -98,16 +153,12 @@ actor OrgIndexService {
                     hasTime: hasTime,
                     recurrence: recurrence,
                     body: body,
-                    source: SourceLocation(
-                        file: path,
-                        startByte: Int(node.startByte),
-                        endByte: following.last?.endByte ?? Int(node.endByte),
-                        startLine: Int(node.startPoint.row) + 1
-                    ),
+                    source: source,
                     durationMinutes: timestampDuration(primaryTimestamp, hasTime: hasTime),
                     properties: properties
                 )
             )
+            ancestors.append((level, title))
         }
 
         return headings

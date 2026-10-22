@@ -35,16 +35,31 @@ protocol StorageHTTPTransport: Sendable {
 
 /// A bounded delegate download, including metadata responses. URLSession.data(for:)
 /// would allocate the complete response before enforcing a size limit.
-struct StorageURLSessionTransport: StorageHTTPTransport {
-    var credential: URLCredential? = nil
-    var protocolClasses: [AnyClass]? = nil
-    var allowedPathRoot: URL? = nil
+final class StorageURLSessionTransport: StorageHTTPTransport {
+    private let credential: URLCredential?
+    private let allowedPathRoot: URL?
+    private let session: URLSession
+
+    init(credential: URLCredential? = nil, protocolClasses: [AnyClass]? = nil, allowedPathRoot: URL? = nil) {
+        self.credential = credential
+        self.allowedPathRoot = allowedPathRoot
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 45
+        configuration.timeoutIntervalForResource = 180
+        configuration.httpCookieStorage = nil
+        configuration.urlCredentialStorage = nil
+        configuration.urlCache = nil
+        configuration.protocolClasses = protocolClasses
+        session = URLSession(configuration: configuration)
+    }
+
+    deinit { session.invalidateAndCancel() }
 
     func send(_ request: URLRequest, maxBytes: Int) async throws -> StorageHTTPResponse {
         let operation = StorageHTTPOperation(request: request, limit: maxBytes,
-                                             credential: credential, protocolClasses: protocolClasses, allowedPathRoot: allowedPathRoot)
+                                             credential: credential, allowedPathRoot: allowedPathRoot)
         return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { operation.start($0) }
+            try await withCheckedThrowingContinuation { operation.start($0, session: session) }
         } onCancel: { operation.cancel() }
     }
 }
@@ -53,36 +68,26 @@ private final class StorageHTTPOperation: NSObject, URLSessionDataDelegate, @unc
     private let request: URLRequest
     private let limit: Int
     private let credential: URLCredential?
-    private let protocolClasses: [AnyClass]?
     private let allowedPathRoot: URL?
     private let lock = NSLock()
     private var cancelled = false
     private var task: URLSessionDataTask?
-    private var session: URLSession?
     private var continuation: CheckedContinuation<StorageHTTPResponse, Error>?
     private var response: HTTPURLResponse?
     private var data = Data()
     private var failure: Error?
 
-    init(request: URLRequest, limit: Int, credential: URLCredential?, protocolClasses: [AnyClass]?, allowedPathRoot: URL?) {
+    init(request: URLRequest, limit: Int, credential: URLCredential?, allowedPathRoot: URL?) {
         self.request = request; self.limit = limit; self.credential = credential
-        self.protocolClasses = protocolClasses; self.allowedPathRoot = allowedPathRoot
+        self.allowedPathRoot = allowedPathRoot
     }
 
-    func start(_ continuation: CheckedContinuation<StorageHTTPResponse, Error>) {
+    func start(_ continuation: CheckedContinuation<StorageHTTPResponse, Error>, session: URLSession) {
         lock.lock()
         guard !cancelled else { lock.unlock(); continuation.resume(throwing: CancellationError()); return }
         self.continuation = continuation
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 45
-        configuration.timeoutIntervalForResource = 180
-        configuration.httpCookieStorage = nil
-        configuration.urlCredentialStorage = nil
-        configuration.urlCache = nil
-        configuration.protocolClasses = protocolClasses
-        let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
-        self.session = session
         let task = session.dataTask(with: request)
+        task.delegate = self
         self.task = task
         lock.unlock()
         task.resume()
@@ -100,7 +105,8 @@ private final class StorageHTTPOperation: NSObject, URLSessionDataDelegate, @unc
             failure = StorageError.invalidResponse; completionHandler(.cancel); return
         }
         self.response = response
-        if response.expectedContentLength > Int64(limit) {
+        // HEAD's Content-Length describes the file, not a response body.
+        if request.httpMethod != "HEAD", response.expectedContentLength > Int64(limit) {
             failure = StorageError.tooLarge; completionHandler(.cancel)
         } else { completionHandler(.allow) }
     }
@@ -155,10 +161,8 @@ private final class StorageHTTPOperation: NSObject, URLSessionDataDelegate, @unc
             }
             result = .success(StorageHTTPResponse(status: response.statusCode, headers: headers, data: data))
         } else { result = .failure(StorageError.invalidResponse) }
-        lock.lock(); let continuation = continuation; self.continuation = nil; lock.unlock()
+        lock.lock(); let continuation = continuation; self.continuation = nil; self.task = nil; lock.unlock()
         continuation?.resume(with: result)
-        session.finishTasksAndInvalidate()
-        self.session = nil
     }
 }
 

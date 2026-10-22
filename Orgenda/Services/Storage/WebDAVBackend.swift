@@ -70,7 +70,23 @@ actor WebDAVBackend: RemoteWorkspaceBackend {
                 }
             }
         }
-        return RemoteScan(files: files, unavailablePaths: unavailable)
+        // Root metadata + one listing per directory + HEAD for unversioned documents.
+        let pollRequests = 2 + files.filter {
+            $0.isDirectory || (LocalStore.isVisible($0.path) && WorkspaceDocument.Kind(path: $0.path) != nil
+                && conditionalETag($0.revision) == nil)
+        }.count
+        // Reserve half of Nutstore's 600 requests / 30 min allowance for edits and other clients.
+        return RemoteScan(files: files, unavailablePaths: unavailable,
+                          minimumSyncInterval: isNutstore ? max(300, Double(pollRequests) * 6) : 30)
+    }
+
+    func downloadIfChanged(_ file: RemoteFile, since revision: String, maxBytes: Int) async throws -> RemoteDownload? {
+        // Cached revisions were validated during download; an exact match is sufficient.
+        if conditionalETag(file.revision) == nil {
+            let response = try await send("HEAD", path: file.path).checked(path: file.path)
+            if response.headers["etag"] == revision { return nil }
+        }
+        return try await download(file, maxBytes: maxBytes)
     }
 
     func download(_ file: RemoteFile, maxBytes: Int) async throws -> RemoteDownload {
@@ -299,6 +315,10 @@ final class WebDAVMultistatusParser: NSObject, XMLParserDelegate {
         parser.delegate = self
         guard parser.parse(), !invalid, !entries.isEmpty else { throw StorageError.invalidResponse }
         let rootPath = root.standardized.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE',' dd MMM yyyy HH':'mm':'ss z"
         return try entries.map { entry in
             guard entry.responseStatus.map({ (200..<300).contains($0) }) ?? true,
                   entry.statuses.contains(where: { (200..<300).contains($0) }),
@@ -314,10 +334,6 @@ final class WebDAVMultistatusParser: NSObject, XMLParserDelegate {
             else if rootPath.isEmpty { path = absolute }
             else { throw StorageError.unsafePath(entry.href) }
             try StorageError.validate(path: path, allowEmpty: true)
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            formatter.dateFormat = "EEE',' dd MMM yyyy HH':'mm':'ss z"
             return RemoteFile(id: path, path: path, isDirectory: entry.directory, revision: entry.etag,
                               modifiedAt: entry.date.flatMap(formatter.date(from:)), size: entry.size.flatMap(Int64.init))
         }

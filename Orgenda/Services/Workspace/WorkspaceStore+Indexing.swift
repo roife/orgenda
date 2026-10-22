@@ -87,6 +87,8 @@ extension WorkspaceStore {
     }
 
     func resetWorkspaceIndex() {
+        // Replacing the actor prevents an in-flight parse from repopulating a new workspace's cache.
+        indexService = OrgIndexService()
         parseTask?.cancel()
         parseTask = nil
         parseGeneration &+= 1
@@ -112,6 +114,7 @@ extension WorkspaceStore {
         }
         documents = next
         if !removed.isEmpty {
+            Task { [indexService] in await indexService.remove(paths: removed) }
             parseTask?.cancel()
             parseTask = nil
             parseGeneration &+= 1
@@ -128,6 +131,7 @@ extension WorkspaceStore {
 
     func acceptStorageDelta(_ delta: WorkspaceSnapshot) {
         let removed = delta.removedPaths.subtracting(dirtyFilePaths)
+        if !removed.isEmpty { Task { [indexService] in await indexService.remove(paths: removed) } }
         var changed = Set<String>()
         for document in delta.documents where !dirtyFilePaths.contains(document.path) {
             let previous = documentsByPath[document.path]

@@ -37,3 +37,10 @@ enum SearchResult: Identifiable, Hashable, Sendable {
         }
     }
 }
+
+struct SearchMatch: Identifiable, Sendable {
+    let result: SearchResult
+    let subtitle: String
+
+    var id: String { result.id }
+}

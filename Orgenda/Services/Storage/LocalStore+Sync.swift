@@ -120,6 +120,7 @@ extension LocalStore {
         switch source {
         case .remote(let remote):
             let scan = try await remote.scan()
+            minimumSyncInterval = scan.minimumSyncInterval
             quarantined = try validateInventory(scan.files).union(scan.unavailablePaths.keys)
             sourceErrors.merge(scan.unavailablePaths) { _, new in new }
             var downloads: [RemoteFile] = []
@@ -142,17 +143,32 @@ extension LocalStore {
                 }
             }
             let limit = textLimit
-            try await withThrowingTaskGroup(of: (RemoteFile, RemoteDownload).self) { group in
+            let cached = state.entries
+            @Sendable func read(_ file: RemoteFile) async throws -> (RemoteFile, RemoteDownload?) {
+                if let old = cached[file.path], old.blob != nil, old.file.id == file.id,
+                   let revision = old.file.revision {
+                    return (file, try await remote.downloadIfChanged(file, since: revision, maxBytes: limit))
+                }
+                return (file, try await remote.download(file, maxBytes: limit))
+            }
+            try await withThrowingTaskGroup(of: (RemoteFile, RemoteDownload?).self) { group in
                 var iterator = downloads.makeIterator()
                 for _ in 0..<4 {
-                    if let file = iterator.next() { group.addTask { (file, try await remote.download(file, maxBytes: limit)) } }
+                    if let file = iterator.next() { group.addTask { try await read(file) } }
                 }
                 while let (file, result) = try await group.next() {
-                    guard result.file.id == file.id, result.file.path == file.path,
-                          !result.file.isDirectory, result.data.count <= limit,
-                          String(data: result.data, encoding: .utf8) != nil else { throw StorageError.invalidResponse }
-                    staged[file.path] = WorkspaceFileRecord(file: result.file, blob: try storeBlob(result.data), fileID: state.entries[file.path]?.fileID ?? state.pending[file.path]?.fileID ?? UUID())
-                    if let file = iterator.next() { group.addTask { (file, try await remote.download(file, maxBytes: limit)) } }
+                    if let result {
+                        guard result.file.id == file.id, result.file.path == file.path,
+                              !result.file.isDirectory, result.data.count <= limit,
+                              String(data: result.data, encoding: .utf8) != nil else { throw StorageError.invalidResponse }
+                        staged[file.path] = WorkspaceFileRecord(file: result.file, blob: try storeBlob(result.data), fileID: state.entries[file.path]?.fileID ?? state.pending[file.path]?.fileID ?? UUID())
+                    } else {
+                        guard let old = cached[file.path], let blob = old.blob else { throw StorageError.invalidResponse }
+                        var verified = file
+                        verified.revision = old.file.revision
+                        staged[file.path] = WorkspaceFileRecord(file: verified, blob: blob, fileID: old.fileID)
+                    }
+                    if let file = iterator.next() { group.addTask { try await read(file) } }
                 }
             }
         case .folder(let folder):

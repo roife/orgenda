@@ -4,6 +4,7 @@ struct SearchResultRow: View {
     let result: SearchResult
     let store: WorkspaceStore
     let trimmedQuery: String
+    let subtitle: String
     let onPresent: (SearchPresentation) -> Void
 
     @ViewBuilder
@@ -14,7 +15,7 @@ struct SearchResultRow: View {
                 SearchResultLabel(
                     icon: item.kind.systemImage,
                     title: item.title,
-                    subtitle: itemSubtitle(item),
+                    subtitle: subtitle,
                     tint: OrgendaTheme.kindColor(item.kind),
                     query: trimmedQuery,
                     detail: "\(item.kind.title) · \(item.source.file)",
@@ -28,21 +29,11 @@ struct SearchResultRow: View {
             documentLink(document)
         case .setting(let destination):
             Button { onPresent(.settings(destination)) } label: {
-                SearchResultLabel(icon: "gearshape", title: destination.title, subtitle: destination.subtitle, tint: .secondary, query: trimmedQuery)
+                SearchResultLabel(icon: "gearshape", title: destination.title, subtitle: subtitle, tint: .secondary, query: trimmedQuery)
             }
             .accessibilityHint(Text("Opens \(destination.title) settings"))
             .accessibilityIdentifier("search.setting.\(destination.rawValue)")
         }
-    }
-
-    private func itemSubtitle(_ item: OrgItem) -> String {
-        let matchingTags = item.tags.filter {
-            $0.range(of: trimmedQuery, options: [.caseInsensitive, .diacriticInsensitive]) != nil
-        }
-        if !matchingTags.isEmpty {
-            return matchingTags.map { "#\($0)" }.joined(separator: "  ")
-        }
-        return searchExcerpt(item.body, matching: trimmedQuery)
     }
 
     private func journalLink(_ entry: JournalEntry) -> some View {
@@ -52,7 +43,7 @@ struct SearchResultRow: View {
             SearchResultLabel(
                 icon: "book.closed",
                 title: entry.title,
-                subtitle: searchExcerpt(entry.body, matching: trimmedQuery),
+                subtitle: subtitle,
                 tint: OrgendaTheme.habit,
                 query: trimmedQuery,
                 detail: OrgendaDatePresentation.dateTime(entry.date)
@@ -71,7 +62,7 @@ struct SearchResultRow: View {
             SearchResultLabel(
                 icon: document.kind == .folder ? "folder" : "doc.text",
                 title: document.title,
-                subtitle: trimmedQuery.isEmpty ? document.path : searchExcerpt(document.contents, matching: trimmedQuery),
+                subtitle: subtitle,
                 tint: OrgendaTheme.accent,
                 query: trimmedQuery,
                 detail: trimmedQuery.isEmpty ? nil : document.path

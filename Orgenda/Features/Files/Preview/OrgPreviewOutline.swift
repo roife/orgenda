@@ -34,11 +34,55 @@ enum OrgPreviewOutline {
         let level: Int
     }
 
+    /// Reuse paragraph/custom-block grouping per heading section. Ancestor paths
+    /// are still recomputed because a heading-level change affects later sections.
+    struct Cache {
+        private struct Section {
+            let source: [ParsedOrgNode]
+            let grouped: [ParsedOrgNode]
+        }
+        private var sections: [String: Section] = [:]
+
+        mutating func rows(from nodes: [ParsedOrgNode]) -> [OrgPreviewRow] {
+            var parts: [[ParsedOrgNode]] = []
+            for node in nodes {
+                if parts.isEmpty || node.type == "heading" { parts.append([]) }
+                parts[parts.count - 1].append(node)
+            }
+            var next: [String: Section] = [:]
+            var prepared: [ParsedOrgNode] = []
+            for part in parts {
+                let first = part[0]
+                let grouped: [ParsedOrgNode]
+                if let old = sections[first.id] {
+                    let delta = first.startByte - old.source[0].startByte
+                    let unchanged = old.source.elementsEqual(part) { before, after in
+                        before.id == after.id && before.startByte + delta == after.startByte
+                            && before.text.utf8.elementsEqual(after.text.utf8)
+                    }
+                    grouped = unchanged ? old.grouped.map { $0.shifted(by: delta) } : prepare(part)
+                } else { grouped = prepare(part) }
+                next[first.id] = Section(source: part, grouped: grouped)
+                prepared.append(contentsOf: grouped)
+            }
+            sections = next
+            return layout(prepared)
+        }
+    }
+
     static func rows(from nodes: [ParsedOrgNode]) -> [OrgPreviewRow] {
+        layout(prepare(nodes))
+    }
+
+    private static func prepare(_ nodes: [ParsedOrgNode]) -> [ParsedOrgNode] {
+        OrgPreviewParagraphs.group(presentationOrder(OrgPreviewCustomBlocks.group(nodes)))
+    }
+
+    private static func layout(_ nodes: [ParsedOrgNode]) -> [OrgPreviewRow] {
         var rows: [OrgPreviewRow] = []
         var ancestors: [HeadingAncestor] = []
 
-        for node in OrgPreviewParagraphs.group(presentationOrder(OrgPreviewCustomBlocks.group(nodes))) {
+        for node in nodes {
             if node.type == "heading" {
                 let level = headingLevel(node)
                 while ancestors.last.map({ $0.level >= level }) == true {
@@ -175,7 +219,7 @@ enum OrgPreviewCustomBlocks {
                    let first = candidate.nodes.first,
                    let last = candidates[end].nodes.last {
                     result.append(ParsedOrgNode(
-                        id: "custom:\(first.id):\(last.endByte)",
+                        id: "custom:\(first.id):\(last.id)",
                         type: "custom_block",
                         text: candidates[index...end].map(\.text).joined(),
                         startByte: first.startByte,

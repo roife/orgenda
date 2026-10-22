@@ -181,7 +181,7 @@ struct OrgItemRow: View {
         if path.hasSuffix(".org") {
             path.removeLast(".org".count)
         }
-        return path.split(separator: "/").joined(separator: " ▸ ")
+        return (path.split(separator: "/").map(String.init) + item.source.ancestorTitles).joined(separator: " ▸ ")
     }
 
     private var habitHistory: some View {

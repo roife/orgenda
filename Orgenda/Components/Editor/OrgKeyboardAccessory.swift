@@ -70,9 +70,11 @@ enum OrgKeyboardAccessory {
 final class OrgEditorContainer: UIView {
     let textView: UITextView
     private let toolbar: UIView?
+    private weak var session: OrgEditorSession?
 
     init(textView: UITextView, session: OrgEditorSession?) {
         self.textView = textView
+        self.session = session
         toolbar = session.map { OrgKeyboardAccessory.make(for: $0) }
         super.init(frame: .zero)
         backgroundColor = .clear
@@ -99,6 +101,11 @@ final class OrgEditorContainer: UIView {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        session?.applyPendingReadingPosition()
+    }
 
     func setKeyboardFocused(_ focused: Bool) {
         guard let toolbar, toolbar.isHidden == focused else { return }

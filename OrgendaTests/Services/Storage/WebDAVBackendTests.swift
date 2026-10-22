@@ -133,6 +133,135 @@ final class WebDAVBackendTests: XCTestCase {
         XCTAssertEqual(requests.filter { $0.httpMethod == "GET" }.count, 2)
     }
 
+    func testWarmNutstoreSyncRevalidatesWithoutDownloadingAndSurvivesReopen() async throws {
+        let server = NutstoreTestServer()
+        for index in 0..<100 { await server.replaceExternally("note-\(index).org", data: Data("* Unchanged\n".utf8)) }
+        let backend = WebDAVBackend(rootURL: server.root, transport: server)
+        let cache = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: cache) }
+        let connection = StorageConnection(provider: .webDAV, displayName: "Test", rootID: server.root.absoluteString)
+        let workspace = try LocalStore(connection: connection, cacheDirectory: cache, remote: backend)
+        try await workspace.synchronize()
+        let initial = try await workspace.snapshot()
+        let coldRequests = await server.requests.count
+        XCTAssertEqual(coldRequests, 502)
+        await workspace.close()
+
+        let reopened = try LocalStore(connection: connection, cacheDirectory: cache, remote: backend)
+        for _ in 0..<2 {
+            await server.resetRequests()
+            try await reopened.synchronize()
+            let methods = await server.requests.compactMap(\.httpMethod)
+            XCTAssertEqual(methods.count, 102)
+            XCTAssertEqual(methods.filter { $0 == "HEAD" }.count, 100)
+            XCTAssertEqual(methods.filter { $0 == "PROPFIND" }.count, 2)
+            XCTAssertFalse(methods.contains("GET"))
+            let snapshot = try await reopened.snapshot()
+            XCTAssertEqual(snapshot.blobHashes, initial.blobHashes)
+            XCTAssertEqual(snapshot.documents.count, 100)
+        }
+        let interval = await reopened.minimumSyncInterval
+        XCTAssertEqual(interval, 612)
+
+        await server.replaceExternally("note-0.org", data: Data("* Changed elsewhere\n".utf8))
+        await server.resetRequests()
+        try await reopened.synchronize()
+        let changed = try await reopened.document(at: "note-0.org")
+        XCTAssertEqual(changed?.contents, "* Changed elsewhere\n")
+        let downloads = await server.requests.filter { $0.httpMethod == "GET" }
+        XCTAssertEqual(downloads.count, 1)
+        await reopened.close()
+    }
+
+    func testWarmSyncWithListingVersionsNeedsNoPerFileRequests() async throws {
+        let server = NutstoreTestServer(listingVersions: true)
+        await server.replaceExternally("note.org", data: Data("* Note\n".utf8))
+        let backend = WebDAVBackend(rootURL: server.root, transport: server)
+        let cache = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: cache) }
+        let connection = StorageConnection(provider: .webDAV, displayName: "Test", rootID: server.root.absoluteString)
+        let workspace = try LocalStore(connection: connection, cacheDirectory: cache, remote: backend)
+        try await workspace.synchronize()
+        await server.resetRequests()
+        try await workspace.synchronize()
+        let methods = await server.requests.compactMap(\.httpMethod)
+        XCTAssertEqual(methods, ["PROPFIND", "PROPFIND"])
+        await workspace.close()
+    }
+
+    func testMissingHEADVersionStillReadsAndVerifiesContents() async throws {
+        let server = NutstoreTestServer(.getOnly)
+        await server.replaceExternally("note.org", data: Data("original".utf8))
+        let backend = WebDAVBackend(rootURL: server.root, transport: server)
+        let file = RemoteFile(id: "note.org", path: "note.org", isDirectory: false)
+        let cached = try await backend.download(file, maxBytes: 1024)
+        await server.replaceExternally("note.org", data: Data("updated".utf8))
+        let result = try await backend.downloadIfChanged(file, since: XCTUnwrap(cached.file.revision), maxBytes: 1024)
+        XCTAssertEqual(result?.data, Data("updated".utf8))
+    }
+
+    func testRevalidationFailurePreservesCachedSnapshot() async throws {
+        let server = NutstoreTestServer()
+        await server.replaceExternally("note.org", data: Data("* Local cache\n".utf8))
+        let backend = WebDAVBackend(rootURL: server.root, transport: server)
+        let cache = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: cache) }
+        let connection = StorageConnection(provider: .webDAV, displayName: "Test", rootID: server.root.absoluteString)
+        let workspace = try LocalStore(connection: connection, cacheDirectory: cache, remote: backend)
+        try await workspace.synchronize()
+        let initial = try await workspace.snapshot()
+        for (status, error) in [(405, StorageError.http(405)), (501, .http(501)), (503, .throttled(60))] {
+            await server.failHEAD(status: status)
+            do { try await workspace.synchronize(); XCTFail("A failed revalidation was treated as unchanged") }
+            catch let failure { XCTAssertEqual(failure as? StorageError, error) }
+            let snapshot = try await workspace.snapshot()
+            XCTAssertEqual(snapshot.blobHashes, initial.blobHashes)
+            XCTAssertEqual(snapshot.lastSync, initial.lastSync)
+        }
+        await workspace.close()
+    }
+
+    func testSharedTransportSeparatesResponsesAndEnforcesLimits() async throws {
+        StorageMockURLProtocol.handler = { request in
+            if request.httpMethod == "HEAD" {
+                return .init(headers: ["Content-Length": "100000000", "ETag": "\"version\""])
+            }
+            return .init(body: Data(request.url!.lastPathComponent.utf8))
+        }
+        let shared = transport
+        let root = URL(string: "https://dav.example/org/")!
+        let responses = try await withThrowingTaskGroup(of: StorageHTTPResponse.self) { group in
+            for name in ["one", "two", "three", "four"] {
+                group.addTask { try await shared.send(URLRequest(url: root.appendingPathComponent(name)), maxBytes: 32) }
+            }
+            var replies: [StorageHTTPResponse] = []
+            for try await response in group { replies.append(response) }
+            return replies
+        }
+        XCTAssertEqual(Set(responses.map { String(decoding: $0.data, as: UTF8.self) }), ["one", "two", "three", "four"])
+        do { _ = try await shared.send(URLRequest(url: root.appendingPathComponent("oversized")), maxBytes: 2); XCTFail() }
+        catch { XCTAssertEqual(error as? StorageError, .tooLarge) }
+        var head = URLRequest(url: root)
+        head.httpMethod = "HEAD"
+        let response = try await shared.send(head, maxBytes: 2)
+        XCTAssertEqual(response.headers["etag"], "\"version\"")
+        XCTAssertTrue(response.data.isEmpty)
+    }
+
+    func testCancellingOneRequestDoesNotInvalidateSharedTransport() async throws {
+        StorageMockURLProtocol.handler = { _ in .init(body: Data("ok".utf8)) }
+        let shared = transport
+        let request = URLRequest(url: URL(string: "https://dav.example/org/note.org")!)
+        let cancelled = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await shared.send(request, maxBytes: 1024)
+        }
+        do { _ = try await cancelled.value; XCTFail("A cancelled request succeeded") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        let response = try await shared.send(request, maxBytes: 1024)
+        XCTAssertEqual(response.data, Data("ok".utf8))
+    }
+
     private var transport: StorageURLSessionTransport { .init(protocolClasses: [StorageMockURLProtocol.self]) }
 }
 
@@ -145,8 +274,15 @@ private actor NutstoreTestServer: StorageHTTPTransport {
     private(set) var requests: [URLRequest] = []
     private var versions: [String: String] = [:]
     private var nextGETReplacement: Data?
+    private let listingVersions: Bool
+    private var headFailure: Int?
 
-    init(_ behavior: Behavior = .standard) { self.behavior = behavior }
+    init(_ behavior: Behavior = .standard, listingVersions: Bool = false) {
+        self.behavior = behavior; self.listingVersions = listingVersions
+    }
+
+    func resetRequests() { requests.removeAll() }
+    func failHEAD(status: Int) { headFailure = status }
 
     func replaceExternally(_ path: String, data: Data) {
         files[path] = data; versions[path] = UUID().uuidString
@@ -165,16 +301,25 @@ private actor NutstoreTestServer: StorageHTTPTransport {
         switch method {
         case "PROPFIND":
             guard path.isEmpty || files[path] != nil else { return .init(status: 404, headers: [:], data: Data()) }
-            let resource = path.isEmpty ? "<d:collection/>" : ""
-            let xml = """
-            <d:multistatus xmlns:d="DAV:"><d:response><d:href>\(url.path)</d:href>
-            <d:propstat><d:prop><d:resourcetype>\(resource)</d:resourcetype></d:prop>
-            <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
-            <d:propstat><d:prop><d:getetag/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat>
-            </d:response></d:multistatus>
-            """
+            func entry(_ path: String) -> String {
+                let resource = path.isEmpty ? "<d:collection/>" : ""
+                let href = path.isEmpty ? root.path : root.appendingPathComponent(path).path
+                let version = listingVersions ? versions[path].map { "<d:getetag>\($0)</d:getetag>" } ?? "" : ""
+                return """
+                <d:response><d:href>\(href)</d:href>
+                <d:propstat><d:prop><d:resourcetype>\(resource)</d:resourcetype>\(version)</d:prop>
+                <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+                </d:response>
+                """
+            }
+            var entries = entry(path)
+            if path.isEmpty, request.value(forHTTPHeaderField: "Depth") == "1" {
+                for child in files.keys.sorted() { entries += entry(child) }
+            }
+            let xml = "<d:multistatus xmlns:d=\"DAV:\">\(entries)</d:multistatus>"
             return .init(status: 207, headers: [:], data: Data(xml.utf8))
         case "HEAD", "GET":
+            if method == "HEAD", let headFailure { return .init(status: headFailure, headers: [:], data: Data()) }
             guard let data = files[path] else { return .init(status: 404, headers: [:], data: Data()) }
             let headers = method == "HEAD" && behavior == .getOnly ? [:] : versions[path].map { ["etag": $0] } ?? [:]
             if method == "GET", let replacement = nextGETReplacement {

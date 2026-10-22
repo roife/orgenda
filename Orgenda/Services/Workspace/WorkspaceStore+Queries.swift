@@ -43,43 +43,56 @@ extension WorkspaceStore {
                 return $0.source.startByte > $1.source.startByte
             }
     }
-    func search(_ query: String, scope: SearchScope) -> [SearchResult] {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !needle.isEmpty else { return [] }
-        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
-        func matches(_ text: String) -> Bool {
-            text.range(of: needle, options: options) != nil
-        }
-        var results: [SearchResult] = []
-
-        if scope == .all || scope == .tasks || scope == .calendar {
-            let searchableItems: [OrgItem]
-            switch scope {
-            case .calendar: searchableItems = datedItems
-            case .tasks: searchableItems = items.filter { [.task, .project, .habit].contains($0.kind) }
-            default: searchableItems = items
+    func search(_ query: String, scope: SearchScope) async -> [SearchMatch] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+        let items = scope == .calendar ? datedItems : (scope == .all || scope == .tasks ? items : [])
+        let entries = scope == .all || scope == .journal ? journalEntries : []
+        let documents = scope == .all || scope == .files ? documents : []
+        let task = Task.detached(priority: .userInitiated) { () -> [SearchMatch] in
+            func match(_ text: String) -> Range<String.Index>? {
+                text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive])
             }
-            results += searchableItems
-                .filter { matches($0.title) || matches($0.body) || $0.tags.contains(where: matches) }
-                .map(SearchResult.item)
+            var results: [SearchMatch] = []
+            for item in items {
+                guard !Task.isCancelled else { return [] }
+                if scope == .tasks, ![.task, .project, .habit].contains(item.kind) { continue }
+                let tags = item.tags.filter { match($0) != nil }
+                let bodyMatch = match(item.body)
+                guard bodyMatch != nil || !tags.isEmpty || match(item.title) != nil else { continue }
+                results.append(SearchMatch(
+                    result: .item(item),
+                    subtitle: tags.isEmpty ? searchExcerpt(item.body, around: bodyMatch)
+                        : tags.map { "#\($0)" }.joined(separator: "  ")
+                ))
+            }
+            for entry in entries {
+                guard !Task.isCancelled else { return [] }
+                let bodyMatch = match(entry.body)
+                guard bodyMatch != nil || match(entry.title) != nil else { continue }
+                results.append(SearchMatch(result: .journal(entry), subtitle: searchExcerpt(entry.body, around: bodyMatch)))
+            }
+            for document in documents where document.kind != .configuration {
+                guard !Task.isCancelled else { return [] }
+                let bodyMatch = match(document.contents)
+                guard bodyMatch != nil || match(document.title) != nil else { continue }
+                results.append(SearchMatch(result: .document(document), subtitle: searchExcerpt(document.contents, around: bodyMatch)))
+            }
+            if scope == .all || scope == .settings {
+                for destination in SettingsDestination.allCases {
+                    guard !Task.isCancelled else { return [] }
+                    if destination.searchTerms.contains(where: { match($0) != nil }) {
+                        results.append(SearchMatch(result: .setting(destination), subtitle: destination.subtitle))
+                    }
+                }
+            }
+            return results
         }
-        if scope == .all || scope == .journal {
-            results += journalEntries
-                .filter { matches($0.title) || matches($0.body) }
-                .map(SearchResult.journal)
+        return await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
         }
-        if scope == .all || scope == .files {
-            results += documents
-                .filter { $0.kind != .configuration }
-                .filter { matches($0.title) || matches($0.contents) }
-                .map(SearchResult.document)
-        }
-        if scope == .all || scope == .settings {
-            results += SettingsDestination.allCases
-                .filter { $0.searchTerms.contains(where: matches) }
-                .map(SearchResult.setting)
-        }
-        return results
     }
 }
 

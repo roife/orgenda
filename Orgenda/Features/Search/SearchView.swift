@@ -8,30 +8,21 @@ struct SearchView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var scope: SearchScope = .all
     @State private var presentation: SearchPresentation?
-    @State private var results: [SearchResult] = []
+    @State private var results: [SearchMatch] = []
     @State private var completedSearch: SearchRequest?
 
     private struct SearchRequest: Equatable {
         let query: String
         let scope: SearchScope
-    }
-
-    private struct SearchInput: Equatable {
-        let request: SearchRequest
-        let items: [OrgItem]
-        let documents: [WorkspaceDocument]
-        let journalEntries: [JournalEntry]
+        let revision: UInt64
     }
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var searchInput: SearchInput {
-        SearchInput(
-            request: SearchRequest(query: trimmedQuery, scope: scope),
-            items: store.items, documents: store.documents, journalEntries: store.journalEntries
-        )
+    private var searchRequest: SearchRequest {
+        SearchRequest(query: trimmedQuery, scope: scope, revision: store.searchRevision)
     }
 
     private var suggestions: SearchSuggestions {
@@ -71,7 +62,7 @@ struct SearchView: View {
         .task(id: focusRequest) {
             if focusRequest != nil { isSearchFocused = true }
         }
-        .task(id: searchInput) { await search(searchInput.request) }
+        .task(id: searchRequest) { await search(searchRequest) }
     }
 
     private func search(_ request: SearchRequest) async {
@@ -80,9 +71,11 @@ struct SearchView: View {
             completedSearch = nil
             return
         }
-        try? await Task.sleep(for: .milliseconds(200))
+        try? await Task.sleep(for: .milliseconds(300))
         guard !Task.isCancelled else { return }
-        results = store.search(request.query, scope: request.scope)
+        let matches = await store.search(request.query, scope: request.scope)
+        guard !Task.isCancelled, request == searchRequest else { return }
+        results = matches
         completedSearch = request
     }
 
@@ -139,42 +132,58 @@ struct SearchView: View {
             } else {
                 searchGuidance
             }
-        } else if completedSearch != SearchRequest(query: trimmedQuery, scope: scope) {
+        } else if let completedSearch, !results.isEmpty {
+            resultsList(for: completedSearch)
+        } else if completedSearch != searchRequest {
             ProgressView("Searching…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("search.loading")
         } else {
-            if results.isEmpty {
-                noResults
-            } else {
-                List {
-                    Section {
-                        ForEach(results) { result in
-                            SearchResultRow(result: result, store: store, trimmedQuery: trimmedQuery, onPresent: { presentation = $0 })
-                                .padding(.vertical, 5)
-                        }
-                    } header: {
-                        ViewThatFits(in: .horizontal) {
-                            HStack {
-                                Text(scope == .all ? String(localized: "All results") : scope.title)
-                                Spacer()
-                                Text(String(localized: "\(results.count) found"))
-                                    .monospacedDigit()
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(scope == .all ? String(localized: "All results") : scope.title)
-                                Text("\(results.count) found")
-                                    .monospacedDigit()
-                            }
-                        }
-                        .font(.subheadline.weight(.semibold))
-                        .textCase(nil)
-                        .accessibilityElement(children: .combine)
+            noResults
+        }
+    }
+
+    private func resultsList(for request: SearchRequest) -> some View {
+        List {
+            Section {
+                ForEach(results) { match in
+                    SearchResultRow(
+                        result: match.result, store: store, trimmedQuery: request.query,
+                        subtitle: match.subtitle, onPresent: { presentation = $0 }
+                    )
+                    .padding(.vertical, 5)
+                }
+            } header: {
+                ViewThatFits(in: .horizontal) {
+                    HStack {
+                        Text(request.scope == .all ? String(localized: "All results") : request.scope.title)
+                        Spacer()
+                        resultCount
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(request.scope == .all ? String(localized: "All results") : request.scope.title)
+                        resultCount
                     }
                 }
-                .searchListSurface()
-                .accessibilityIdentifier("search.results")
+                .font(.subheadline.weight(.semibold))
+                .textCase(nil)
+                .accessibilityElement(children: .combine)
             }
+        }
+        .searchListSurface()
+        .accessibilityIdentifier("search.results")
+    }
+
+    private var resultCount: some View {
+        HStack(spacing: 8) {
+            if completedSearch != searchRequest {
+                ProgressView()
+                    .controlSize(.mini)
+                    .accessibilityLabel("Searching…")
+                    .accessibilityIdentifier("search.loading")
+            }
+            Text("\(results.count) found")
+                .monospacedDigit()
         }
     }
 

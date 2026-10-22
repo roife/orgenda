@@ -27,6 +27,80 @@ final class WorkspaceSessionTests: XCTestCase {
         return try XCTUnwrap(loaded)
     }
 
+    func testFullRefreshRequestsJoinAnInFlightFullScan() async throws {
+        let backend = SessionFakeBackend(["inbox.org": "* One\n"])
+        let workspace = try session(backend)
+        let engine = SyncEngine(store: workspace)
+        await backend.pauseNextDownload("inbox.org")
+        let first = await engine.schedule(.full)
+        await backend.waitForDownload()
+        let second = await engine.schedule(.full, automatic: true)
+        let manual = await engine.schedule(.full)
+        await backend.resumeDownload()
+        try await first.value
+        try await second.value
+        try await manual.value
+        let scans = await backend.scanCount
+        XCTAssertEqual(scans, 1)
+        await engine.stop()
+    }
+
+    func testSourceChangeRetainsAFollowUpScan() async throws {
+        let backend = SessionFakeBackend(["inbox.org": "* One\n"])
+        let workspace = try session(backend)
+        let engine = SyncEngine(store: workspace)
+        await backend.pauseNextDownload("inbox.org")
+        let first = await engine.schedule(.full)
+        await backend.waitForDownload()
+        await backend.replace("new.org", contents: "* Arrived after scan\n")
+        let event = await engine.schedule(.full, automatic: true, paths: ["new.org"], requiresFollowUp: true)
+        await backend.resumeDownload()
+        try await first.value
+        try await event.value
+        let scans = await backend.scanCount
+        XCTAssertEqual(scans, 2)
+        let received = try await workspace.document(at: "new.org")
+        XCTAssertEqual(received?.contents, "* Arrived after scan\n")
+        await engine.stop()
+    }
+
+    func testFullRefreshDuringPushKeepsPullAndNewEdits() async throws {
+        let backend = SessionFakeBackend(["inbox.org": "* One\n"])
+        let workspace = try session(backend)
+        try await workspace.synchronize()
+        try await workspace.write(path: "inbox.org", contents: "* Two\n", expectedContents: "* One\n")
+        let engine = SyncEngine(store: workspace)
+        await backend.pauseNextUpload()
+        let pushing = await engine.schedule(.push)
+        await backend.waitForUpload()
+        try await workspace.write(path: "inbox.org", contents: "* Three\n", expectedContents: "* Two\n")
+        await backend.replace("new.org", contents: "* Remote\n")
+        let refresh = await engine.schedule(.full)
+        await backend.resumeUpload()
+        try await pushing.value
+        try await refresh.value
+        let contents = await backend.contents("inbox.org")
+        XCTAssertEqual(contents, "* Three\n")
+        let received = try await workspace.document(at: "new.org")
+        XCTAssertEqual(received?.contents, "* Remote\n")
+        await engine.stop()
+    }
+
+    func testRecentFullSyncSuppressesPollingButNotManualRefresh() async throws {
+        let backend = SessionFakeBackend(["inbox.org": "* One\n"])
+        let workspace = try session(backend)
+        let engine = SyncEngine(store: workspace)
+        try await engine.request(.full)
+        try await engine.poll()
+        try await engine.poll()
+        let afterPolling = await backend.scanCount
+        XCTAssertEqual(afterPolling, 1)
+        try await engine.request(.full)
+        let afterManual = await backend.scanCount
+        XCTAssertEqual(afterManual, 2)
+        await engine.stop()
+    }
+
     func testDisjointRemoteEditsMergeButOverlappingAndUnicodeByteEditsConflict() async throws {
         let backend = SessionFakeBackend(["inbox.org": "* One\n* Two\n"])
         let workspace = try session(backend)
@@ -579,6 +653,7 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     var loseUploadResponse = false
     var loseMoveResponse = false
     var uploadCount = 0
+    var scanCount = 0
     var pausedDownloadPath: String?
     var downloadStarted = false
     var downloadWaiters: [CheckedContinuation<Void, Never>] = []
@@ -592,6 +667,7 @@ private actor SessionFakeBackend: RemoteWorkspaceBackend {
     }
 
     func scan() throws -> RemoteScan {
+        scanCount += 1
         if offline { throw StorageError.offline }
         var files = items.values.map(\.file)
         if let ambiguousPath { files.append(RemoteFile(id: ambiguousPath, path: ambiguousPath, isDirectory: false, revision: "ambiguous")) }

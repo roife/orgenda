@@ -2,7 +2,7 @@ import Foundation
 import OrgTreeSitter
 
 struct ParsedOrgNode: Identifiable, Hashable, Sendable {
-    let id: String
+    var id: String
     let type: String
     let text: String
     let startByte: Int
@@ -11,6 +11,12 @@ struct ParsedOrgNode: Identifiable, Hashable, Sendable {
 }
 
 extension ParsedOrgNode {
+    func shifted(by delta: Int) -> ParsedOrgNode {
+        guard delta != 0 else { return self }
+        return ParsedOrgNode(id: id, type: type, text: text, startByte: startByte + delta,
+                             endByte: endByte + delta, children: children.map { $0.shifted(by: delta) })
+    }
+
     init(_ node: OrgSyntaxNode, path: String) {
         self.init(
             id: "\(path):\(node.startByte):\(node.endByte):\(node.type)",
@@ -48,7 +54,7 @@ struct IndexedOrgHeading: Hashable, Sendable {
     let hasTime: Bool
     let recurrence: String?
     let body: String
-    let source: SourceLocation
+    var source: SourceLocation
     var durationMinutes: Int = 30
     var properties: [String: String] = [:]
 

@@ -11,7 +11,7 @@ struct OrgPreviewSourceBlock: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             ScrollView(.horizontal) {
-                Text(renderedCode)
+                OrgPreviewSearchText(renderedCode)
                     .fixedSize(horizontal: true, vertical: false)
                     .textSelection(.enabled)
                     .accessibilityIdentifier("org.preview.source.content.\(node.startByte)")
