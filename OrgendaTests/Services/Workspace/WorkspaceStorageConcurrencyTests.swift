@@ -105,7 +105,6 @@ final class WorkspaceStorageConcurrencyTests: XCTestCase {
         store.localStore = session
         store.isFolderConnected = true
         store.isStartingWorkspace = false
-        store.hasWorkspaceConfiguration = true
         store.applyStorageSnapshot(try await session.snapshot())
         await store.waitForWorkspaceIndex()
         return Fixture(store: store, backend: backend, cache: cache, connection: connection)

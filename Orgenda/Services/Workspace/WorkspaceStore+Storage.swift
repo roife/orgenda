@@ -288,7 +288,6 @@ extension WorkspaceStore {
         let shortcuts = connectionDefaults.dictionary(forKey: "workspaceFileShortcuts.\(connection.id)") as? [String: [String]] ?? [:]
         pinnedDocumentIDs = shortcuts["pinned"] ?? []
         recentDocumentIDs = shortcuts["recent"] ?? []
-        hasWorkspaceConfiguration = true
         configuration = .standard
         configurationDocument = ConfigurationDocument(configuration: .standard)
         configurationSource = nil
@@ -299,7 +298,6 @@ extension WorkspaceStore {
             (connection.provider == .iCloud ? String(localized: "iCloud Drive folder") : String(localized: "Connected folder"))
         fileUndo = nil
         recentlyDeleted = []
-        demoDeletedFiles = [:]
         fileSaveErrors = [:]
         fileSyncError = nil
         storageObservationTask?.cancel()

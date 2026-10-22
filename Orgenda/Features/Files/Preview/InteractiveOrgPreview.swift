@@ -351,20 +351,9 @@ struct InteractiveOrgPreview: View {
     }
 
     private func cycleTODO(_ node: ParsedOrgNode) {
-        if store.hasWorkspaceConfiguration {
-            guard let state = store.workflow(for: path).state(node.text.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
-            setTODO(node, to: store.workflow(for: path).toggled(state))
-            return
-        }
-        let currentText = pendingReplacements[node.id]?.replacement ?? node.text
-        guard let mutation = try? OrgSourceMutation.workflowToggle(
-            in: currentText,
-            startByte: 0,
-            endByte: currentText.utf8.count
-        ) else {
-            return
-        }
-        replace(node, with: mutation.replacement)
+        let workflow = store.workflow(for: path)
+        guard let state = workflow.state(node.text.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+        setTODO(node, to: workflow.toggled(state))
     }
 
     private func presentItemEditor(for heading: ParsedOrgNode) {
@@ -376,23 +365,17 @@ struct InteractiveOrgPreview: View {
 
     private func setTODO(_ node: ParsedOrgNode, to state: OrgWorkflowState) {
         guard pendingReplacements[node.id] == nil else { return }
-        if store.hasWorkspaceConfiguration {
-            guard var item = store.items.filter({ $0.source.file == path && $0.source.startByte <= node.startByte })
-                .max(by: { $0.source.startByte < $1.source.startByte }) else { return }
-            let original = item
-            item.state = state
-            if OrgWorkflowOperations.requiresNote(from: original.state, to: state)
-                || (state.isTerminal && store.configuration.logging.done == .note) {
-                proposedState = state
-                editorItem = original
-                return
-            }
-            _ = store.save(item, original: original)
+        guard var item = store.items.filter({ $0.source.file == path && $0.source.startByte <= node.startByte })
+            .max(by: { $0.source.startByte < $1.source.startByte }) else { return }
+        let original = item
+        item.state = state
+        if OrgWorkflowOperations.requiresNote(from: original.state, to: state)
+            || (state.isTerminal && store.configuration.logging.done == .note) {
+            proposedState = state
+            editorItem = original
             return
         }
-        // The syntax node includes the spacing between the keyword and title.
-        let trailingWhitespace = node.text.reversed().prefix { $0 == " " || $0 == "\t" }.reversed()
-        replace(node, with: state.rawValue + String(trailingWhitespace))
+        _ = store.save(item, original: original)
     }
 
     private func toggleCheckbox(_ node: ParsedOrgNode) {
@@ -418,10 +401,7 @@ struct InteractiveOrgPreview: View {
         _ node: ParsedOrgNode,
         with draft: OrgPlanningEntryDraft
     ) -> Bool {
-        if store.hasWorkspaceConfiguration {
-            return store.applyPlanningDraft(path: path, node: node, draft: draft)
-        }
-        return replace(node, with: draft.source)
+        store.applyPlanningDraft(path: path, node: node, draft: draft)
     }
 
     @discardableResult

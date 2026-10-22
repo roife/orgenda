@@ -99,7 +99,7 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 
 模拟器测试使用临时签名，不需要发行证书。关闭签名后，增量构建的 XCTest runner 可能保留无效签名，导致测试在启动前退出；仅构建应用时仍可使用 `CODE_SIGNING_ALLOWED=NO`。
 
-界面改动使用 `--demo-workspace` 手动检查；涉及 iPad 布局时检查旋转、窄窗口与辅助大字体。
+界面改动使用独立测试工作区手动检查；涉及 iPad 布局时检查旋转、窄窗口与辅助大字体。
 
 解析器只保留源码边界回归：嵌入空字符不能截断文档，源码块和嵌套公式必须正确结束，未闭合公式不能吞掉后续标题。可以独立验证：
 
@@ -107,4 +107,4 @@ xcodebuild -project Orgenda.xcodeproj -scheme Orgenda \
 swift test --package-path Packages/OrgTreeSitter
 ```
 
-日常界面调试可为运行方案添加 `--demo-workspace` 参数。
+日常界面调试使用独立测试工作区，通过正常启动和文件夹连接流程加载测试数据。

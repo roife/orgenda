@@ -254,7 +254,7 @@ struct FilesView: View {
             WorkspaceFolderView(store: store, folder: document) { navigationPath.append($0) }
                 .id(path)
         } else if store.documents.contains(where: { $0.path.hasPrefix(path + "/") }) {
-            // Imported/demo files can have implicit parents. Include those
+            // Files can have implicit parents. Include those
             // folders in the same navigation hierarchy as disk-backed folders.
             WorkspaceFolderView(store: store, folder: WorkspaceDocument(
                 path: path, title: (path as NSString).lastPathComponent,

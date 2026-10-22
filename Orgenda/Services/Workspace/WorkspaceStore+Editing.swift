@@ -20,19 +20,17 @@ extension WorkspaceStore {
         }
         let original = items[itemIndex]
         if let baseline, !original.hasSameEditableValues(as: baseline) { return false }
-        if hasWorkspaceConfiguration {
-            if original.hasWorkflowState {
-                guard let state = workflow(for: original.source.file).state(item.state.rawValue) else { return false }
-                item.state = state
-            }
-            item = OrgWorkflowOperations.normalized(item, replacing: original, now: .now)
-            if configuration.logging.done == .none
-                && !original.state.isTerminal && item.state.isTerminal { item.closed = original.closed }
-            if OrgWorkflowOperations.requiresNote(from: original.state, to: item.state),
-               stateNote?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
-                operationError = String(localized: "Add a note for this state change.")
-                return false
-            }
+        if original.hasWorkflowState {
+            guard let state = workflow(for: original.source.file).state(item.state.rawValue) else { return false }
+            item.state = state
+        }
+        item = OrgWorkflowOperations.normalized(item, replacing: original, now: .now)
+        if configuration.logging.done == .none
+            && !original.state.isTerminal && item.state.isTerminal { item.closed = original.closed }
+        if OrgWorkflowOperations.requiresNote(from: original.state, to: item.state),
+           stateNote?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+            operationError = String(localized: "Add a note for this state change.")
+            return false
         }
         guard original.source.file == item.source.file,
               let documentIndex = documents.firstIndex(where: { $0.path == original.source.file }),
@@ -49,20 +47,18 @@ extension WorkspaceStore {
             guard let updated = try? edit.applied(to: contents) else { return false }
             contents = updated
         }
-        var logInsertionDelta = 0
-        if hasWorkspaceConfiguration {
-            do {
-                let priorCount = contents.utf8.count
-                contents = try OrgWorkflowOperations.applyingLogs(to: contents,
-                    headingStartByte: resolved.heading.source.startByte,
-                    replacing: original, with: item, note: stateNote, now: .now,
-                    originalSource: documents[documentIndex].contents,
-                    logging: effectiveConfiguration.logging)
-                logInsertionDelta = contents.utf8.count - priorCount
-            } catch {
-                operationError = error.localizedDescription
-                return false
-            }
+        let logInsertionDelta: Int
+        do {
+            let priorCount = contents.utf8.count
+            contents = try OrgWorkflowOperations.applyingLogs(to: contents,
+                headingStartByte: resolved.heading.source.startByte,
+                replacing: original, with: item, note: stateNote, now: .now,
+                originalSource: documents[documentIndex].contents,
+                logging: configuration.logging)
+            logInsertionDelta = contents.utf8.count - priorCount
+        } catch {
+            operationError = error.localizedDescription
+            return false
         }
 
         // Repair source locations from the current document before rebasing all
@@ -105,7 +101,7 @@ extension WorkspaceStore {
         let beforeItems = items
         let beforeDirtyPaths = dirtyFilePaths
         let beforeIndexPaths = pendingDirtyPaths
-        let repeatedDate = (hasWorkspaceConfiguration || updated.isRepeatingEvent) && !updated.state.isTerminal
+        let repeatedDate = !updated.state.isTerminal
             ? updated.recurrence.flatMap(OrgRepeater.init).flatMap { repeater in
                 updated.agendaDate.flatMap { repeater.nextDate(afterCompletion: .now, from: $0) }
             } : nil
@@ -133,7 +129,7 @@ extension WorkspaceStore {
             completeRepeatingEvent(updated, nextDate: repeatedDate)
             return
         }
-        updated.state = hasWorkspaceConfiguration ? workflow(for: updated.source.file).toggled(updated.state) : updated.state.isTerminal ? .todo : .done
+        updated.state = workflow(for: updated.source.file).toggled(updated.state)
         if updated.kind == .habit, updated.state.isTerminal {
             updated.habitHistory.append(.now)
         }
@@ -142,7 +138,7 @@ extension WorkspaceStore {
             return
         }
         if let repeatedDate, var repeated = items.first(where: { $0.id == updated.id }) {
-            repeated.state = hasWorkspaceConfiguration ? workflow(for: updated.source.file).toggled(updated.state) : .todo
+            repeated.state = workflow(for: updated.source.file).toggled(updated.state)
             repeated.updateAgendaDate(to: repeatedDate)
             repeated.properties["LAST_REPEAT"] = Date.now.orgTimestamp(active: false, includesTime: true)
             if !save(repeated) {
@@ -204,7 +200,7 @@ extension WorkspaceStore {
     }
 
     func addJournalEntry(title: String, body: String, date: Date) {
-        let path = "\(effectiveConfiguration.files.journal)/\(Calendar.autoupdatingCurrent.component(.year, from: date)).org"
+        let path = "\(configuration.files.journal)/\(Calendar.autoupdatingCurrent.component(.year, from: date)).org"
         let index: Int
         if let existing = documents.firstIndex(where: { $0.path == path }) {
             index = existing
@@ -287,29 +283,27 @@ extension WorkspaceStore {
               let replacement = try? OrgSourceMutation(startByte: node.startByte, endByte: node.endByte,
                                                        replacement: draft.source).applied(to: source) else { return false }
         var updated = replacement
-        if hasWorkspaceConfiguration {
-            // Reuse the published index when it still matches the source; only
-            // the post-edit document must always be parsed here.
-            let beforeDocument = parsedDocuments[path].flatMap { $0.root.text.utf8.elementsEqual(source.utf8) ? $0 : nil }
-                ?? OrgIndexService.parseSynchronously([documents[index]], configuration: effectiveConfiguration).first
-            var candidate = documents[index]; candidate.contents = replacement
-            let afterDocument = OrgIndexService.parseSynchronously([candidate], configuration: effectiveConfiguration).first
-            if let before = beforeDocument?.headings.last(where: { $0.source.startByte <= node.startByte }),
-               let after = afterDocument?.headings.first(where: { $0.source.startByte == before.source.startByte }) {
-                func item(_ heading: IndexedOrgHeading) -> OrgItem {
-                    OrgItem(id: UUID(), title: heading.title, state: heading.state ?? .todo,
-                        kind: heading.kind, priority: heading.priority, tags: heading.tags,
-                        scheduled: heading.scheduled, deadline: heading.deadline, closed: heading.closed,
-                        eventDate: heading.eventDate, hasTime: heading.hasTime, durationMinutes: heading.durationMinutes,
-                        recurrence: heading.recurrence, body: heading.body, source: heading.source,
-                        habitHistory: [], properties: heading.properties)
-                }
-                do {
-                    updated = try OrgWorkflowOperations.applyingLogs(to: replacement,
-                        headingStartByte: before.source.startByte, replacing: item(before), with: item(after),
-                        originalSource: source, logging: effectiveConfiguration.logging)
-                } catch { operationError = error.localizedDescription; return false }
+        // Reuse the published index when it still matches the source; only
+        // the post-edit document must always be parsed here.
+        let beforeDocument = parsedDocuments[path].flatMap { $0.root.text.utf8.elementsEqual(source.utf8) ? $0 : nil }
+            ?? OrgIndexService.parseSynchronously([documents[index]], configuration: configuration).first
+        var candidate = documents[index]; candidate.contents = replacement
+        let afterDocument = OrgIndexService.parseSynchronously([candidate], configuration: configuration).first
+        if let before = beforeDocument?.headings.last(where: { $0.source.startByte <= node.startByte }),
+           let after = afterDocument?.headings.first(where: { $0.source.startByte == before.source.startByte }) {
+            func item(_ heading: IndexedOrgHeading) -> OrgItem {
+                OrgItem(id: UUID(), title: heading.title, state: heading.state ?? .todo,
+                    kind: heading.kind, priority: heading.priority, tags: heading.tags,
+                    scheduled: heading.scheduled, deadline: heading.deadline, closed: heading.closed,
+                    eventDate: heading.eventDate, hasTime: heading.hasTime, durationMinutes: heading.durationMinutes,
+                    recurrence: heading.recurrence, body: heading.body, source: heading.source,
+                    habitHistory: [], properties: heading.properties)
             }
+            do {
+                updated = try OrgWorkflowOperations.applyingLogs(to: replacement,
+                    headingStartByte: before.source.startByte, replacing: item(before), with: item(after),
+                    originalSource: source, logging: configuration.logging)
+            } catch { operationError = error.localizedDescription; return false }
         }
         documents[index].contents = updated
         operationError = nil
@@ -383,7 +377,7 @@ extension WorkspaceStore {
         if let cached = parsedDocuments[source.path], cached.root.text.utf8.elementsEqual(source.contents.utf8) {
             parsed = cached
         } else {
-            parsed = OrgIndexService.parseSynchronously([source], configuration: effectiveConfiguration).first
+            parsed = OrgIndexService.parseSynchronously([source], configuration: configuration).first
         }
         guard let parsed else { return nil }
         let matches = parsed.headings.filter { $0.title == item.title }

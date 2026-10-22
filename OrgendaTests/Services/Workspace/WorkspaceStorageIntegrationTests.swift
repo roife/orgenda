@@ -18,7 +18,7 @@ final class WorkspaceStorageIntegrationTests: XCTestCase {
         try FileManager.default.removeItem(at: environment.folder)
 
         let reopened = makeStore(environment.cache)
-        await reopened.startWorkspace(arguments: [], defaults: environment.defaults,
+        await reopened.startWorkspace(defaults: environment.defaults,
                                       localWorkspaceURL: environment.folder)
         XCTAssertTrue(reopened.isWorkspaceReady)
         XCTAssertEqual(reopened.documents.first?.contents, "* Offline draft 中文\n")

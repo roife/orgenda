@@ -68,8 +68,8 @@ extension WorkspaceStore {
     }
 
     func refileTargets(for item: OrgItem) -> [OrgRefileTarget] {
-        OrgWorkflowOperations.refileTargets(in: documents, refilePaths: Set(effectiveConfiguration.files.refile),
-                                           maxLevel: effectiveConfiguration.files.refileMaxLevel).filter {
+        OrgWorkflowOperations.refileTargets(in: documents, refilePaths: Set(configuration.files.refile),
+                                           maxLevel: configuration.files.refileMaxLevel).filter {
             $0.path != item.source.file || $0.headingStartByte != item.source.startByte
         }
     }
@@ -94,39 +94,33 @@ extension WorkspaceStore {
         }
         let originalDocuments = documents
         do {
+            guard let localStore else { throw StorageError.rootUnavailable }
             let destinationPath = try target?.path ?? OrgWorkflowOperations.archiveDestination(
                 sourcePath: source.path, source: source.contents, headingStartByte: current.source.startByte,
-                defaultLocation: hasWorkspaceConfiguration ? configuration.files.archive : nil).path
+                defaultLocation: configuration.files.archive).path
             let existingDestination = documentsByPath[destinationPath]
             let destination = existingDestination ?? WorkspaceDocument(path: destinationPath,
                 title: URL(fileURLWithPath: destinationPath).lastPathComponent, contents: "", kind: .org)
             let plan: OrgMovePlan
             if let target {
                 plan = try OrgWorkflowOperations.refile(source: source, headingStartByte: current.source.startByte,
-                    destination: destination, target: target, refilePaths: Set(effectiveConfiguration.files.refile),
-                    maxLevel: effectiveConfiguration.files.refileMaxLevel)
+                    destination: destination, target: target, refilePaths: Set(configuration.files.refile),
+                    maxLevel: configuration.files.refileMaxLevel)
             } else {
                 plan = try OrgWorkflowOperations.archive(source: source, headingStartByte: current.source.startByte,
-                    destination: destination, defaultLocation: hasWorkspaceConfiguration ? configuration.files.archive : nil)
+                    destination: destination, defaultLocation: configuration.files.archive)
             }
-            if let localStore {
-                let diskSource = try await localStore.document(at: source.path)
-                let diskDestination = try await localStore.document(at: destination.path)
-                guard documents == originalDocuments,
-                      diskSource?.contents == source.contents,
-                      diskDestination?.contents == existingDestination?.contents else {
-                    operationError = String(localized: "The source or destination changed. Refresh and try again.")
-                    return false
-                }
-                try await localStore.refile(source: plan.source, destination: plan.destination,
-                    expectedSource: source.contents, expectedDestination: existingDestination?.contents)
-                applyStorageSnapshot(try await localStore.snapshot())
-            } else {
-                var next = documents.filter { $0.path != plan.source.path && $0.path != plan.destination.path }
-                next.append(plan.destination)
-                if plan.source.path != plan.destination.path { next.append(plan.source) }
-                acceptDiskDocuments(next)
+            let diskSource = try await localStore.document(at: source.path)
+            let diskDestination = try await localStore.document(at: destination.path)
+            guard documents == originalDocuments,
+                  diskSource?.contents == source.contents,
+                  diskDestination?.contents == existingDestination?.contents else {
+                operationError = String(localized: "The source or destination changed. Refresh and try again.")
+                return false
             }
+            try await localStore.refile(source: plan.source, destination: plan.destination,
+                expectedSource: source.contents, expectedDestination: existingDestination?.contents)
+            applyStorageSnapshot(try await localStore.snapshot())
             operationError = nil
             await waitForWorkspaceIndex()
             Task { await self.synchronizeFiles(automatic: true, pushOnly: true) }

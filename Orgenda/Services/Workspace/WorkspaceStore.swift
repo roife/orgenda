@@ -10,13 +10,11 @@ final class WorkspaceStore {
     var configurationRevision: UInt64 = 0
     var isSavingConfiguration = false
     var configurationSource: String?
-    /// Connected workspaces use their persisted configuration.
-    var hasWorkspaceConfiguration = false
     private(set) var searchRevision: UInt64 = 0
-    var items: [OrgItem] {
+    var items: [OrgItem] = [] {
         didSet { rebuildDerivedCollections() }
     }
-    var journalEntries: [JournalEntry] {
+    var journalEntries: [JournalEntry] = [] {
         didSet { searchRevision &+= 1 }
     }
     /// Edits and storage deltas address documents by path; the sorted array is
@@ -83,7 +81,6 @@ final class WorkspaceStore {
     var recentlyDeleted: [WorkspaceTrashEntry] = []
     var pinnedDocumentIDs: [String] = []
     var recentDocumentIDs: [String] = []
-    @ObservationIgnored var demoDeletedFiles: [UUID: [WorkspaceDocument]] = [:]
     var reminderStatus = String(localized: "Off")
     var reminderPermissionDenied = false
     @ObservationIgnored let reminderScheduler = OrgReminderScheduler()
@@ -116,28 +113,23 @@ final class WorkspaceStore {
     @ObservationIgnored var pendingDirtyPaths: Set<String> = []
 
     init(
-        items: [OrgItem] = [],
-        journalEntries: [JournalEntry] = [],
         documents: [WorkspaceDocument] = [],
         selectedDate: Date = .now
     ) {
-        self.items = items
-        self.journalEntries = journalEntries
         self.selectedDate = selectedDate.startOfDay
         self.documents = documents
-        rebuildDerivedCollections()
     }
 
     /// Rebuilds the materialized derived collections. Called from the `items`
     /// observer and configuration updates, so every mutation path (index
     /// publishing, edits, moves, sync) refreshes them exactly once.
     func rebuildDerivedCollections() {
-        let agendaItems = hasWorkspaceConfiguration ? items.filter { configuration.agenda.includes($0.source.file) } : items
+        let agendaItems = items.filter { configuration.agenda.includes($0.source.file) }
         self.agendaItems = agendaItems
         datedItems = agendaItems
             .filter {
                 $0.agendaDate != nil
-                    && (!hasWorkspaceConfiguration || $0.isOpen)
+                    && $0.isOpen
             }
             .sorted { $0.agendaDate! < $1.agendaDate! }
         openTodos = agendaItems

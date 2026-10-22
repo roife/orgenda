@@ -28,7 +28,6 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertEqual(try ancestors("Reading"), ["Evening"])
         XCTAssertEqual(try ancestors("Top level"), [])
 
-        store.hasWorkspaceConfiguration = true
         let projected = try XCTUnwrap(store.items(on: referenceDate.adding(days: 1)).first { $0.title == "Stretch" })
         XCTAssertEqual(projected.source.ancestorTitles, ["Morning", "Preparation"])
     }
@@ -86,12 +85,11 @@ final class WorkspaceStoreTests: XCTestCase {
 
     func testPlanningEditAfterUnicodeSourceChangeKeepsRequiredHistory() throws {
         let store = parsedStore("* Café\n* TODO Task\nSCHEDULED: <2026-10-18 Sun>\n")
-        store.hasWorkspaceConfiguration = true
         store.configuration.logging.reschedule = .time
         let current = "* Cafe\u{301}\n* TODO Task\nSCHEDULED: <2026-10-18 Sun>\n"
         store.updateDocument(path: "inbox.org", contents: current)
         let parsed = try XCTUnwrap(OrgIndexService.parseSynchronously(
-            store.documents, configuration: store.effectiveConfiguration
+            store.documents, configuration: store.configuration
         ).first)
         let node = try XCTUnwrap(firstNode(ofType: "planning_entry", in: parsed.root))
         var draft = try XCTUnwrap(OrgPlanningEntryDraft(source: node.text))
@@ -108,7 +106,6 @@ final class WorkspaceStoreTests: XCTestCase {
         let before = "* TODO Café\n"
         let after = "* TODO Cafe\u{301}\n"
         let store = parsedStore(before)
-        store.hasWorkspaceConfiguration = true
         store.updateDocument(path: "inbox.org", contents: after)
         let template = WorkspaceConfiguration.Template()
 

@@ -226,7 +226,7 @@ struct ReminderSettingsSections: View {
                     }
                     .labelStyle(.titleAndIcon)
                 }
-                .disabled(!store.hasWorkspaceConfiguration)
+                .disabled(!store.isWorkspaceReady)
                 .accessibilityIdentifier("settings.reminders.enabled")
                 .onChange(of: remindersEnabled) { _, enabled in
                     Task { await store.refreshReminders(requestPermission: enabled) }
@@ -234,7 +234,7 @@ struct ReminderSettingsSections: View {
             } header: {
                 Text("On this device")
             }
-            if !store.hasWorkspaceConfiguration {
+            if !store.isWorkspaceReady {
                 Section {
                     Button("Connect workspace", systemImage: "folder.badge.plus", action: openWorkspace)
                         .accessibilityIdentifier("settings.reminders.connectWorkspace")

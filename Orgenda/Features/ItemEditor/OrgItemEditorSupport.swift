@@ -64,7 +64,7 @@ struct OrgItemCaptureSheet: View {
     let date: Date?
 
     var body: some View {
-        if store.hasWorkspaceConfiguration, date == nil {
+        if date == nil {
             ConfiguredCaptureView(store: store)
         } else {
             OrgItemEditor(store: store, draft: newItem)
@@ -74,17 +74,12 @@ struct OrgItemCaptureSheet: View {
     private var newItem: OrgItem {
         OrgItem(
             id: UUID(), title: "",
-            state: store.hasWorkspaceConfiguration ? store.configuration.workflow.initial : .todo,
+            state: store.configuration.workflow.initial,
             kind: .task, priority: .none, tags: [], scheduled: date, deadline: nil,
             hasTime: false, durationMinutes: 30, recurrence: nil, body: "",
-            source: SourceLocation(file: inboxPath, startByte: 0, endByte: 0, startLine: 1),
+            source: SourceLocation(file: store.configuration.files.inbox, startByte: 0, endByte: 0, startLine: 1),
             habitHistory: []
         )
-    }
-
-    private var inboxPath: String {
-        if store.hasWorkspaceConfiguration { return store.configuration.files.inbox }
-        return "inbox.org"
     }
 }
 

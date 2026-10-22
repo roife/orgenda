@@ -4546,74 +4546,6 @@
         }
       }
     },
-    "Demo · session only" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示 · 仅本次使用"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示 · 僅本次使用"
-          }
-        }
-      }
-    },
-    "Demo changes last for this session." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示中的更改仅在本次使用期间保留。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示中的更改僅在本次使用期間保留。"
-          }
-        }
-      }
-    },
-    "Demo workspace" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示工作区"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示工作區"
-          }
-        }
-      }
-    },
-    "Demo workspace · changes last for this session" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示工作区 · 更改仅在本次使用期间保留"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "演示工作區 · 更改僅在本次使用期間保留"
-          }
-        }
-      }
-    },
     "Destination" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9616,23 +9548,6 @@
         }
       }
     },
-    "orgenda Demo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "orgenda 演示"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "orgenda 演示"
-          }
-        }
-      }
-    },
     "Orgenda does not upload your configuration or call an AI service." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -10176,23 +10091,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "無法預覽"
-          }
-        }
-      }
-    },
-    "Preview workspace" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "预览工作区"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "預覽工作區"
           }
         }
       }

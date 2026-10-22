@@ -31,7 +31,7 @@ struct OrgItemEditor: View {
         isNew = newItem
         captureDate = draft.agendaDate ?? .now
         var initial = draft
-        if newItem && store.hasWorkspaceConfiguration {
+        if newItem {
             initial.state = store.workflow(for: initial.source.file).initial
         }
         _originalDraft = State(initialValue: initial)
@@ -46,7 +46,7 @@ struct OrgItemEditor: View {
         NavigationStack {
             presentedEditor
         }
-        .environment(\.workspaceConfiguration, store.effectiveConfiguration)
+        .environment(\.workspaceConfiguration, store.configuration)
         .environment(\.orgWorkflow, store.workflow(for: draft.source.file))
         .disabled(isMoving)
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -293,7 +293,7 @@ struct OrgItemEditor: View {
 
     @ViewBuilder
     private var moveSection: some View {
-        if !isNew && store.hasWorkspaceConfiguration {
+        if !isNew {
             Section {
                 NavigationLink {
                     OrgItemRefileDestinations(
@@ -314,8 +314,8 @@ struct OrgItemEditor: View {
     }
 
     private var requiresStateNote: Bool {
-        guard !isNew, store.hasWorkspaceConfiguration else { return false }
-        let logging = store.effectiveConfiguration.logging
+        guard !isNew else { return false }
+        let logging = store.configuration.logging
         return OrgWorkflowOperations.requiresNote(from: originalDraft.state, to: draft.state)
             || (originalDraft.state.rawValue != draft.state.rawValue && draft.state.isTerminal && logging.done == .note)
             || (originalDraft.scheduled != draft.scheduled && logging.reschedule == .note)

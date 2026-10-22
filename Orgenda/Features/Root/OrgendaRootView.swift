@@ -13,7 +13,7 @@ struct OrgendaRootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var sceneDelegate: OrgendaSceneDelegate
     @AppStorage("appearance") private var appearance = "System"
-    @State private var store = WorkspaceStore.startup()
+    @State private var store = WorkspaceStore()
     @State private var selectedTab: OrgendaTab = .dashboard
     @State private var searchQuery = ""
     @State private var dashboardPerspective: OrgAgendaPerspective = .dashboard
@@ -23,22 +23,21 @@ struct OrgendaRootView: View {
     @State private var calendarNavigationID = UUID()
     @State private var filesNavigationID = UUID()
     @State private var searchNavigationID: UUID?
-    private let isDemoWorkspace = WorkspaceStore.isDemoWorkspace(arguments: ProcessInfo.processInfo.arguments)
 
     var body: some View {
         Group {
-            if !store.isStartingWorkspace && !store.isWorkspaceReady && !isDemoWorkspace {
+            if !store.isStartingWorkspace && !store.isWorkspaceReady {
                 workspaceUnavailable
             } else {
                 workspaceTabs
             }
         }
         .tint(OrgendaTheme.accent)
-        .environment(\.workspaceConfiguration, store.effectiveConfiguration)
-        .environment(\.orgWorkflow, store.effectiveConfiguration.workflow)
+        .environment(\.workspaceConfiguration, store.configuration)
+        .environment(\.orgWorkflow, store.configuration.workflow)
         .onChange(of: store.configurationRevision) { _, _ in
             if !store.dashboardPerspectives.contains(dashboardPerspective) {
-                dashboardPerspective = store.primaryConfiguredPerspective
+                dashboardPerspective = .dashboard
                 if isDashboardSelected { selectDashboard() }
             }
         }
@@ -57,7 +56,7 @@ struct OrgendaRootView: View {
         .task {
             await store.startWorkspace()
             if !store.dashboardPerspectives.contains(dashboardPerspective) {
-                dashboardPerspective = store.primaryConfiguredPerspective
+                dashboardPerspective = .dashboard
                 if isDashboardSelected { selectDashboard() }
             }
         }
@@ -92,7 +91,7 @@ struct OrgendaRootView: View {
 private extension OrgendaRootView {
     var actionableShortcutID: UUID? {
         guard scenePhase == .active, !store.isStartingWorkspace, !store.isPerformingFileAction,
-              store.isWorkspaceReady || isDemoWorkspace else { return nil }
+              store.isWorkspaceReady else { return nil }
         return sceneDelegate.pendingAction?.id
     }
 
@@ -175,8 +174,7 @@ private extension OrgendaRootView {
             Tab("Calendar", systemImage: "calendar", value: OrgendaTab.calendar) {
                 AgendaView(store: store, mode: .calendar, perspective: .constant(.agenda), onCapture: { date in
                     capture = CaptureDestination(date: date)
-                }, onShowInFile: showInFile, onShowOverdue: showOverdue,
-                   expectsConnectedWorkspace: !isDemoWorkspace)
+                }, onShowInFile: showInFile, onShowOverdue: showOverdue)
                 .id(calendarNavigationID)
                 .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
             }
@@ -201,7 +199,7 @@ private extension OrgendaRootView {
             if case .dashboardView(let perspective) = tab {
                 dashboardPerspective = perspective
             } else if tab == .dashboard && usesDashboardSection {
-                dashboardPerspective = primaryDashboardPerspective
+                dashboardPerspective = .dashboard
             }
             selectedTab = tab
         })
@@ -210,17 +208,12 @@ private extension OrgendaRootView {
     func dashboardContent(perspective: Binding<OrgAgendaPerspective>) -> some View {
         AgendaView(store: store, perspective: perspective, onCapture: { date in
             capture = CaptureDestination(date: date)
-        }, onShowInFile: showInFile, onShowOverdue: showOverdue,
-           expectsConnectedWorkspace: !isDemoWorkspace)
+        }, onShowInFile: showInFile, onShowOverdue: showOverdue)
         .disabled(store.isStartingWorkspace || store.isPerformingFileAction)
     }
 
     var usesDashboardSection: Bool {
         UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass != .compact
-    }
-
-    var primaryDashboardPerspective: OrgAgendaPerspective {
-        store.hasWorkspaceConfiguration ? .dashboard : .todos
     }
 
     var isDashboardSelected: Bool {
@@ -229,7 +222,7 @@ private extension OrgendaRootView {
     }
 
     func dashboardTab(for perspective: OrgAgendaPerspective) -> OrgendaTab {
-        usesDashboardSection && perspective != primaryDashboardPerspective
+        usesDashboardSection && perspective != .dashboard
             ? .dashboardView(perspective) : .dashboard
     }
 

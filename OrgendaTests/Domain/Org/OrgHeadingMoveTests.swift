@@ -88,6 +88,7 @@ final class OrgHeadingMoveTests: XCTestCase {
         let store = WorkspaceStore(documents: [
             WorkspaceDocument(path: document.path, title: "Tasks", contents: source, kind: .org)
         ])
+        store.configuration.workflow = WorkspaceConfiguration.classic.workflow
         store.parseWorkspace()
         let before = Dictionary(uniqueKeysWithValues: store.items.map { ($0.properties["ID"] ?? $0.title, $0.id) })
         let headings = document.root.children.filter { $0.type == "heading" }

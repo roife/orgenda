@@ -8,7 +8,7 @@ extension WorkspaceStore {
         parseGeneration &+= 1
         pendingDirtyPaths.removeAll()
 
-        let parsed = OrgIndexService.parseSynchronously(documents, configuration: effectiveConfiguration)
+        let parsed = OrgIndexService.parseSynchronously(documents, configuration: configuration)
 
         publish(
             parsed,
@@ -38,7 +38,7 @@ extension WorkspaceStore {
         parseTask?.cancel()
         parseGeneration &+= 1
         let generation = parseGeneration
-        let configuration = effectiveConfiguration
+        let configuration = self.configuration
 
         let replacingAll = parsedDocuments.isEmpty
         let requestedPaths = replacingAll
@@ -170,16 +170,15 @@ extension WorkspaceStore {
             }
         let nextItems = merging(headings, into: items, refreshedPaths: refreshedPaths)
         let allDocuments = nextDocuments.values
-        let indexedJournal = isFolderConnected
-            ? allDocuments.sorted { $0.path < $1.path }.flatMap(\.journalEntries) : nil
+        let indexedJournal = allDocuments.sorted { $0.path < $1.path }.flatMap(\.journalEntries)
         var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             if parsedDocuments != nextDocuments { parsedDocuments = nextDocuments }
             if items != nextItems { items = nextItems }
-            if let indexedJournal, journalEntries != indexedJournal { journalEntries = indexedJournal }
+            if journalEntries != indexedJournal { journalEntries = indexedJournal }
         }
-        if hasWorkspaceConfiguration { Task { await refreshReminders() } }
+        if isWorkspaceReady { Task { await refreshReminders() } }
 
     }
     private func merging(

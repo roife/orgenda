@@ -11,7 +11,7 @@ final class OrgDocumentReadingPosition {
 
     init(store: WorkspaceStore, path: String) {
         defaults = store.connectionDefaults
-        let workspace = store.storageConnection?.id.uuidString ?? "demo"
+        let workspace = store.storageConnection?.id.uuidString ?? store.workspaceFileSessionID.uuidString
         let document = store.documentsByPath[path]?.id ?? path
         key = "workspaceReadingPosition.\(workspace).\(document)"
         sourceByte = max(0, defaults.integer(forKey: key))

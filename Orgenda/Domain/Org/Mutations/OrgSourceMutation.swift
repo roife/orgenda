@@ -61,32 +61,6 @@ struct OrgSourceMutation: Hashable, Sendable {
         )
     }
 
-    /// Builds the preview status-button mutation: terminal states return to
-    /// TODO, while every open state becomes DONE. Trailing horizontal
-    /// whitespace from the syntax node is retained verbatim.
-    static func workflowToggle(
-        in source: String,
-        startByte: Int,
-        endByte: Int
-    ) throws -> OrgSourceMutation {
-        let nodeText = try sourceText(
-            in: source,
-            startByte: startByte,
-            endByte: endByte
-        )
-        let token = splitTrailingHorizontalWhitespace(from: nodeText)
-        guard let state = OrgWorkflowState(rawValue: String(token.body)) else {
-            throw OrgSourceMutationError.unsupportedWorkflowToken(String(token.body))
-        }
-        let nextToken = state.isTerminal ? OrgWorkflowState.todo.rawValue : OrgWorkflowState.done.rawValue
-
-        return OrgSourceMutation(
-            startByte: startByte,
-            endByte: endByte,
-            replacement: nextToken + token.trailingWhitespace
-        )
-    }
-
     private static func sourceText(
         in source: String,
         startByte: Int,
@@ -407,5 +381,4 @@ enum OrgSourceMutationError: Error, Equatable, Sendable {
     case byteRangeOutOfBounds(startByte: Int, endByte: Int, sourceUTF8Count: Int)
     case invalidStringBoundary(byteOffset: Int)
     case unsupportedCheckboxToken(String)
-    case unsupportedWorkflowToken(String)
 }

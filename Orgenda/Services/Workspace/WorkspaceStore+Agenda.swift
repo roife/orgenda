@@ -1,11 +1,9 @@
 import Foundation
 
 extension WorkspaceStore {
-    var primaryConfiguredPerspective: OrgAgendaPerspective { hasWorkspaceConfiguration ? .dashboard : .todos }
     var dashboardPerspectives: [OrgAgendaPerspective] {
-        let views: [OrgAgendaPerspective] = hasWorkspaceConfiguration
-            ? [.dashboard, .overdue, .todos] : [.overdue, .todos]
-        let statuses = effectiveConfiguration.workflow.states.filter { !$0.isTerminal }.map { OrgAgendaPerspective.status($0) }
+        let views: [OrgAgendaPerspective] = [.dashboard, .overdue, .todos]
+        let statuses = configuration.workflow.states.filter { !$0.isTerminal }.map { OrgAgendaPerspective.status($0) }
         return views + statuses
     }
 
@@ -24,28 +22,25 @@ extension WorkspaceStore {
             return [OrgAgendaGroup(title: state.title,
                                    items: sorted(open.filter { $0.state.rawValue == state.rawValue }), state: state)]
         }
-        if hasWorkspaceConfiguration {
-            if perspective == .todos { return [OrgAgendaGroup(title: perspective.localizedName, items: openTodos)] }
-            if perspective == .overdue { return [OrgAgendaGroup(title: perspective.localizedName, items: overdueItems)] }
-            if perspective == .dashboard {
-                let dates = (0..<7).map { offset in
-                    let date = now.startOfDay.adding(days: offset)
-                    return OrgAgendaGroup(title: OrgendaDatePresentation.relativeDate(date, relativeTo: now),
-                                          items: items(on: date), isDateGroup: true)
-                }
-                // A fixed dashboard follows the configured state sequence;
-                // there is no separate user-programmable query/view system.
-                return dates + configuration.workflow.states.filter { !$0.isTerminal }.map { state in
-                    OrgAgendaGroup(title: state.title, items: openTodos.filter { $0.state.rawValue == state.rawValue })
-                }
+        if perspective == .todos { return [OrgAgendaGroup(title: perspective.localizedName, items: openTodos)] }
+        if perspective == .overdue { return [OrgAgendaGroup(title: perspective.localizedName, items: overdueItems)] }
+        if perspective == .dashboard {
+            let dates = (0..<7).map { offset in
+                let date = now.startOfDay.adding(days: offset)
+                return OrgAgendaGroup(title: OrgendaDatePresentation.relativeDate(date, relativeTo: now),
+                                      items: items(on: date), isDateGroup: true)
             }
-            return []
+            // A fixed dashboard follows the configured state sequence;
+            // there is no separate user-programmable query/view system.
+            return dates + configuration.workflow.states.filter { !$0.isTerminal }.map { state in
+                OrgAgendaGroup(title: state.title, items: openTodos.filter { $0.state.rawValue == state.rawValue })
+            }
         }
         return []
     }
 
     func upcomingDeadlines(now: Date = .now) -> [OrgItem] {
-        let end = now.startOfDay.adding(days: effectiveConfiguration.reminders.deadlineWarningDays)
+        let end = now.startOfDay.adding(days: configuration.reminders.deadlineWarningDays)
         return agendaItems.filter {
             guard $0.isOpen, let deadline = $0.deadline else { return false }
             return deadline.startOfDay > now.startOfDay && deadline.startOfDay <= end

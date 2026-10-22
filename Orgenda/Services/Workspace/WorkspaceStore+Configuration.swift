@@ -1,11 +1,9 @@
 import Foundation
 
 extension WorkspaceStore {
-    var effectiveConfiguration: WorkspaceConfiguration { hasWorkspaceConfiguration ? configuration : .classic }
-
     func workflow(for path: String) -> WorkspaceConfiguration.Workflow {
         OrgConfiguredHeading.workflow(in: documents.first { $0.path == path }?.contents ?? "",
-                                      base: effectiveConfiguration.workflow)
+                                      base: configuration.workflow)
     }
 
     @discardableResult
@@ -91,13 +89,13 @@ extension WorkspaceStore {
             return false
         }
         do {
-            var validation = effectiveConfiguration
+            var validation = configuration
             validation.capture.templates = [template]
             validation.capture.defaultTemplate = template.id
             try validation.validate()
             var document = current ?? WorkspaceDocument(path: template.target.path, title: (template.target.path as NSString).lastPathComponent,
                                                        contents: "", kind: .org)
-            let parsed = OrgIndexService.parseSynchronously([document], configuration: effectiveConfiguration)[0]
+            let parsed = OrgIndexService.parseSynchronously([document], configuration: configuration)[0]
             document.contents = try ConfiguredCapture.inserting(rendered, template: template, into: document.contents,
                                                                parsed: parsed, date: date, createMissing: createMissing)
             if let index = documents.firstIndex(where: { $0.path == document.path }) { documents[index] = document }

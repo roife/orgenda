@@ -3,7 +3,7 @@ import Foundation
 extension WorkspaceStore {
     func refreshReminders(requestPermission: Bool = false) async {
         reminderPermissionDenied = await reminderScheduler.authorizationStatus() == .denied
-        guard hasWorkspaceConfiguration else {
+        guard isWorkspaceReady else {
             reminderStatus = String(localized: "Connect a folder to use reminders")
             return
         }
@@ -20,6 +20,6 @@ extension WorkspaceStore {
         }
         reminderStatus = await reminderScheduler.refresh(items: agendaItems, parsed: parsedDocuments,
             enabled: UserDefaults.standard.bool(forKey: "orgRemindersEnabled"),
-            configuration: effectiveConfiguration.reminders)
+            configuration: configuration.reminders)
     }
 }

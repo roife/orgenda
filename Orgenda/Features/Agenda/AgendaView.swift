@@ -18,7 +18,6 @@ struct AgendaView: View {
     let onShowInFile: (OrgItem) -> Void
     let onShowOverdue: () -> Void
     @Binding var perspective: Perspective
-    var expectsConnectedWorkspace = false
     @State private var visitedPerspectives: Set<Perspective>
     @State private var editorItem: OrgItem?
     @State private var proposedState: OrgWorkflowState?
@@ -32,15 +31,13 @@ struct AgendaView: View {
         perspective: Binding<Perspective>,
         onCapture: @escaping (Date?) -> Void,
         onShowInFile: @escaping (OrgItem) -> Void,
-        onShowOverdue: @escaping () -> Void,
-        expectsConnectedWorkspace: Bool = false
+        onShowOverdue: @escaping () -> Void
     ) {
         self.store = store
         self.mode = mode
         self.onCapture = onCapture
         self.onShowInFile = onShowInFile
         self.onShowOverdue = onShowOverdue
-        self.expectsConnectedWorkspace = expectsConnectedWorkspace
         _perspective = perspective
         _visitedPerspectives = State(initialValue: [perspective.wrappedValue])
     }
@@ -162,9 +159,9 @@ struct AgendaView: View {
     private var displayedPerspective: Perspective {
         if mode == .calendar { return .agenda }
         if store.isStartingWorkspace {
-            return expectsConnectedWorkspace ? .dashboard : .todos
+            return .dashboard
         }
-        return availablePerspectives.first(where: { $0 == perspective }) ?? store.primaryConfiguredPerspective
+        return availablePerspectives.first(where: { $0 == perspective }) ?? .dashboard
     }
 
     private func selectPerspective(_ option: Perspective) {
@@ -230,7 +227,7 @@ struct AgendaView: View {
     }
 
     private func toggle(_ item: OrgItem) {
-        if store.hasWorkspaceConfiguration && item.hasWorkflowState {
+        if item.hasWorkflowState {
             let target = store.workflow(for: item.source.file).toggled(item.state)
             if OrgWorkflowOperations.requiresNote(from: item.state, to: target)
                 || (target.isTerminal && store.configuration.logging.done == .note) {
