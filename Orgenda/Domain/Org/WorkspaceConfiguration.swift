@@ -1,19 +1,36 @@
 import Foundation
+import MetaCodable
 
-/// Portable configuration. Decoding overlays defaults before decoding this
-/// model, so omitted fields and explicit empty arrays have different meanings.
-struct WorkspaceConfiguration: Codable, Equatable, Sendable {
-    var version = 1
-    var workflow = Workflow()
-    var files = Files()
-    var logging = Logging()
-    var reminders = Reminders()
-    var capture = Capture()
-    var agenda = Agenda()
+/// Portable configuration. Missing or null fields use defaults except for version; explicit values,
+/// including empty arrays, are decoded and validated as supplied.
+@Codable
+@MemberInit
+struct WorkspaceConfiguration: Equatable, Sendable {
+    /// Required when decoding; the initializer default only applies to new configurations.
+    var version: Int = 1
+    // Named defaults defer calls to macro-generated initializers until after attribute checking.
+    @Default(ifMissing: Workflow.standard)
+    var workflow: Workflow
+    @Default(ifMissing: Files.standard)
+    var files: Files
+    @Default(ifMissing: Logging.standard)
+    var logging: Logging
+    @Default(ifMissing: Reminders.standard)
+    var reminders: Reminders
+    @Default(ifMissing: Capture.standard)
+    var capture: Capture
+    @Default(ifMissing: Agenda.standard)
+    var agenda: Agenda
 
-    struct Workflow: Codable, Equatable, Sendable {
-        var sequences = [Sequence()]
-        var keywords: [String: Keyword] = [:]
+    @Codable
+    @MemberInit
+    struct Workflow: Equatable, Sendable {
+        static let standard: Self = .init()
+
+        @Default(ifMissing: [WorkspaceConfiguration.Sequence.standard])
+        var sequences: [WorkspaceConfiguration.Sequence]
+        @Default(ifMissing: [String: WorkspaceConfiguration.Keyword]())
+        var keywords: [String: WorkspaceConfiguration.Keyword]
         var tokens: [String] { sequences.flatMap { $0.process + $0.terminal } }
         func state(_ token: String) -> OrgWorkflowState? {
             guard let sequence = sequences.first(where: { ($0.process + $0.terminal).contains(token) }) else { return nil }
@@ -30,73 +47,153 @@ struct WorkspaceConfiguration: Codable, Equatable, Sendable {
         var initial: OrgWorkflowState { state(sequences[0].initial)! }
     }
 
-    struct Sequence: Codable, Equatable, Identifiable, Sendable {
-        var id = "tasks"
-        var process = ["TODO"]
-        var terminal = ["DONE"]
-        var initial = "TODO"
-        var complete = "DONE"
-        var reopen = "TODO"
+    @Codable
+    @MemberInit
+    struct Sequence: Equatable, Identifiable, Sendable {
+        static let standard: Self = .init()
+
+        @Default(ifMissing: "tasks")
+        var id: String
+        @Default(ifMissing: ["TODO"])
+        var process: [String]
+        @Default(ifMissing: ["DONE"])
+        var terminal: [String]
+        @Default(ifMissing: "TODO")
+        var initial: String
+        @Default(ifMissing: "DONE")
+        var complete: String
+        @Default(ifMissing: "TODO")
+        var reopen: String
     }
 
-    struct Keyword: Codable, Equatable, Sendable {
-        var label = ""
-        var key = ""
-        var icon: ConfigurationIcon = .default
-        var color: ConfigurationColor = .default
-        var log = StateLog()
+    @Codable
+    @MemberInit
+    struct Keyword: Equatable, Sendable {
+        @Default(ifMissing: "")
+        var label: String
+        @Default(ifMissing: "")
+        var key: String
+        @Default(ifMissing: ConfigurationIcon.default)
+        var icon: ConfigurationIcon
+        @Default(ifMissing: ConfigurationColor.default)
+        var color: ConfigurationColor
+        @Default(ifMissing: WorkspaceConfiguration.StateLog.standard)
+        var log: WorkspaceConfiguration.StateLog
     }
-    struct StateLog: Codable, Equatable, Sendable {
-        var enter: LogRule = .none
-        var leave: LogRule = .none
+    @Codable
+    @MemberInit
+    struct StateLog: Equatable, Sendable {
+        static let standard: Self = .init()
+
+        @Default(ifMissing: WorkspaceConfiguration.LogRule.none)
+        var enter: WorkspaceConfiguration.LogRule
+        @Default(ifMissing: WorkspaceConfiguration.LogRule.none)
+        var leave: WorkspaceConfiguration.LogRule
     }
     enum LogRule: String, Codable, CaseIterable, Sendable { case none, time, note }
-    struct Logging: Codable, Equatable, Sendable {
-        var done: LogRule = .none
+    @Codable
+    @MemberInit
+    struct Logging: Equatable, Sendable {
+        static let standard: Self = .init()
+
+        @Default(ifMissing: WorkspaceConfiguration.LogRule.none)
+        var done: WorkspaceConfiguration.LogRule
         /// Empty means insert logs in the body instead of a drawer.
-        var drawer = "LOGBOOK"
-        var reschedule: LogRule = .none
-        var redeadline: LogRule = .none
+        @Default(ifMissing: "LOGBOOK")
+        var drawer: String
+        @Default(ifMissing: WorkspaceConfiguration.LogRule.none)
+        var reschedule: WorkspaceConfiguration.LogRule
+        @Default(ifMissing: WorkspaceConfiguration.LogRule.none)
+        var redeadline: WorkspaceConfiguration.LogRule
     }
-    struct Files: Codable, Equatable, Sendable {
-        var inbox = "inbox.org"
-        var attachments = ".attach"
-        var journal = "journal"
-        var archive = "%s_archive::* Archived"
-        var refile: [String] = []
-        var refileMaxLevel = 3
+    @Codable
+    @MemberInit
+    struct Files: Equatable, Sendable {
+        static let standard: Self = .init()
+
+        @Default(ifMissing: "inbox.org")
+        var inbox: String
+        @Default(ifMissing: ".attach")
+        var attachments: String
+        @Default(ifMissing: "journal")
+        var journal: String
+        @Default(ifMissing: "%s_archive::* Archived")
+        var archive: String
+        @Default(ifMissing: [String]())
+        var refile: [String]
+        @Default(ifMissing: 3)
+        var refileMaxLevel: Int
     }
-    struct Reminders: Codable, Equatable, Sendable {
-        var advanceMinutes = 15
-        var repeatMinutes = 5
-        var deadlineWarningDays = 14
+    @Codable
+    @MemberInit
+    struct Reminders: Equatable, Sendable {
+        static let standard: Self = .init()
+
+        @Default(ifMissing: 15)
+        var advanceMinutes: Int
+        @Default(ifMissing: 5)
+        var repeatMinutes: Int
+        @Default(ifMissing: 14)
+        var deadlineWarningDays: Int
     }
-    struct Capture: Codable, Equatable, Sendable {
-        var defaultTemplate = "inbox"
-        var templates = [Template()]
+    @Codable
+    @MemberInit
+    struct Capture: Equatable, Sendable {
+        static let standard: Self = .init()
+
+        @Default(ifMissing: "inbox")
+        var defaultTemplate: String
+        @Default(ifMissing: [WorkspaceConfiguration.Template.standard])
+        var templates: [WorkspaceConfiguration.Template]
     }
-    struct Template: Codable, Equatable, Identifiable, Sendable {
-        var id = "inbox"
-        var name = "Inbox task"
-        var key = "t"
-        var group = ""
-        var type: CaptureType = .entry
-        var target = Target()
-        var template = "* TODO %^{Title}\n%?"
-        var prepend = false
-        var emptyLines = 1
+    @Codable
+    @MemberInit
+    struct Template: Equatable, Identifiable, Sendable {
+        static let standard: Self = .init()
+
+        @Default(ifMissing: "inbox")
+        var id: String
+        @Default(ifMissing: "Inbox task")
+        var name: String
+        @Default(ifMissing: "t")
+        var key: String
+        @Default(ifMissing: "")
+        var group: String
+        @Default(ifMissing: WorkspaceConfiguration.CaptureType.entry)
+        var type: WorkspaceConfiguration.CaptureType
+        @Default(ifMissing: WorkspaceConfiguration.Target.standard)
+        var target: WorkspaceConfiguration.Target
+        @Default(ifMissing: "* TODO %^{Title}\n%?")
+        var template: String
+        @Default(ifMissing: false)
+        var prepend: Bool
+        @Default(ifMissing: 1)
+        var emptyLines: Int
     }
     enum CaptureType: String, Codable, CaseIterable, Sendable { case entry, item, checkitem, plain }
-    struct Target: Codable, Equatable, Sendable {
-        var type: TargetType = .file
-        var path = "inbox.org"
-        var outline: [String] = []
+    @Codable
+    @MemberInit
+    struct Target: Equatable, Sendable {
+        static let standard: Self = .init()
+
+        @Default(ifMissing: WorkspaceConfiguration.TargetType.file)
+        var type: WorkspaceConfiguration.TargetType
+        @Default(ifMissing: "inbox.org")
+        var path: String
+        @Default(ifMissing: [String]())
+        var outline: [String]
     }
     enum TargetType: String, Codable, CaseIterable, Sendable { case file, headline, outline, datetree }
-    struct Agenda: Codable, Equatable, Sendable {
+    @Codable
+    @MemberInit
+    struct Agenda: Equatable, Sendable {
+        static let standard: Self = .init()
+
         /// Empty includes all visible .org files, excluding archives/recovery.
-        var sources: [String] = []
-        var excluded: [String] = []
+        @Default(ifMissing: [String]())
+        var sources: [String]
+        @Default(ifMissing: [String]())
+        var excluded: [String]
         func includes(_ path: String) -> Bool {
             guard path.hasSuffix(".org"),
                   !path.split(separator: "/").contains(where: {
@@ -154,11 +251,8 @@ struct WorkspaceConfiguration: Codable, Equatable, Sendable {
         func unique(_ values: [String], _ field: String) throws {
             try require(!values.contains(where: { $0.isEmpty }) && Set(values).count == values.count, "\(field): empty or duplicate value.")
         }
-        func path(_ value: String, _ field: String) throws {
-            try require(!value.isEmpty && !value.hasPrefix("/") && !value.hasPrefix("~")
-                        && !value.contains("\\") && !value.contains(":")
-                        && !value.contains(where: { $0.isNewline || $0 == "\0" })
-                        && !value.split(separator: "/").contains(".."), "\(field): path must stay inside the workspace.")
+        func check(_ message: String?, field: String) throws {
+            if let message { throw ConfigurationFailure(message: field + ": " + message) }
         }
         try require(version == 1, "version: unsupported configuration version \(version).")
         try require(workflow.sequences.count == 1, "workflow.sequences: exactly one default sequence is required.")
@@ -175,32 +269,46 @@ struct WorkspaceConfiguration: Codable, Equatable, Sendable {
         }
         try require(Set(workflow.keywords.keys).isSubset(of: Set(workflow.tokens)), "workflow.keywords: style refers to an undeclared state.")
         try unique(workflow.keywords.values.map(\.key).filter { !$0.isEmpty }, "workflow shortcuts")
-        try require(workflow.keywords.values.allSatisfy { $0.key.count <= 1 }, "workflow shortcuts: use a single key.")
-        for (field, value) in [("files.inbox", files.inbox), ("files.attachments", files.attachments), ("files.journal", files.journal)] {
-            try path(value, field)
+        for (token, keyword) in workflow.keywords {
+            try check(ConfigurationValidation.shortcutMessage(keyword.key), field: "workflow.keywords.\(token).key")
         }
-        try require(files.inbox.hasSuffix(".org"), "files.inbox: expected an .org file.")
-        for value in files.refile + agenda.sources + agenda.excluded { try path(value, "file selection") }
-        try require((1...99).contains(files.refileMaxLevel), "files.refileMaxLevel: expected 1–99.")
-        try require((0...1440).contains(reminders.advanceMinutes) && (1...1440).contains(reminders.repeatMinutes)
-                    && (0...365).contains(reminders.deadlineWarningDays), "reminders: invalid interval.")
-        try require((logging.drawer.isEmpty || OrgDrawerName.isSupported(logging.drawer))
-                    && !["END", "PROPERTIES"].contains(logging.drawer.uppercased()), "logging.drawer: invalid drawer name.")
+        for (field, value) in [("files.inbox", files.inbox), ("files.attachments", files.attachments), ("files.journal", files.journal)] {
+            try check(ConfigurationValidation.pathMessage(value, requiresOrgFile: field == "files.inbox"), field: field)
+        }
+        for value in files.refile {
+            try check(ConfigurationValidation.pathMessage(value, requiresOrgFile: true), field: "files.refile")
+        }
+        for (field, paths) in [("agenda.sources", agenda.sources), ("agenda.excluded", agenda.excluded)] {
+            for value in paths { try check(ConfigurationValidation.pathMessage(value), field: field) }
+        }
+        for (field, value, range) in [
+            ("files.refileMaxLevel", files.refileMaxLevel, ConfigurationValidation.refileMaxLevel),
+            ("reminders.advanceMinutes", reminders.advanceMinutes, ConfigurationValidation.advanceMinutes),
+            ("reminders.repeatMinutes", reminders.repeatMinutes, ConfigurationValidation.repeatMinutes),
+            ("reminders.deadlineWarningDays", reminders.deadlineWarningDays, ConfigurationValidation.deadlineWarningDays)
+        ] {
+            try check(ConfigurationValidation.integerMessage(value, in: range), field: field)
+        }
+        try check(ConfigurationValidation.drawerMessage(logging.drawer), field: "logging.drawer")
         try unique(capture.templates.map(\.id), "capture.templates.id")
         try unique(capture.templates.map(\.key).filter { !$0.isEmpty }, "capture shortcuts")
         try require(capture.templates.contains { $0.id == capture.defaultTemplate }, "capture.defaultTemplate: missing template.")
         for template in capture.templates {
-            try path(template.target.path, "capture.\(template.id).target")
-            try require(template.target.path.hasSuffix(".org"), "capture: target must be an .org file.")
-            try require((0...10).contains(template.emptyLines), "capture.emptyLines: expected 0–10.")
+            try require(!template.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        String(localized: "Name: enter a name so you can recognize this template."))
+            try check(ConfigurationValidation.pathMessage(template.target.path, requiresOrgFile: true), field: "capture.\(template.id).target.path")
+            try check(ConfigurationValidation.shortcutMessage(template.key), field: "capture.\(template.id).key")
+            try check(ConfigurationValidation.integerMessage(template.emptyLines, in: ConfigurationValidation.templateEmptyLines), field: "capture.\(template.id).emptyLines")
             try require(template.target.outline.allSatisfy { !$0.isEmpty && !$0.contains(where: \.isNewline) }, "capture.outline: invalid heading.")
             try require(template.target.type == .file || template.target.type == .datetree || !template.target.outline.isEmpty,
                         "capture.target: a heading path is required.")
+            try require(!template.template.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        String(localized: "Org source: enter the content to insert when using this template."))
+            try require(template.type != .entry || template.template.hasPrefix("* "),
+                        String(localized: "Org source: a Heading template must begin with an asterisk followed by a space: * ."))
             _ = try ConfiguredCapture.expansions(in: template.template)
         }
-        let archiveParts = files.archive.components(separatedBy: "::")
-        try require(archiveParts.count == 2, "files.archive: expected relative-file::heading.")
-        try path(archiveParts[0].replacingOccurrences(of: "%s", with: "example.org"), "files.archive")
+        try check(ConfigurationValidation.archiveMessage(files.archive), field: "files.archive")
     }
 }
 
@@ -234,20 +342,12 @@ enum ConfigurationColor: String, Codable, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 }
 
-/// Retains unknown members at every object level when a known field is edited.
-/// Arrays are replaced, but members of identifiable array elements are retained.
+/// Reads and writes only the typed configuration fields.
 struct ConfigurationDocument: Sendable {
     var configuration: WorkspaceConfiguration
-    var warnings: [String] = []
-    private var original: Data
     init(_ source: String) throws {
-        let data = Data(source.utf8)
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              object["version"] != nil else { throw ConfigurationFailure(message: "version: a version is required.") }
-        let defaults = try JSONSerialization.jsonObject(with: JSONEncoder().encode(WorkspaceConfiguration.standard))
-        let merged = try Self.fillCollectionDefaults(Self.merge(defaults, object, preserveArrayMembers: false))
         do {
-            configuration = try JSONDecoder().decode(WorkspaceConfiguration.self, from: JSONSerialization.data(withJSONObject: merged))
+            configuration = try JSONDecoder().decode(WorkspaceConfiguration.self, from: Data(source.utf8))
         } catch let DecodingError.dataCorrupted(context) {
             throw Self.decodingFailure(context)
         } catch let DecodingError.typeMismatch(_, context) {
@@ -258,80 +358,18 @@ struct ConfigurationDocument: Sendable {
             throw ConfigurationFailure(message: (context.codingPath + [key]).map(\.stringValue).joined(separator: ".") + ": required value is missing.")
         }
         try configuration.validate()
-        let known = try JSONSerialization.jsonObject(with: JSONEncoder().encode(configuration))
-        warnings = Self.unknownFields(object, known: known, path: "").map { String(localized: "Unknown field \($0) is preserved but not applied.") }
-        original = data
     }
     init(configuration: WorkspaceConfiguration) {
         self.configuration = configuration
-        original = Data("{}".utf8)
     }
     func encoded(_ value: WorkspaceConfiguration) throws -> String {
         try value.validate()
-        var old = try JSONSerialization.jsonObject(with: original) as! [String: Any]
-        if var workflow = old["workflow"] as? [String: Any],
-           let keywords = workflow["keywords"] as? [String: Any] {
-            workflow["keywords"] = keywords.filter { value.workflow.keywords[$0.key] != nil }
-            old["workflow"] = workflow
-        }
-        let new = try JSONSerialization.jsonObject(with: JSONEncoder().encode(value))
-        let result = Self.merge(old, new, preserveArrayMembers: true)
-        let data = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let data = try encoder.encode(value)
         return String(decoding: data, as: UTF8.self) + "\n"
-    }
-    private static func merge(_ old: Any, _ new: Any, preserveArrayMembers: Bool) -> Any {
-        if let lhs = old as? [String: Any], let rhs = new as? [String: Any] {
-            return lhs.merging(rhs) { merge($0, $1, preserveArrayMembers: preserveArrayMembers) }
-        }
-        if preserveArrayMembers, let lhs = old as? [[String: Any]], let rhs = new as? [[String: Any]] {
-            return rhs.map { item -> Any in
-                guard let id = item["id"] as? String, let prior = lhs.first(where: { $0["id"] as? String == id }) else { return item }
-                return merge(prior, item, preserveArrayMembers: true)
-            }
-        }
-        return new
-    }
-    private static func unknownFields(_ source: Any, known: Any, path: String) -> [String] {
-        if let source = source as? [String: Any], let known = known as? [String: Any] {
-            return source.keys.sorted().flatMap { key -> [String] in
-                let next = path.isEmpty ? key : path + "." + key
-                guard let value = known[key] else { return [next] }
-                return unknownFields(source[key]!, known: value, path: next)
-            }
-        }
-        if let source = source as? [Any], let known = known as? [Any] {
-            return zip(source, known).enumerated().flatMap { index, pair in
-                unknownFields(pair.0, known: pair.1, path: path + "[\(index)]")
-            }
-        }
-        return []
     }
     private static func decodingFailure(_ context: DecodingError.Context) -> ConfigurationFailure {
         ConfigurationFailure(message: context.codingPath.map(\.stringValue).joined(separator: ".") + ": " + context.debugDescription)
-    }
-    private static func fillCollectionDefaults(_ input: Any) throws -> Any {
-        guard var object = input as? [String: Any] else { return input }
-        func defaults<T: Encodable>(_ value: T) throws -> Any {
-            try JSONSerialization.jsonObject(with: JSONEncoder().encode(value))
-        }
-        func fillArray(_ items: Any?, _ fallback: Any) -> Any? {
-            guard let items = items as? [Any] else { return items }
-            return items.map { merge(fallback, $0, preserveArrayMembers: false) }
-        }
-        if var workflow = object["workflow"] as? [String: Any] {
-            workflow["sequences"] = try fillArray(workflow["sequences"], defaults(WorkspaceConfiguration.Sequence()))
-            if let keywords = workflow["keywords"] as? [String: Any] {
-                let fallback = try defaults(WorkspaceConfiguration.Keyword())
-                workflow["keywords"] = keywords.mapValues {
-                    merge(fallback, $0, preserveArrayMembers: false)
-                }
-            }
-            object["workflow"] = workflow
-        }
-        if var capture = object["capture"] as? [String: Any] {
-            capture["templates"] = try fillArray(capture["templates"], defaults(WorkspaceConfiguration.Template()))
-            object["capture"] = capture
-        }
-        return object
     }
 }

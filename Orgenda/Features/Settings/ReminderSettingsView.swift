@@ -78,9 +78,9 @@ enum ReminderTimingKind: String, Identifiable {
 
     var range: ClosedRange<Int> {
         switch self {
-        case .advance: 0...1440
-        case .repeatInterval: 1...1440
-        case .deadline: 0...365
+        case .advance: ConfigurationValidation.advanceMinutes
+        case .repeatInterval: ConfigurationValidation.repeatMinutes
+        case .deadline: ConfigurationValidation.deadlineWarningDays
         }
     }
 

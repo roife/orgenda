@@ -34,7 +34,7 @@ Org 文件是工作区的内容来源。界面、索引和存储围绕同一份�
 
 ## 保存与同步
 
-`LocalStore` actor 持有不可变 `blobs/<sha256>` 与 `state.sqlite`。状态库包含 `files`、`drafts`、`conflicts`、`ops`、`trash`、`attachments`、`meta`；SQLite WAL 配合 `synchronous=FULL`，事务提交是唯一提交点。blob 在提交前写入，事务失败保留上一版状态；没有被引用的新 blob 可稍后清理。普通保存和上传确认只提交单文件补丁，避免复制整个文件表或重写全量状态。
+`LocalStore` actor 持有不可变 `blobs/<sha256>` 与 `state.sqlite`。状态库包含 `files`、`drafts`、`conflicts`、`ops`、`trash`、`attachments`、`meta`；由 GRDB 管理连接、参数绑定和事务。SQLite WAL 配合 `synchronous=FULL`，事务提交是唯一提交点。blob 在提交前写入，事务失败保留上一版状态；没有被引用的新 blob 可稍后清理。普通保存和上传确认只提交单文件补丁，避免复制整个文件表或重写全量状态。
 
 文件使用本机 UUID。`files` 索引逻辑路径、远端路径及规范化后的大小写路径；草稿和冲突关联稳定文件 ID，正文通过 blob 引用保存。离线操作记录顺序及前置版本，逻辑路径立即反映本机意图，远端路径在回放确认后前移。状态格式直接使用 SQLite，不读取或迁移旧 manifest，也不自动删除旧缓存。
 
@@ -49,6 +49,8 @@ WebDAV 的路径身份不能证明所有远端改名；只有后端稳定 ID，�
 ## 扩展与验证
 
 页面专用代码放在对应 feature；多个页面实际复用后再移到 `Components`。领域规则和源码处理放在 `Domain`，文件与网络操作放在 `Services`。数据安全回归放在 `OrgendaTests`，导航和手势使用独立测试工作区手动验证。
+
+图片预览使用 Nuke 管理下载、取消与缩略图解码，NukeUI 的 `LazyImage` 提供加载、成功和失败状态。`OrgPreviewImageLoader` 只适配工作区附件读取、网络限制与错误提示；下载上限为 20 MiB，缩略图最长边为 2048 像素。附件的新鲜度和离线读取由 `LocalStore` 管理，远程图片按 HTTP 缓存头使用内存 `URLCache`，不另存解码图片或磁盘缓存。请求身份包含工作区会话、候选路径和重试次数。
 
 数学公式由语法树的 `latex_fragment`（`$…$`、`\(…\)`）和 `latex_block`（`$$…$$`、`\[…\]`、白名单环境）识别。外部 scanner 匹配完整公式和同名嵌套环境，公式内的 Org 标记保持 TeX 原文；源码块、行内 code/verbatim 和链接仍按字面量处理。预览从节点构造表达式，去除数学定界符，保留环境命令，由固定版本的 RaTeX 解析并通过 Core Graphics 绘制；不再改写 LaTeX。图片按模式、主题、字号、屏幕缩放和原始 LaTeX 缓存，行内基线采用 RaTeX 的 depth × 字号。编辑器也直接遍历数学节点进行高亮。
 

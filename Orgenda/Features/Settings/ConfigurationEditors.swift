@@ -160,25 +160,6 @@ struct ConfigurationKeywordEditor: View {
     private func confirm() async {
         guard !isSaving else { return }
         error = nil
-        guard !resolvedToken.isEmpty,
-              !resolvedToken.contains(where: { $0.isWhitespace || "()|:".contains($0) }) else {
-            error = String(localized: "Use one keyword without spaces or brackets.")
-            return
-        }
-        guard token != nil || !configuration.workflow.tokens.contains(resolvedToken) else {
-            error = String(localized: "That keyword already exists.")
-            return
-        }
-        guard keyword.key.count <= 1, !keyword.key.contains(where: \.isWhitespace) else {
-            error = String(localized: "Quick selection key: use one character, or leave it empty.")
-            return
-        }
-        guard keyword.key.isEmpty || !configuration.workflow.keywords.contains(where: {
-            $0.key != resolvedToken && $0.value.key == keyword.key
-        }) else {
-            error = String(localized: "Quick selection key: another state already uses this key.")
-            return
-        }
         var candidate = configuration
         if token == nil, !candidate.workflow.sequences.isEmpty {
             if terminal { candidate.workflow.sequences[0].terminal.append(resolvedToken) }
@@ -188,7 +169,7 @@ struct ConfigurationKeywordEditor: View {
         do {
             try candidate.validate()
         } catch {
-            self.error = String(localized: "Other workspace settings need attention. Keep this draft, or cancel and review the settings page before saving.")
+            self.error = error.localizedDescription
             return
         }
         isSaving = true
@@ -263,7 +244,7 @@ struct ConfigurationTemplateEditor: View {
                         labeledField("Group", text: $template.group, placeholder: "None")
                         labeledField("Quick selection key", text: $template.key, placeholder: "None")
                         Toggle("Insert before existing entries", isOn: $template.prepend)
-                        Stepper("Empty lines: \(template.emptyLines)", value: $template.emptyLines, in: 0...10)
+                        Stepper("Empty lines: \(template.emptyLines)", value: $template.emptyLines, in: ConfigurationValidation.templateEmptyLines)
                     }
                 }
             }
@@ -347,59 +328,6 @@ struct ConfigurationTemplateEditor: View {
 
     private func validateFields() -> Bool {
         error = nil
-        let candidate = resolvedTemplate
-        guard !candidate.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            error = String(localized: "Name: enter a name so you can recognize this template.")
-            return false
-        }
-        let path = candidate.target.path
-        guard !path.isEmpty, !path.hasPrefix("/"), !path.hasPrefix("~"),
-              !path.contains("\\"), !path.contains(":"),
-              !path.contains(where: { $0.isNewline || $0 == "\0" }),
-              path.split(separator: "/", omittingEmptySubsequences: false)
-                .allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }) else {
-            error = String(localized: "File path: choose a file inside this workspace, such as inbox.org.")
-            return false
-        }
-        guard path.hasSuffix(".org") else {
-            error = String(localized: "File path: the file name must end in .org.")
-            return false
-        }
-        guard candidate.target.type == .file || candidate.target.type == .datetree || !candidate.target.outline.isEmpty else {
-            error = String(localized: "Heading path: enter at least one heading, or choose File as the target.")
-            return false
-        }
-        guard candidate.key.count <= 1, !candidate.key.contains(where: \.isWhitespace) else {
-            error = String(localized: "Quick selection key: use one character, or leave it empty.")
-            showsAdvancedOptions = true
-            return false
-        }
-        guard candidate.key.isEmpty || !configuration.capture.templates.contains(where: {
-            $0.id != candidate.id && $0.key == candidate.key
-        }) else {
-            error = String(localized: "Quick selection key: another template already uses this key.")
-            showsAdvancedOptions = true
-            return false
-        }
-        guard !candidate.template.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            error = String(localized: "Org source: enter the content to insert when using this template.")
-            return false
-        }
-        if candidate.type == .entry && !candidate.template.hasPrefix("* ") {
-            error = String(localized: "Org source: a Heading template must begin with an asterisk followed by a space: * .")
-            return false
-        }
-        do {
-            _ = try ConfiguredCapture.expansions(in: candidate.template)
-        } catch {
-            self.error = String(localized: "Org source: a placeholder is incomplete or unsupported. Check Template syntax below; use %% for a literal percent sign.")
-            return false
-        }
-        return true
-    }
-
-    private func confirm() async {
-        guard !isSaving, validateFields() else { return }
         let value = resolvedTemplate
         var candidate = configuration
         if let index = candidate.capture.templates.firstIndex(where: { $0.id == value.id }) {
@@ -409,10 +337,17 @@ struct ConfigurationTemplateEditor: View {
         }
         do {
             try candidate.validate()
+            return true
         } catch {
-            self.error = String(localized: "Other workspace settings need attention. Keep this draft, or cancel and review the settings page before saving.")
-            return
+            self.error = error.localizedDescription
+            showsAdvancedOptions = true
+            return false
         }
+    }
+
+    private func confirm() async {
+        guard !isSaving, validateFields() else { return }
+        let value = resolvedTemplate
         isSaving = true
         defer { isSaving = false }
         do {

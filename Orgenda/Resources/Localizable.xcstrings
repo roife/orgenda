@@ -14716,23 +14716,6 @@
         }
       }
     },
-    "Unknown field %@ is preserved but not applied." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未知字段 %@ 会被保留，但不会生效。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未知欄位 %@ 會被保留，但不會生效。"
-          }
-        }
-      }
-    },
     "Unsaved changes" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15107,19 +15090,19 @@
         }
       }
     },
-    "Use a relative path inside this workspace, without .., ~, or an absolute path." : {
+    "Use a relative path inside this workspace, without empty components, ., .., ~, or an absolute path." : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请输入工作区内的相对路径，不要使用 ..、~ 或绝对路径。"
+            "value" : "请输入工作区内的相对路径，不要使用空路径段、.、..、~ 或绝对路径。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請輸入工作區內的相對路徑，不要使用 ..、~ 或絕對路徑。"
+            "value" : "請輸入工作區內的相對路徑，不要使用空路徑區段、.、..、~ 或絕對路徑。"
           }
         }
       }
@@ -15175,19 +15158,19 @@
         }
       }
     },
-    "Use letters, numbers or underscores for the history drawer." : {
+    "Use letters, numbers, underscores or hyphens for the log drawer, or leave it empty. END and PROPERTIES are reserved." : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "历史记录抽屉名称只能包含字母、数字或下划线。"
+            "value" : "日志抽屉名称可包含字母、数字、下划线或连字符，也可以留空。END 和 PROPERTIES 为保留名称。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "歷史記錄抽屜名稱只能包含字母、數字或底線。"
+            "value" : "日誌抽屜名稱可包含字母、數字、底線或連字號，也可以留空。END 和 PROPERTIES 為保留名稱。"
           }
         }
       }

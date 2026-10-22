@@ -51,7 +51,7 @@ struct ConfigurationFilesSections: View {
                                               choices: orgPaths, directories: [], emptyTitle: "No refile destinations",
                                               identifier: "configuration.files.refile", requiresOrgFile: true)
                 ConfigurationIntegerField(title: "Maximum heading level", value: $draft.files.refileMaxLevel,
-                                          range: 1...99, errorMessage: String(localized: "Enter a whole number from 1 to 99."),
+                                          range: ConfigurationValidation.refileMaxLevel,
                                           identifier: "configuration.files.refileMaxLevel", presets: [1, 2, 3, 5, 10])
             } header: {
                 Text("Refile")
@@ -101,7 +101,7 @@ struct ConfigurationFilesSections: View {
                 }
             }
             .accessibilityIdentifier("configuration.archive.advanced")
-            if let message = ConfigurationSettingsFieldValidation.archiveMessage(draft.files.archive) {
+            if let message = ConfigurationValidation.archiveMessage(draft.files.archive) {
                 ConfigurationFieldError(message: message)
             }
         } header: {
@@ -140,7 +140,7 @@ private struct ConfigurationPathField: View {
                 .accessibilityValue(Text(verbatim: path))
                 .accessibilityIdentifier(identifier + ".choose")
             }
-            if let message = ConfigurationSettingsFieldValidation.pathMessage(path, requiresOrgFile: requiresOrgFile) {
+            if let message = ConfigurationValidation.pathMessage(path, requiresOrgFile: requiresOrgFile) {
                 ConfigurationFieldError(message: message)
             }
         }
@@ -166,7 +166,7 @@ private struct ConfigurationPathSelectionRow: View {
                     if paths.isEmpty { Text(LocalizedStringKey(emptyTitle)) }
                     else { Text(paths.joined(separator: ", ")).lineLimit(2) }
                 }
-                if let message = paths.compactMap({ ConfigurationSettingsFieldValidation.pathMessage($0) }).first {
+                if let message = paths.compactMap({ ConfigurationValidation.pathMessage($0, requiresOrgFile: requiresOrgFile) }).first {
                     ConfigurationFieldError(message: message)
                 }
             }
@@ -186,7 +186,7 @@ private struct ConfigurationPathSelectionView: View {
     @State private var newPath = ""
 
     private var allChoices: [String] { Set(choices + paths).sorted() }
-    private var pathError: String? { ConfigurationSettingsFieldValidation.pathMessage(newPath, requiresOrgFile: requiresOrgFile) }
+    private var pathError: String? { ConfigurationValidation.pathMessage(newPath, requiresOrgFile: requiresOrgFile) }
 
     private var selectedPaths: Binding<Set<String>> {
         Binding(get: { Set(paths) }, set: { selection in

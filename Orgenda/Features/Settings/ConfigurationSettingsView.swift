@@ -33,7 +33,6 @@ struct ConfigurationSettingsView: View {
     private enum ExitDestination { case back, workspace, reload }
     private var changed: Bool { draft != baseline || importedDocument != nil }
     private var needsExitProtection: Bool { !ready || changed || saving || leaving }
-    private var configurationWarnings: [String] { (importedDocument ?? store.configurationDocument).warnings }
 
     private enum EditorDestination: Identifiable {
         case template(WorkspaceConfiguration.Template)
@@ -188,14 +187,10 @@ struct ConfigurationSettingsView: View {
         // reorder shifts every section, then shifts them back when saving ends.
         let needsRecovery = !saving && revision != store.configurationRevision
             || sessionID != store.workspaceFileSessionID
-        if error != nil || store.configurationError != nil || !configurationWarnings.isEmpty
-            || needsRecovery {
+        if error != nil || store.configurationError != nil || needsRecovery {
             Section {
                 if let message = error ?? store.configurationError {
                     Text(message).foregroundStyle(.red).textSelection(.enabled)
-                }
-                ForEach(configurationWarnings, id: \.self) { warning in
-                    Text(warning).font(.footnote).foregroundStyle(.orange).textSelection(.enabled)
                 }
                 if needsRecovery {
                     Button("Reload settings") {
@@ -479,9 +474,8 @@ struct ConfigurationSettingsView: View {
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .multilineTextAlignment(.trailing)
             }
-            if path == \.logging.drawer && !draft.logging.drawer.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) {
-                Text("Use letters, numbers or underscores for the history drawer.")
-                    .font(.footnote).foregroundStyle(.red)
+            if path == \.logging.drawer, let message = ConfigurationValidation.drawerMessage(draft.logging.drawer) {
+                ConfigurationFieldError(message: message)
             }
         }
     }
@@ -524,11 +518,7 @@ struct ConfigurationSettingsView: View {
         guard sessionID == store.workspaceFileSessionID else {
             throw ConfigurationFailure(message: String(localized: "The workspace changed. Reload settings before applying changes."))
         }
-        if let message = ConfigurationSettingsFieldValidation.message(for: value) {
-            throw ConfigurationFailure(message: message)
-        }
-        do { try value.validate() }
-        catch { throw ConfigurationFailure(message: String(localized: "Check the highlighted fields and task defaults before saving.")) }
+        try value.validate()
         let previous = store.configurationDocument
         let document = importedDocument
         let replacement = replacementID
@@ -614,9 +604,6 @@ struct ConfigurationSettingsView: View {
 
     private func stageImport(_ source: String) throws {
         let document = try ConfigurationDocument(source)
-        if let message = ConfigurationSettingsFieldValidation.message(for: document.configuration) {
-            throw ConfigurationFailure(message: message)
-        }
         importedDocument = document
         draft = document.configuration
         replacementID = UUID()

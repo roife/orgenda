@@ -1,11 +1,30 @@
 import Foundation
-import ImageIO
-import UIKit
+import Nuke
 
-/// Loads preview assets away from the UI actor. Local files deliberately have
-/// no image cache so replacing an attachment is reflected on the next preview.
-actor OrgPreviewImageLoader {
-    static let shared = OrgPreviewImageLoader()
+/// Adapts workspace attachments and remote URLs to Nuke's image pipeline.
+enum OrgPreviewImageLoader {
+    private static let maxBytes = 20 * 1024 * 1024
+
+    static let pipeline: ImagePipeline = {
+        let session = URLSessionConfiguration.default
+        session.urlCache = URLCache(memoryCapacity: 32 * 1024 * 1024, diskCapacity: 0)
+        session.timeoutIntervalForRequest = 30
+        session.timeoutIntervalForResource = 60
+        let loader = DataLoader(configuration: session) { response in
+            guard let url = response.url, OrgImageRedirectDelegate.isAllowed(url) else { return Failure.invalidURL }
+            guard let response = response as? HTTPURLResponse else { return Failure.invalidResponse }
+            guard (200...299).contains(response.statusCode) else { return Failure.httpStatus(response.statusCode) }
+            return response.expectedContentLength > Int64(maxBytes) ? Failure.tooLarge : nil
+        }
+        loader.delegate = OrgImageRedirectDelegate()
+        var configuration = ImagePipeline.Configuration(dataLoader: loader)
+        // Keep attachment freshness in LocalStore and HTTP freshness in URLCache.
+        configuration.imageCache = nil
+        configuration.dataCache = nil
+        configuration.isResumableDataEnabled = false
+        configuration.maximumResponseDataSize = maxBytes
+        return ImagePipeline(configuration: configuration)
+    }()
 
     enum Failure: Error, Equatable, LocalizedError {
         case invalidURL
@@ -42,110 +61,54 @@ actor OrgPreviewImageLoader {
         }
     }
 
-    private let session: URLSession
-    private let maxBytes: Int
-    private let maxPixelDimension: Int
-
-    init(session: URLSession? = nil, maxBytes: Int = 20 * 1024 * 1024, maxPixelDimension: Int = 2048) {
-        if let session {
-            self.session = session
+    static func request(id: String, candidates: [String], localStore: LocalStore?) throws -> ImageRequest {
+        var request: ImageRequest
+        if let candidate = candidates.first, let url = URL(string: candidate),
+           let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            guard OrgImageRedirectDelegate.isAllowed(url) else { throw Failure.invalidURL }
+            var urlRequest = URLRequest(url: url)
+            urlRequest.setValue("image/*", forHTTPHeaderField: "Accept")
+            request = ImageRequest(urlRequest: urlRequest)
         } else {
-            let configuration = URLSessionConfiguration.default
-            // Honor server freshness headers and avoid an unbounded decoded
-            // image cache or retaining downloaded attachments on disk.
-            configuration.urlCache = URLCache(memoryCapacity: 32 * 1024 * 1024, diskCapacity: 0)
-            configuration.timeoutIntervalForRequest = 30
-            configuration.timeoutIntervalForResource = 60
-            self.session = URLSession(configuration: configuration)
+            request = ImageRequest(id: id) {
+                try await localData(candidates: candidates, localStore: localStore)
+            }
         }
-        self.maxBytes = maxBytes
-        self.maxPixelDimension = maxPixelDimension
+        request.imageID = id
+        request.thumbnail = .init(maxPixelSize: 2048)
+        return request
     }
 
-    func load(candidates: [String], localStore: LocalStore?) async throws -> UIImage {
-        try Task.checkCancellation()
+    private static func localData(candidates: [String], localStore: LocalStore?) async throws -> Data {
+        guard let localStore else { throw Failure.workspaceUnavailable }
         for candidate in candidates {
             try Task.checkCancellation()
-            let data: Data
-            if let url = URL(string: candidate), let scheme = url.scheme?.lowercased(),
-               scheme == "http" || scheme == "https" {
-                guard OrgImageRedirectDelegate.isAllowed(url) else { throw Failure.invalidURL }
-                data = try await remoteData(from: url)
-            } else {
-                guard let localStore else { throw Failure.workspaceUnavailable }
-                do {
-                    data = try await localStore.readImageData(path: candidate, maxBytes: maxBytes)
-                } catch {
-                    try Task.checkCancellation()
-                    // Alternate attachment locations may be tried only when a
-                    // file is absent. Never hide permission, size, or path errors.
-                    if Self.isMissingFile(error) { continue }
-                    throw error
-                }
+            do {
+                return try await localStore.readImageData(path: candidate, maxBytes: maxBytes)
+            } catch {
+                try Task.checkCancellation()
+                // Alternate attachment locations may be tried only when a file is absent.
+                if isMissingFile(error) { continue }
+                throw error
             }
-            try Task.checkCancellation()
-            let image = try decode(data)
-            try Task.checkCancellation()
-            return image
         }
         throw Failure.notFound
     }
 
-    private func remoteData(from url: URL) async throws -> Data {
-        var request = URLRequest(url: url)
-        request.setValue("image/*", forHTTPHeaderField: "Accept")
-        let redirectDelegate = OrgImageRedirectDelegate()
-        do {
-            let (bytes, response) = try await session.bytes(for: request, delegate: redirectDelegate)
-            // This also cancels a download as soon as its headers or streamed
-            // body exceed the budget, instead of leaving it in the background.
-            defer { bytes.task.cancel() }
-            try Task.checkCancellation()
-            guard let finalURL = response.url, OrgImageRedirectDelegate.isAllowed(finalURL) else {
-                throw Failure.invalidURL
+    static func errorDescription(_ error: Error) -> String {
+        var underlying = error
+        if let error = error as? ImagePipeline.Error {
+            switch error {
+            case .dataLoadingFailed(let cause): underlying = cause
+            case .dataDownloadExceededMaximumSize: underlying = Failure.tooLarge
+            case .dataIsEmpty, .decoderNotRegistered, .decodingFailed: underlying = Failure.unsupportedFormat
+            default: break
             }
-            guard let response = response as? HTTPURLResponse else { throw Failure.invalidResponse }
-            guard (200...299).contains(response.statusCode) else { throw Failure.httpStatus(response.statusCode) }
-            guard response.expectedContentLength <= Int64(maxBytes) else { throw Failure.tooLarge }
-
-            return try await withTaskCancellationHandler {
-                var data = Data()
-                if response.expectedContentLength > 0 {
-                    data.reserveCapacity(Int(response.expectedContentLength))
-                }
-                for try await byte in bytes {
-                    try Task.checkCancellation()
-                    guard data.count < maxBytes else { throw Failure.tooLarge }
-                    data.append(byte)
-                }
-                return data
-            } onCancel: {
-                bytes.task.cancel()
-            }
-        } catch {
-            if Task.isCancelled || (error as? URLError)?.code == .cancelled { throw CancellationError() }
-            if (error as? URLError)?.code == .appTransportSecurityRequiresSecureConnection {
-                throw Failure.requiresHTTPS
-            }
-            throw error
         }
-    }
-
-    private func decode(_ data: Data) throws -> UIImage {
-        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
-            throw Failure.unsupportedFormat
+        if (underlying as? URLError)?.code == .appTransportSecurityRequiresSecureConnection {
+            underlying = Failure.requiresHTTPS
         }
-        let thumbnailOptions: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelDimension,
-            kCGImageSourceShouldCacheImmediately: true
-        ]
-        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions as CFDictionary) else {
-            throw Failure.unsupportedFormat
-        }
-        return UIImage(cgImage: image)
+        return underlying.localizedDescription
     }
 
     private static func isMissingFile(_ error: Error) -> Bool {

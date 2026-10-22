@@ -1,3 +1,5 @@
+import Nuke
+import NukeUI
 import SwiftUI
 import UIKit
 
@@ -71,9 +73,6 @@ struct OrgPreviewImageFlow: View {
 struct OrgPreviewImageView: View {
     @Environment(\.orgPreviewImageContext) private var context
     let reference: OrgPreviewImageReference
-    @State private var loadedImage: UIImage?
-    @State private var loadedRequest: Request?
-    @State private var errorMessage: String?
     @State private var retry = 0
     @State private var presentedImage: Presentation?
 
@@ -82,89 +81,77 @@ struct OrgPreviewImageView: View {
         let image: UIImage
     }
 
-    private struct Request: Hashable {
-        let workspaceID: UUID?
-        let paths: [String]
-        let failure: String?
-        let retry: Int
-    }
-
-    private var request: Request {
-        do {
-            let paths = try reference.candidates(
-                documentPath: context?.documentPath ?? "",
-                document: context.flatMap { $0.store.parsedDocuments[$0.documentPath] },
-                attachmentDirectory: context?.store.configuration.files.attachments ?? ".attach"
-            )
-            return Request(workspaceID: context?.store.workspaceFileSessionID, paths: paths, failure: nil, retry: retry)
-        } catch {
-            return Request(workspaceID: context?.store.workspaceFileSessionID, paths: [],
-                           failure: error.localizedDescription, retry: retry)
-        }
+    private func imageRequest() throws -> ImageRequest {
+        let paths = try reference.candidates(
+            documentPath: context?.documentPath ?? "",
+            document: context.flatMap { $0.store.parsedDocuments[$0.documentPath] },
+            attachmentDirectory: context?.store.configuration.files.attachments ?? ".attach"
+        )
+        let id = ([context?.store.workspaceFileSessionID.uuidString ?? "", String(retry)] + paths)
+            .joined(separator: "\0")
+        return try OrgPreviewImageLoader.request(id: id, candidates: paths, localStore: context?.store.localStore)
     }
 
     var body: some View {
-        let request = request
         Group {
-            if loadedRequest == request, let image = loadedImage {
-                Button { presentedImage = Presentation(image: image) } label: {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 360)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+            switch Result(catching: imageRequest) {
+            case .success(let request):
+                LazyImage(request: request) { state in
+                    if let image = state.imageContainer?.image {
+                        imageButton(image)
+                    } else if let error = state.error {
+                        failureView(OrgPreviewImageLoader.errorDescription(error))
+                    } else {
+                        ProgressView("Loading image…")
+                            .font(.footnote)
+                            .frame(maxWidth: .infinity, minHeight: 88)
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(reference.label)
-                .accessibilityHint("Open image. Pinch to zoom.")
-                .accessibilityIdentifier("org.preview.image.\(reference.startByte)")
-                .contextMenu {
-                    Button("Reload image", systemImage: "arrow.clockwise") { retry += 1 }
-                }
-            } else if let message = request.failure ?? (loadedRequest == request ? errorMessage : nil) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Label("Couldn't load image", systemImage: "photo.badge.exclamationmark")
-                        .font(.subheadline.weight(.semibold))
-                    Text(reference.label).font(.footnote).foregroundStyle(.secondary)
-                    Text(message).font(.footnote).fixedSize(horizontal: false, vertical: true)
-                    Button("Retry", systemImage: "arrow.clockwise") { retry += 1 }
-                        .font(.footnote)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .frame(minHeight: 44)
-                        .accessibilityIdentifier("org.preview.image.retry.\(reference.startByte)")
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(uiColor: .secondarySystemFill), in: RoundedRectangle(cornerRadius: 8))
-            } else {
-                ProgressView("Loading image…")
-                    .font(.footnote)
-                    .frame(maxWidth: .infinity, minHeight: 88)
-            }
-        }
-        .task(id: request) {
-            loadedRequest = request
-            loadedImage = nil
-            errorMessage = nil
-            guard request.failure == nil else { return }
-            do {
-                let image = try await OrgPreviewImageLoader.shared.load(
-                    candidates: request.paths, localStore: context?.store.localStore
-                )
-                try Task.checkCancellation()
-                loadedImage = image
-            } catch is CancellationError {
-                // Leaving Preview should not turn an interrupted load into an error.
-            } catch {
-                guard !Task.isCancelled else { return }
-                errorMessage = error.localizedDescription
+                .pipeline(OrgPreviewImageLoader.pipeline)
+                .id(request.imageID)
+            case .failure(let error):
+                failureView(error.localizedDescription)
             }
         }
         .sheet(item: $presentedImage) { presentation in
             OrgPreviewImageSheet(image: presentation.image, title: reference.label)
         }
+    }
+
+    private func imageButton(_ image: UIImage) -> some View {
+        Button { presentedImage = Presentation(image: image) } label: {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxHeight: 360)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(reference.label)
+        .accessibilityHint("Open image. Pinch to zoom.")
+        .accessibilityIdentifier("org.preview.image.\(reference.startByte)")
+        .contextMenu {
+            Button("Reload image", systemImage: "arrow.clockwise") { retry += 1 }
+        }
+    }
+
+    private func failureView(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Couldn't load image", systemImage: "photo.badge.exclamationmark")
+                .font(.subheadline.weight(.semibold))
+            Text(reference.label).font(.footnote).foregroundStyle(.secondary)
+            Text(message).font(.footnote).fixedSize(horizontal: false, vertical: true)
+            Button("Retry", systemImage: "arrow.clockwise") { retry += 1 }
+                .font(.footnote)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .frame(minHeight: 44)
+                .accessibilityIdentifier("org.preview.image.retry.\(reference.startByte)")
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(uiColor: .secondarySystemFill), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
