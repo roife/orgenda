@@ -69,6 +69,14 @@
         },
         {
           "type": "SYMBOL",
+          "name": "custom_block"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "orphan_drawer_delimiter"
+        },
+        {
+          "type": "SYMBOL",
           "name": "fixed_width"
         },
         {
@@ -612,6 +620,10 @@
         {
           "type": "SYMBOL",
           "name": "dynamic_block"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "custom_block"
         },
         {
           "type": "SYMBOL",
@@ -1252,28 +1264,6 @@
         ]
       }
     },
-    "quote_block_begin": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PREC",
-        "value": 12,
-        "content": {
-          "type": "PATTERN",
-          "value": "#\\+[Bb][Ee][Gg][Ii][Nn]_[Qq][Uu][Oo][Tt][Ee][ \\t]*"
-        }
-      }
-    },
-    "quote_block_end": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PREC",
-        "value": 12,
-        "content": {
-          "type": "PATTERN",
-          "value": "#\\+[Ee][Nn][Dd]_[Qq][Uu][Oo][Tt][Ee][ \\t]*"
-        }
-      }
-    },
     "quote_line": {
       "type": "PREC_RIGHT",
       "value": 0,
@@ -1771,6 +1761,42 @@
           "content": {
             "type": "SYMBOL",
             "name": "dynamic_block_end"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_line_end"
+        }
+      ]
+    },
+    "custom_block": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "begin",
+          "content": {
+            "type": "SYMBOL",
+            "name": "custom_block_begin"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_newline"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_drawer_element"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "end",
+          "content": {
+            "type": "SYMBOL",
+            "name": "custom_block_end"
           }
         },
         {
@@ -2702,11 +2728,31 @@
     },
     {
       "type": "SYMBOL",
+      "name": "quote_block_begin"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "quote_block_end"
+    },
+    {
+      "type": "SYMBOL",
       "name": "latex_block"
     },
     {
       "type": "SYMBOL",
       "name": "latex_fragment"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "custom_block_begin"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "custom_block_end"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "orphan_drawer_delimiter"
     }
   ],
   "supertypes": [

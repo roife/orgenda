@@ -8,7 +8,11 @@ final class OrgSourceMutationTests: XCTestCase {
             ("#+BEGIN_SRC org", "#+END_EXAMPLE\n#+TODO: FINISHED | OPEN", "#+END_SRC"),
             ("#+BEGIN_SRC org", "#+END_SRC_extra\n#+TODO: FINISHED | OPEN", "#+END_SRC"),
             ("#+BEGIN_SRC org", "#+END_SRC not-a-delimiter\n#+TODO: FINISHED | OPEN", "#+END_SRC"),
-            ("#+BEGIN: generated", "#+TODO: FINISHED | OPEN", "#+END:")
+            ("#+BEGIN: generated", "#+TODO: FINISHED | OPEN", "#+END:"),
+            ("  #+BEGIN_QUOTE", "#+TODO: FINISHED | OPEN", "  #+END_QUOTE"),
+            ("#+BEGIN_note", "#+TODO: FINISHED | OPEN", "#+END_note"),
+            ("#+BEGIN_note", "#+BEGIN_nested\n#+TODO: FINISHED | OPEN\n#+END_nested", "#+END_note"),
+            (":CUSTOM-LOG:", "#+TODO: FINISHED | OPEN", ":END:")
         ]
         for newline in ["\n", "\r\n"] {
             for (begin, body, end) in blocks {

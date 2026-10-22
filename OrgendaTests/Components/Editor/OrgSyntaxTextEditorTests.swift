@@ -12,6 +12,10 @@ final class OrgSyntaxTextEditorTests: XCTestCase {
             ("#+BEGIN_SRC org", "#+END_SRC not-a-delimiter", "#+END_SRC"),
             ("#+BEGIN: generated", "#+END_SRC", "#+END:"),
             ("#+BEGIN_EXAMPLE", ":LOGBOOK:", "#+END_EXAMPLE"),
+            ("  #+BEGIN_QUOTE", "#+END_QUOTE_extra", "  #+END_QUOTE"),
+            ("#+BEGIN_note", "#+END_other", "#+END_note"),
+            ("#+BEGIN_note", "#+BEGIN_nested\n#+END_nested", "#+END_note"),
+            (":狀態-LOG:", "Previous log", ":END:"),
         ]
         for newline in ["\n", "\r\n"] {
             for (begin, body, end) in blocks {

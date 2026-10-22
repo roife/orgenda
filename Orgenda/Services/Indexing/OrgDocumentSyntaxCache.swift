@@ -24,7 +24,7 @@ final class OrgDocumentSyntaxCache {
         if let workflow, baseWorkflow == configuration.workflow, !declarationsMayChange {
             nextWorkflow = workflow
         } else {
-            nextWorkflow = OrgConfiguredHeading.workflow(in: source, base: configuration.workflow)
+            nextWorkflow = OrgConfiguredHeading.workflow(in: update.tree, base: configuration.workflow)
         }
         let sameWorkflow = workflow == nextWorkflow
         var candidates: [Range<Int>: ParsedOrgNode] = [:]

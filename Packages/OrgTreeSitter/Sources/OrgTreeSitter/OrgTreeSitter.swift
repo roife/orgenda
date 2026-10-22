@@ -167,6 +167,11 @@ public struct OrgSyntaxTree {
     public var hasError: Bool {
         rootNode.hasError
     }
+
+    /// Unfinished drawers remain editable text, but are unsafe for structural edits.
+    public var hasIncompleteStructure: Bool {
+        hasError || rootNode.namedChildren.contains { $0.type == "orphan_drawer_delimiter" }
+    }
 }
 
 public struct OrgPoint: Hashable, Sendable {

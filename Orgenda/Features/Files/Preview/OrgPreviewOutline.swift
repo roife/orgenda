@@ -34,7 +34,7 @@ enum OrgPreviewOutline {
         let level: Int
     }
 
-    /// Reuse paragraph/custom-block grouping per heading section. Ancestor paths
+    /// Reuse paragraph grouping per heading section. Ancestor paths
     /// are still recomputed because a heading-level change affects later sections.
     struct Cache {
         private struct Section {
@@ -75,7 +75,7 @@ enum OrgPreviewOutline {
     }
 
     private static func prepare(_ nodes: [ParsedOrgNode]) -> [ParsedOrgNode] {
-        OrgPreviewParagraphs.group(presentationOrder(OrgPreviewCustomBlocks.group(nodes)))
+        OrgPreviewParagraphs.group(presentationOrder(nodes))
     }
 
     private static func layout(_ nodes: [ParsedOrgNode]) -> [OrgPreviewRow] {
@@ -164,128 +164,5 @@ enum OrgPreviewOutline {
     private static func headingLevel(_ node: ParsedOrgNode) -> Int {
         let marker = node.child(ofType: "heading_marker")?.text ?? node.text
         return max(1, marker.prefix { $0 == "*" }.count)
-    }
-}
-
-/// Preview-only containers; the parser's nodes and source offsets stay intact
-/// so controls inside a special block still edit their exact original ranges.
-enum OrgPreviewCustomBlocks {
-    private struct Boundary {
-        let opens: Bool
-        let name: String
-        let title: String
-    }
-
-    private struct Candidate {
-        let nodes: [ParsedOrgNode]
-        let boundary: Boundary?
-        var text: String { nodes.map(\.text).joined() }
-    }
-
-    private static let standardNames: Set<String> = [
-        "src", "quote", "example", "export", "comment", "verse", "center"
-    ]
-    private static let boundaryExpression = try! NSRegularExpression(
-        pattern: #"^[ \t]*#\+(begin|end)_([^\s]+)(?:[ \t]+([^\r\n]*))?[ \t]*\r?\n?$"#,
-        options: [.caseInsensitive]
-    )
-
-    static func group(_ nodes: [ParsedOrgNode]) -> [ParsedOrgNode] {
-        let candidates = boundaryLines(nodes)
-        var stack: [(index: Int, name: String)] = []
-        var pairs: [Int: Int] = [:]
-        for (index, candidate) in candidates.enumerated() {
-            // An unfinished block must never consume another Org heading.
-            if candidate.nodes.contains(where: { $0.type == "heading" }) {
-                stack.removeAll()
-            }
-            guard let boundary = candidate.boundary else { continue }
-            if boundary.opens {
-                stack.append((index, boundary.name))
-            } else if let opening = stack.last, opening.name == boundary.name {
-                pairs[opening.index] = index
-                stack.removeLast()
-            } else {
-                stack.removeAll()
-            }
-        }
-
-        func containers(in range: Range<Int>) -> [ParsedOrgNode] {
-            var result: [ParsedOrgNode] = []
-            var index = range.lowerBound
-            while index < range.upperBound {
-                let candidate = candidates[index]
-                if let end = pairs[index], end < range.upperBound,
-                   let first = candidate.nodes.first,
-                   let last = candidates[end].nodes.last {
-                    result.append(ParsedOrgNode(
-                        id: "custom:\(first.id):\(last.id)",
-                        type: "custom_block",
-                        text: candidates[index...end].map(\.text).joined(),
-                        startByte: first.startByte,
-                        endByte: last.endByte,
-                        children: containers(in: (index + 1)..<end)
-                    ))
-                    index = end + 1
-                } else {
-                    result.append(contentsOf: candidate.nodes)
-                    index += 1
-                }
-            }
-            return result
-        }
-        return containers(in: candidates.indices)
-    }
-
-    static func title(for node: ParsedOrgNode) -> String {
-        let firstLine = node.text.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).first ?? ""
-        return boundary(in: String(firstLine))?.title ?? ""
-    }
-
-    private static func boundary(in text: String) -> Boundary? {
-        let range = NSRange(text.startIndex..., in: text)
-        guard let match = boundaryExpression.firstMatch(in: text, range: range),
-              match.range == range else { return nil }
-        let source = text as NSString
-        let name = source.substring(with: match.range(at: 2))
-        guard !standardNames.contains(name.lowercased()) else { return nil }
-        let opens = source.substring(with: match.range(at: 1)).lowercased() == "begin"
-        let arguments = match.range(at: 3).location == NSNotFound ? ""
-            : source.substring(with: match.range(at: 3)).trimmingCharacters(in: .whitespaces)
-        guard opens || arguments.isEmpty else { return nil }
-        return Boundary(opens: opens, name: name.lowercased(),
-                        title: name + (arguments.isEmpty ? "" : " " + arguments))
-    }
-
-    private static func boundaryLines(_ nodes: [ParsedOrgNode]) -> [Candidate] {
-        var result: [Candidate] = []
-        var index = nodes.startIndex
-        let lineTypes: Set<String> = ["paragraph", "keyword", "ERROR"]
-        while index < nodes.endIndex {
-            let first = nodes[index]
-            guard lineTypes.contains(first.type) else {
-                result.append(Candidate(nodes: [first], boundary: nil))
-                index += 1
-                continue
-            }
-            var pieces = [first]
-            var cursor = index + 1
-            // The grammar can split indentation or a standard-name prefix
-            // (e.g. begin_src_extra) into an ERROR plus a paragraph on one line.
-            while let last = pieces.last, !last.text.contains("\n"),
-                  cursor < nodes.endIndex, last.endByte == nodes[cursor].startByte,
-                  lineTypes.contains(nodes[cursor].type) {
-                pieces.append(nodes[cursor])
-                cursor += 1
-            }
-            let text = pieces.map(\.text).joined()
-            if let boundary = boundary(in: text) {
-                result.append(Candidate(nodes: pieces, boundary: boundary))
-            } else {
-                result.append(contentsOf: pieces.map { Candidate(nodes: [$0], boundary: nil) })
-            }
-            index = cursor
-        }
-        return result
     }
 }

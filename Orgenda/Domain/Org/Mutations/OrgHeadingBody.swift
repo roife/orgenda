@@ -1,6 +1,6 @@
 import Foundation
 
-/// Drawer scanning and configuration use Character semantics so composed
+/// Configuration drawer names use Character semantics so composed
 /// letters and numeric graphemes retain their exact source spelling.
 enum OrgDrawerName {
     static func isSupported(_ name: String) -> Bool {

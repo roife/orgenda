@@ -3,12 +3,88 @@ import XCTest
 
 final class OrgWorkflowOperationsTests: XCTestCase {
     func testAmbiguousOrUnclosedDrawerDoesNotWrite() throws {
-        for suffix in [":LOGBOOK:\nunfinished\n", ":LOGBOOK:\n:END:\n:LOGBOOK:\n:END:\n"] {
+        for suffix in [":LOGBOOK:\nunfinished\n", ":LOGBOOK:\n:END:\n:LOGBOOK:\n:END:\n",
+                       ":END:\n", "#+BEGIN_SRC org\nunfinished\n", "#+BEGIN_note\n#+END_other\n",
+                       ":PROPERTIES:\n:ID: unfinished\n"] {
             XCTAssertThrowsError(try OrgWorkflowOperations.applyingLogs(
                 to: "* DONE Example\n" + suffix, headingStartByte: 0,
                 replacing: item(state: .todo), with: item(state: .done)
             )) { XCTAssertEqual($0 as? OrgWorkflowOperations.Failure, .ambiguousStructure) }
         }
+    }
+
+    func testMovingSubtreePreservesLiteralHeadingsAndCustomBlockControls() throws {
+        let blocks = [
+            ("#+BEGIN_SRC org", "#+END_SRC"),
+            ("  #+BEGIN_QUOTE", "  #+END_QUOTE"),
+            ("#+BEGIN_EXAMPLE", "#+END_EXAMPLE"),
+            ("#+BEGIN_note", "#+END_note"),
+            ("#+BEGIN_note\n#+BEGIN_nested", "#+END_nested\n#+END_note")
+        ]
+        for newline in ["\n", "\r\n"] {
+            for (begin, end) in blocks {
+                let literal = [begin, "* Literal 中文🙂", "- [ ] Keep checkbox", end]
+                    .joined(separator: "\n").replacingOccurrences(of: "\n", with: newline) + newline
+                let subtree = "* TODO Move" + newline + literal + "** Child" + newline + "Body" + newline
+                let source = document("agenda/inbox.org", subtree + "* Neighbor" + newline)
+                let destination = document("agenda/actions.org", "* Destination" + newline)
+                let plan = try OrgWorkflowOperations.move(source: source, headingStartByte: 0,
+                                                          destination: destination, targetHeadingStartByte: 0)
+                XCTAssertEqual(plan.source.contents, "* Neighbor" + newline)
+                XCTAssertEqual(plan.destination.contents, destination.contents + "** TODO Move" + newline
+                               + literal + "*** Child" + newline + "Body" + newline)
+                let parsed = try XCTUnwrap(OrgIndexService.parseSynchronously([plan.destination]).first)
+                XCTAssertEqual(parsed.headings.map(\.title), ["Destination", "Move", "Child"])
+                if begin.contains("BEGIN_note") {
+                    let checkbox = try XCTUnwrap(parsed.root.descendantsByID.values.first { $0.type == "checkbox" })
+                    let toggled = try OrgSourceMutation.checkboxToggle(in: plan.destination.contents,
+                                                                      startByte: checkbox.startByte, endByte: checkbox.endByte)
+                        .applied(to: plan.destination.contents)
+                    XCTAssertEqual(toggled, plan.destination.contents.replacingOccurrences(of: "[ ]", with: "[X]"))
+                }
+            }
+        }
+    }
+
+    func testArchiveUsesParsedPropertyInheritanceWithoutLiteralOverrides() throws {
+        let source = """
+        #+PROPERTY: ARCHIVE files.org::* File archive
+        #+BEGIN_note
+        #+PROPERTY: ARCHIVE wrong.org::* Wrong
+        #+END_note
+        * Parent
+        :PROPERTIES:
+        :ARCHIVE: inherited.org::* Parent archive
+        :END:
+        ** TODO Child
+        #+BEGIN_SRC org
+        :PROPERTIES:
+        :ARCHIVE: wrong.org::* Wrong
+        :END:
+        #+END_SRC
+        * Neighbor
+        """ + "\n"
+        let child = try OrgWorkflowOperations.archiveDestination(sourcePath: "agenda/inbox.org", source: source,
+                                                                 headingStartByte: byteOffset(of: "** TODO Child", in: source))
+        XCTAssertEqual(child, OrgArchiveDestination(path: "agenda/inherited.org", outline: "* Parent archive"))
+        let neighbor = try OrgWorkflowOperations.archiveDestination(sourcePath: "agenda/inbox.org", source: source,
+                                                                    headingStartByte: byteOffset(of: "* Neighbor", in: source))
+        XCTAssertEqual(neighbor, OrgArchiveDestination(path: "agenda/files.org", outline: "* File archive"))
+    }
+
+    func testLogsPreserveMetadataAndOriginalPlanningRange() throws {
+        let source = "* TODO 中文🙂\r\nSCHEDULED: <2026-10-22 Thu +1w -2d>--<2026-10-23 Fri>\r\n"
+            + ":PROPERTIES:\r\n:ID: keep\r\n:END:\r\nBody\r\n* Neighbor\r\n"
+        var original = item(state: .todo)
+        original.scheduled = Date(timeIntervalSince1970: 1_792_627_200)
+        var edited = original
+        edited.scheduled = original.scheduled!.addingTimeInterval(86400)
+        let updated = try OrgWorkflowOperations.applyingLogs(to: source, headingStartByte: 0,
+                                                            replacing: original, with: edited, originalSource: source)
+        XCTAssertTrue(updated.contains("[2026-10-22 Thu +1w -2d]--[2026-10-23 Fri]"))
+        XCTAssertTrue(updated.hasPrefix(source.components(separatedBy: "Body")[0] + ":LOGBOOK:\r\n"))
+        XCTAssertTrue(updated.hasSuffix(":END:\r\nBody\r\n* Neighbor\r\n"))
+        XCTAssertFalse(updated.replacingOccurrences(of: "\r\n", with: "").contains("\n"))
     }
 
     func testSameFileRefilePreservesNeighborsInBothDirectionsAndWhenAdjacent() throws {

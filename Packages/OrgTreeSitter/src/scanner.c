@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <tree_sitter/parser.h>
 
@@ -23,9 +24,20 @@ enum TokenType {
   DYNAMIC_BLOCK_END,
   SOURCE_BLOCK_BEGIN_MARKER,
   SOURCE_BLOCK_END,
+  QUOTE_BLOCK_BEGIN,
+  QUOTE_BLOCK_END,
   LATEX_BLOCK,
   LATEX_FRAGMENT,
+  CUSTOM_BLOCK_BEGIN,
+  CUSTOM_BLOCK_END,
+  ORPHAN_DRAWER_DELIMITER,
 };
+
+typedef struct {
+  // NUL-separated names, including the trailing NUL, form the custom-block stack.
+  char names[TREE_SITTER_SERIALIZATION_BUFFER_SIZE];
+  unsigned length;
+} Scanner;
 
 static bool horizontal_space(int32_t c) { return c == ' ' || c == '\t'; }
 static bool line_end(TSLexer *lexer) {
@@ -73,6 +85,11 @@ static bool scan_colon_line(TSLexer *lexer, const bool *valid_symbols) {
     lexer->result_symbol = FIXED_WIDTH_MARKER;
     return true;
   }
+  if (opening == 2 && valid_symbols[ORPHAN_DRAWER_DELIMITER]) {
+    lexer->mark_end(lexer);
+    lexer->result_symbol = ORPHAN_DRAWER_DELIMITER;
+    return true;
+  }
   if (opening != 1 || !valid_symbols[DRAWER_BEGIN]) return false;
   lexer->mark_end(lexer);
   while (!lexer->eof(lexer)) {
@@ -80,17 +97,20 @@ static bool scan_colon_line(TSLexer *lexer, const bool *valid_symbols) {
     if (lexer->lookahead == '\n') lexer->advance(lexer, false);
     if (lexer->lookahead == '*') {
       do { lexer->advance(lexer, false); } while (lexer->lookahead == '*');
-      if (horizontal_space(lexer->lookahead)) return false;
+      if (horizontal_space(lexer->lookahead)) break;
     }
     int delimiter = drawer_delimiter(lexer);
     if (delimiter == 2) {
       lexer->result_symbol = DRAWER_BEGIN;
       return true;
     }
-    if (delimiter == 1 || delimiter == 3) return false; // Drawers cannot nest.
+    if (delimiter == 1 || delimiter == 3) break; // Drawers cannot nest.
     while (!line_end(lexer)) lexer->advance(lexer, false);
   }
-  return false;
+  // Keep the opener as editable text, but expose it to callers that must not
+  // mutate an unfinished drawer. mark_end still points at the opening line.
+  lexer->result_symbol = ORPHAN_DRAWER_DELIMITER;
+  return valid_symbols[ORPHAN_DRAWER_DELIMITER];
 }
 
 static bool scan_rule(TSLexer *lexer) {
@@ -108,11 +128,11 @@ static bool scan_rule(TSLexer *lexer) {
 
 // Validate the entire delimiter line. Prefixes such as BEGIN_EXAMPLE_extra
 // or -----ordinary must remain text rather than produce spurious containers.
-static bool scan_block_boundary(TSLexer *lexer, const bool *valid_symbols) {
+static bool scan_block_boundary(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
   lexer->advance(lexer, false); // #
   if (lexer->lookahead != '+') return false;
   lexer->advance(lexer, false);
-  char word[24] = {0};
+  char word[TREE_SITTER_SERIALIZATION_BUFFER_SIZE] = {0};
   unsigned length = 0;
   while (!line_end(lexer) && !horizontal_space(lexer->lookahead)) {
     int32_t c = lexer->lookahead;
@@ -126,6 +146,7 @@ static bool scan_block_boundary(TSLexer *lexer, const bool *valid_symbols) {
     "BEGIN_COMMENT", "END_COMMENT", "BEGIN_VERSE", "END_VERSE",
     "BEGIN_CENTER", "END_CENTER", "BEGIN:", "END:",
     "BEGIN_SRC", "END_SRC",
+    "BEGIN_QUOTE", "END_QUOTE",
   };
   for (unsigned index = 0; index < sizeof(names) / sizeof(names[0]); index++) {
     unsigned symbol = EXAMPLE_BLOCK_BEGIN + index;
@@ -149,7 +170,32 @@ static bool scan_block_boundary(TSLexer *lexer, const bool *valid_symbols) {
     lexer->result_symbol = symbol;
     return true;
   }
-  return false;
+  bool opens = strncmp(word, "BEGIN_", 6) == 0;
+  bool closes = strncmp(word, "END_", 4) == 0;
+  unsigned symbol = opens ? CUSTOM_BLOCK_BEGIN : CUSTOM_BLOCK_END;
+  if ((!opens && !closes) || !valid_symbols[symbol]) return false;
+  // Known delimiters belong only to their grammar rules, even when misplaced.
+  for (unsigned index = 0; index < sizeof(names) / sizeof(names[0]); index++) {
+    if (strcmp(word, names[index]) == 0) return false;
+  }
+  const char *name = word + (opens ? 6 : 4);
+  unsigned size = (unsigned)strlen(name) + 1;
+  if (size == 1) return false;
+  while (horizontal_space(lexer->lookahead)) lexer->advance(lexer, false);
+  if (opens) {
+    if (scanner->length + size > sizeof(scanner->names)) return false;
+    while (!line_end(lexer)) lexer->advance(lexer, false);
+    memcpy(scanner->names + scanner->length, name, size);
+    scanner->length += size;
+  } else {
+    if (!line_end(lexer) || scanner->length < size ||
+        strcmp(scanner->names + scanner->length - size, name) != 0 ||
+        (scanner->length > size && scanner->names[scanner->length - size - 1] != '\0')) return false;
+    scanner->length -= size;
+  }
+  lexer->mark_end(lexer);
+  lexer->result_symbol = symbol;
+  return true;
 }
 
 // Consume a complete formula as one token so Org markup and blank lines in
@@ -277,20 +323,20 @@ static bool is_todo_keyword(const char *word, size_t length) {
 }
 
 void *tree_sitter_org_external_scanner_create(void) {
-  return NULL;
+  return calloc(1, sizeof(Scanner));
 }
 
 void tree_sitter_org_external_scanner_destroy(void *payload) {
-  (void)payload;
+  free(payload);
 }
 
 unsigned tree_sitter_org_external_scanner_serialize(
   void *payload,
   char *buffer
 ) {
-  (void)payload;
-  (void)buffer;
-  return 0;
+  Scanner *scanner = payload;
+  memcpy(buffer, scanner->names, scanner->length);
+  return scanner->length;
 }
 
 void tree_sitter_org_external_scanner_deserialize(
@@ -298,9 +344,9 @@ void tree_sitter_org_external_scanner_deserialize(
   const char *buffer,
   unsigned length
 ) {
-  (void)payload;
-  (void)buffer;
-  (void)length;
+  Scanner *scanner = payload;
+  memcpy(scanner->names, buffer, length);
+  scanner->length = length;
 }
 
 bool tree_sitter_org_external_scanner_scan(
@@ -308,7 +354,8 @@ bool tree_sitter_org_external_scanner_scan(
   TSLexer *lexer,
   const bool *valid_symbols
 ) {
-  (void)payload;
+  // Error recovery enables every token; do not change the block stack there.
+  if (valid_symbols[TODO_KEYWORD] && valid_symbols[CUSTOM_BLOCK_END]) return false;
 
   if (valid_symbols[END_OF_FILE] && lexer->eof(lexer)) {
     lexer->mark_end(lexer);
@@ -328,13 +375,13 @@ bool tree_sitter_org_external_scanner_scan(
       return scan_latex(lexer, valid_symbols);
     }
     if (lexer->lookahead == ':' &&
-        (valid_symbols[DRAWER_BEGIN] || valid_symbols[FIXED_WIDTH_MARKER])) {
+        (valid_symbols[DRAWER_BEGIN] || valid_symbols[FIXED_WIDTH_MARKER] || valid_symbols[ORPHAN_DRAWER_DELIMITER])) {
       return scan_colon_line(lexer, valid_symbols);
     }
     if (lexer->lookahead == '-' && valid_symbols[HORIZONTAL_RULE_MARKER]) {
       return scan_rule(lexer);
     }
-    if (lexer->lookahead == '#') return scan_block_boundary(lexer, valid_symbols);
+    if (lexer->lookahead == '#') return scan_block_boundary(payload, lexer, valid_symbols);
   }
 
   if (valid_symbols[TODO_KEYWORD]) {

@@ -39,8 +39,13 @@ module.exports = grammar({
     $.dynamic_block_end,
     $._source_block_begin_marker,
     $.source_block_end,
+    $.quote_block_begin,
+    $.quote_block_end,
     $.latex_block,
     $.latex_fragment,
+    $.custom_block_begin,
+    $.custom_block_end,
+    $.orphan_drawer_delimiter,
   ],
 
   supertypes: $ => [
@@ -69,6 +74,8 @@ module.exports = grammar({
       $.verse_block,
       $.center_block,
       $.dynamic_block,
+      $.custom_block,
+      $.orphan_drawer_delimiter,
       $.fixed_width,
       $.horizontal_rule,
       $.heading,
@@ -168,6 +175,7 @@ module.exports = grammar({
       $.blank_line, prec(PREC.structural, $.latex_block), $.clock, $.list, $.table, $.paragraph,
       $.source_block, $.quote_block, $.example_block, $.export_block,
       $.comment_block, $.verse_block, $.center_block, $.dynamic_block,
+      $.custom_block,
       $.fixed_width, $.horizontal_rule, $.comment, $.keyword,
       $.footnote_definition,
     ),
@@ -274,14 +282,6 @@ module.exports = grammar({
       $._line_end,
     )),
 
-    quote_block_begin: _ => token(prec(
-      PREC.structural,
-      /#\+[Bb][Ee][Gg][Ii][Nn]_[Qq][Uu][Oo][Tt][Ee][ \t]*/,
-    )),
-    quote_block_end: _ => token(prec(
-      PREC.structural,
-      /#\+[Ee][Nn][Dd]_[Qq][Uu][Oo][Tt][Ee][ \t]*/,
-    )),
     quote_line: $ => prec.right(seq(repeat1($._inline), $._line_end)),
 
     source_block: $ => prec.right(seq(
@@ -324,6 +324,12 @@ module.exports = grammar({
       field('begin', $.dynamic_block_begin), $._newline,
       repeat(choice(prec(PREC.structural, $.latex_block), $.table, $.list, $.paragraph, $.blank_line, $.keyword)),
       field('end', $.dynamic_block_end), $._line_end,
+    ),
+
+    custom_block: $ => seq(
+      field('begin', $.custom_block_begin), $._newline,
+      repeat($._drawer_element),
+      field('end', $.custom_block_end), $._line_end,
     ),
 
     footnote_definition: $ => prec.right(seq(

@@ -132,13 +132,13 @@ actor OrgSyntaxHighlighter {
             return .property
         case "drawer", "property_drawer":
             return .drawer
-        case "property_drawer_begin", "property_drawer_end", "drawer_begin", "drawer_end":
+        case "property_drawer_begin", "property_drawer_end", "drawer_begin", "drawer_end", "orphan_drawer_delimiter":
             return .drawerDelimiter
         case "keyword_name", "block_keyword", "source_block_end", "quote_block_begin", "quote_block_end":
             return .keyword
         case "example_block_begin", "example_block_end", "export_block_begin", "export_block_end",
              "verse_block_begin", "verse_block_end", "center_block_begin", "center_block_end",
-             "dynamic_block_begin", "dynamic_block_end":
+             "dynamic_block_begin", "dynamic_block_end", "custom_block_begin", "custom_block_end":
             return .keyword
         case "latex_block", "latex_fragment":
             return .math

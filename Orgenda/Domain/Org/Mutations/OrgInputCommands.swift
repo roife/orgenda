@@ -1,4 +1,5 @@
 import Foundation
+import OrgTreeSitter
 
 struct OrgTextEdit: Equatable {
     let range: NSRange
@@ -84,34 +85,16 @@ enum OrgInputCommands {
         guard selection.length == 0, selection.location <= text.length else { return nil }
         let lineRange = text.lineRange(for: selection)
         let line = text.substring(with: lineRange).trimmingCharacters(in: .newlines)
-        // Source/example blocks are literal text; Return must not synthesize Org lists.
-        let before = text.substring(to: lineRange.location)
-        var blockEnd: String?
-        var inDrawer = false
-        for previous in before.components(separatedBy: .newlines) {
-            let marker = previous.trimmingCharacters(in: .whitespaces).uppercased()
-            if let expected = blockEnd {
-                if marker == expected { blockEnd = nil }
-                continue
-            }
-            if let begin = marker.firstMatch(of: #/^#\+BEGIN_([A-Z0-9_-]+)(?:[ \t]|$)/#) {
-                blockEnd = "#+END_" + begin.1
-                continue
-            }
-            if marker.firstMatch(of: #/^#\+BEGIN:[ \t]+\S/#) != nil {
-                blockEnd = "#+END:"
-                continue
-            }
-            if marker == ":END:" { inDrawer = false }
-            else if drawerExpression.firstMatch(in: marker, range: NSRange(marker.startIndex..., in: marker)) != nil
-                || (marker.hasPrefix(":") && marker.hasSuffix(":")
-                    && OrgDrawerName.isSupported(String(marker.dropFirst().dropLast()))) {
-                inDrawer = true
-            }
-        }
-        guard blockEnd == nil, !inDrawer,
-              let item = listExpression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+        guard let item = listExpression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
               selection.location >= lineRange.location + item.range.length else { return nil }
+        // A list must belong to the document, never to a block or drawer. Parsing
+        // through this line also protects incomplete containers while typing.
+        let tree = OrgParser().parse(text.substring(to: NSMaxRange(lineRange)))
+        let lineStartByte = text.substring(to: lineRange.location).utf8.count
+        guard !tree.hasIncompleteStructure,
+              tree.rootNode.namedChildren.contains(where: {
+                  $0.type == "list" && $0.namedChildren.contains { Int($0.startByte) == lineStartByte }
+              }) else { return nil }
         let nsLine = line as NSString
         let body = nsLine.substring(from: item.range.length)
         if body.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -148,7 +131,6 @@ enum OrgInputCommands {
     private static let checkboxExpression = try! NSRegularExpression(
         pattern: #"^([ \t]*(?:[-+]|\d+[.)])[ \t]+)(\[[ Xx-]\][ \t]*)?"#
     )
-    private static let drawerExpression = try! NSRegularExpression(pattern: #"^:[A-Z0-9_@#%]+:$"#)
     private static let listExpression = try! NSRegularExpression(
         pattern: #"^([ \t]*)([-+]|\d+[.)])([ \t]+)(?:\[[ Xx-]\]([ \t]+))?"#
     )

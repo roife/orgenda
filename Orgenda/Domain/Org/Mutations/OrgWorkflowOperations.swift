@@ -1,4 +1,5 @@
 import Foundation
+import OrgTreeSitter
 
 struct OrgArchiveDestination: Hashable, Sendable {
     let path: String
@@ -116,26 +117,25 @@ enum OrgWorkflowOperations {
         guard !entries.isEmpty else { return source }
         let structure = try Structure(source)
         let heading = try structure.heading(at: headingStartByte)
-        let sectionEnd = structure.sectionEnd(of: heading)
-        let drawers = structure.drawers.filter { $0.start > heading.start && $0.start < sectionEnd && $0.name == logging.drawer.uppercased() }
+        let section = structure.section(of: heading)
+        let drawers = section.filter {
+            $0.type == "drawer" && $0.child(named: "begin")?.text.trimmingCharacters(in: .whitespaces)
+                .dropFirst().dropLast().uppercased() == logging.drawer.uppercased()
+        }
         guard drawers.count <= 1 else { throw Failure.ambiguousStructure }
         let newline = structure.newline
         let body = entries.joined(separator: "\n").replacingOccurrences(of: "\n", with: newline) + newline
         if let drawer = drawers.first {
-            return try OrgSourceMutation(startByte: drawer.contentStart, endByte: drawer.contentStart,
+            let contentStart = Int(drawer.startByte) + drawer.text.utf8.prefix { $0 != 10 }.count + 1
+            return try OrgSourceMutation(startByte: contentStart, endByte: contentStart,
                                          replacement: body).applied(to: source)
         }
         // Keep planning and property metadata directly below the headline.
         var insertion = heading.end
-        for line in structure.lines where line.start >= heading.end && line.start < sectionEnd {
-            if let drawer = structure.drawers.first(where: { $0.start == line.start && $0.name == "PROPERTIES" }) {
-                insertion = drawer.end
-            } else if line.start < insertion { continue }
-            else if line.text.trimmingCharacters(in: .whitespaces).isEmpty || matches(planningKeywordLineExpression, in: line.text) {
-                insertion = line.end
-            } else { break }
+        for node in section.prefix(while: { ["property_drawer", "planning", "blank_line"].contains($0.type) }) {
+            insertion = Int(node.endByte)
         }
-        let prefix = insertion > 0 && !String(decoding: source.utf8.prefix(insertion), as: UTF8.self).hasSuffix("\n") ? newline : ""
+        let prefix = insertion > 0 && source.utf8.prefix(insertion).last != 10 ? newline : ""
         let log = logging.drawer.isEmpty ? body : ":\(logging.drawer):" + newline + body + ":END:" + newline
         return try OrgSourceMutation(startByte: insertion, endByte: insertion,
                                      replacement: prefix + log).applied(to: source)
@@ -149,17 +149,17 @@ enum OrgWorkflowOperations {
         let heading = try structure.heading(at: headingStartByte)
         let ancestors = structure.ancestors(of: heading) + [heading]
         let preambleEnd = structure.headings.first?.start ?? structure.byteCount
-        let fileProperties = structure.lines.filter { $0.start < preambleEnd && !structure.isProtected($0.start) }
+        let fileProperties = structure.blocks.filter { Int($0.startByte) < preambleEnd && $0.type == "keyword" }
             .compactMap { capture(fileArchiveExpression, in: $0.text) }
         guard fileProperties.count <= 1 else { throw Failure.ambiguousStructure }
         var custom = fileProperties.first
         for ancestor in ancestors {
-            let end = structure.sectionEnd(of: ancestor)
-            let drawers = structure.drawers.filter { $0.name == "PROPERTIES" && $0.start > ancestor.start && $0.start < end }
+            let drawers = structure.section(of: ancestor).filter { $0.type == "property_drawer" }
             guard drawers.count <= 1 else { throw Failure.ambiguousStructure }
             if let drawer = drawers.first {
-                let properties = structure.lines.filter { $0.start >= drawer.contentStart && $0.start < drawer.closeStart }
-                let values = properties.compactMap { capture(archivePropertyExpression, in: $0.text) }
+                let values = drawer.namedChildren.filter {
+                    $0.type == "property" && $0.child(named: "name")?.text.uppercased() == "ARCHIVE"
+                }.map { $0.child(named: "value")?.text.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" }
                 guard values.count <= 1 else { throw Failure.ambiguousStructure }
                 if let value = values.first { custom = value }
             }
@@ -249,7 +249,7 @@ enum OrgWorkflowOperations {
         let targetStart: Int
         if let heading = matching.first { targetStart = heading.start }
         else {
-            let separator = destination.contents.isEmpty || destination.contents.hasSuffix("\n") ? "" : structure.newline
+            let separator = destination.contents.isEmpty || destination.contents.utf8.last == 10 ? "" : structure.newline
             targetStart = destination.contents.utf8.count + separator.utf8.count
             destination.contents += separator + outline + structure.newline
         }
@@ -284,8 +284,8 @@ enum OrgWorkflowOperations {
                                             endByte: child.start - heading.start + child.level,
                                             replacement: String(repeating: "*", count: newLevel)).applied(to: subtree)
         }
-        if !subtree.hasSuffix("\n") { subtree += into.newline }
-        let prefix = insertion > 0 && !String(decoding: destination.contents.utf8.prefix(insertion), as: UTF8.self).hasSuffix("\n") ? into.newline : ""
+        if subtree.utf8.last != 10 { subtree += into.newline }
+        let prefix = insertion > 0 && destination.contents.utf8.prefix(insertion).last != 10 ? into.newline : ""
         let remove = OrgSourceMutation(startByte: heading.start, endByte: end, replacement: "")
         let insert = OrgSourceMutation(startByte: insertion, endByte: insertion, replacement: prefix + subtree)
         var newSource = source
@@ -305,33 +305,13 @@ enum OrgWorkflowOperations {
 
     private static func planningTimestamp(in structure: Structure, headingStartByte: Int, keyword: OrgPlanningKeyword) throws -> String? {
         let heading = try structure.heading(at: headingStartByte)
-        let end = structure.sectionEnd(of: heading)
-        let candidates = structure.lines.filter {
-            $0.start >= heading.end && $0.start < end && !structure.isProtected($0.start)
-                && matches(planningKeywordLineExpression, in: $0.text)
-        }
-        let values = candidates.flatMap { line in
-            planningTimestampExpression.matches(in: line.text, range: NSRange(line.text.startIndex..., in: line.text))
-                .compactMap { match -> String? in
-                    guard let name = Range(match.range(at: 1), in: line.text),
-                          line.text[name].uppercased() == keyword.rawValue,
-                          let timestamp = Range(match.range(at: 2), in: line.text) else { return nil }
-                    return String(line.text[timestamp])
-                }
-        }
+        let values = structure.section(of: heading).filter { $0.type == "planning" }
+            .flatMap(\.namedChildren).filter {
+                $0.type == "planning_entry" && $0.child(named: "keyword")?.text == keyword.rawValue + ":"
+            }.compactMap { $0.child(named: "value")?.text }
         guard values.count <= 1 else { throw Failure.ambiguousStructure }
-        return values.first.map { "[" + $0.dropFirst().dropLast() + "]" }
+        return values.first.map { $0.replacingOccurrences(of: "<", with: "[").replacingOccurrences(of: ">", with: "]") }
     }
-
-    private static let planningKeywordLineExpression = try! NSRegularExpression(
-        pattern: #"^\s*(SCHEDULED|DEADLINE|CLOSED):"#
-    )
-    private static let dynamicBlockEndExpression = try! NSRegularExpression(
-        pattern: #"^\s*#\+END:\s*$"#, options: [.caseInsensitive]
-    )
-    private static let dynamicBlockBeginExpression = try! NSRegularExpression(
-        pattern: #"^\s*#\+BEGIN:"#, options: [.caseInsensitive]
-    )
 
     private static func matches(_ expression: NSRegularExpression, in text: String) -> Bool {
         expression.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
@@ -340,21 +320,7 @@ enum OrgWorkflowOperations {
     private static let fileArchiveExpression = try! NSRegularExpression(
         pattern: #"^\s*#\+PROPERTY:\s+ARCHIVE\s+(.*?)\s*$"#, options: [.caseInsensitive]
     )
-    private static let archivePropertyExpression = try! NSRegularExpression(
-        pattern: #"^\s*:ARCHIVE:\s*(.*?)\s*$"#, options: [.caseInsensitive]
-    )
     private static let archiveHeadingExpression = try! NSRegularExpression(pattern: #"^\*+[ \t]+\S.*$"#)
-    private static let blockEndExpression = try! NSRegularExpression(
-        pattern: #"^\s*#\+END_([A-Z0-9_-]+)\s*$"#, options: [.caseInsensitive]
-    )
-    private static let blockBeginExpression = try! NSRegularExpression(
-        pattern: #"^\s*#\+BEGIN_([A-Z0-9_-]+)(?:\s|$)"#, options: [.caseInsensitive]
-    )
-    private static let drawerExpression = try! NSRegularExpression(pattern: #"^\s*:([^:\r\n]+):\s*$"#)
-    private static let headingExpression = try! NSRegularExpression(pattern: #"^(\*+)[ \t]+\S"#)
-    private static let planningTimestampExpression = try! NSRegularExpression(
-        pattern: #"\b(SCHEDULED|DEADLINE|CLOSED):[ \t]*(<[^>\r\n]+>|\[[^\]\r\n]+\])"#, options: [.caseInsensitive]
-    )
 
     private static func capture(_ expression: NSRegularExpression, in source: String) -> String? {
         guard let match = expression.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
@@ -362,11 +328,6 @@ enum OrgWorkflowOperations {
         return String(source[range])
     }
 
-    private struct Line {
-        let start: Int
-        let end: Int
-        let text: String
-    }
     private struct Heading {
         let start: Int
         let end: Int
@@ -374,88 +335,35 @@ enum OrgWorkflowOperations {
         let title: String
         let rawTitle: String
     }
-    private struct Drawer {
-        let name: String
-        let start: Int
-        let contentStart: Int
-        let closeStart: Int
-        let end: Int
-    }
-
-    /// Structural scanner is deliberately conservative around unknown drawers
-    /// and all BEGIN/END blocks, whose contents the current grammar may not know.
+    /// Structural edits use the same containers and byte ranges as indexing.
     private struct Structure {
-        let lines: [Line]
+        let blocks: [OrgSyntaxNode]
         let headings: [Heading]
-        let drawers: [Drawer]
-        let protected: [Range<Int>]
         let byteCount: Int
         let newline: String
 
         init(_ source: String) throws {
+            let tree = OrgParser().parse(source)
+            guard !tree.hasIncompleteStructure else { throw Failure.ambiguousStructure }
+            blocks = tree.rootNode.namedChildren
             byteCount = source.utf8.count
             newline = source.contains("\r\n") ? "\r\n" : "\n"
-            var lines: [Line] = []
-            var offset = 0
-            // Split on the scalar LF, since Swift treats CRLF as one Character.
-            for part in source.components(separatedBy: "\n") {
-                let isLast = offset + part.utf8.count == byteCount
-                let end = offset + part.utf8.count + (isLast ? 0 : 1)
-                if offset < byteCount {
-                    lines.append(Line(start: offset, end: end,
-                                      text: part.hasSuffix("\r") ? String(part.dropLast()) : part))
-                }
-                offset = end
+            headings = blocks.filter { $0.type == "heading" }.map { node in
+                let level = node.child(named: "marker")!.text.prefix { $0 == "*" }.count
+                let rawTitle = node.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                return Heading(start: Int(node.startByte), end: Int(node.endByte), level: level,
+                               title: String(rawTitle.dropFirst(level)).trimmingCharacters(in: .whitespaces),
+                               rawTitle: rawTitle)
             }
-            self.lines = lines
-            var headings: [Heading] = []
-            var drawers: [Drawer] = []
-            var protected: [Range<Int>] = []
-            var block: (name: String, start: Int)?
-            var drawer: (name: String, start: Int, contentStart: Int)?
-            for line in lines {
-                if let active = block {
-                    let isDynamicEnd = active.name == ":" && matches(dynamicBlockEndExpression, in: line.text)
-                    if isDynamicEnd || capture(blockEndExpression, in: line.text)?.uppercased() == active.name {
-                        protected.append(active.start..<line.end)
-                        block = nil
-                    }
-                    continue
-                }
-                if let active = drawer {
-                    if line.text.trimmingCharacters(in: .whitespaces).uppercased() == ":END:" {
-                        drawers.append(Drawer(name: active.name, start: active.start, contentStart: active.contentStart,
-                                              closeStart: line.start, end: line.end))
-                        protected.append(active.start..<line.end)
-                        drawer = nil
-                    }
-                    continue
-                }
-                if let name = capture(blockBeginExpression, in: line.text) {
-                    block = (name.uppercased(), line.start)
-                } else if matches(dynamicBlockBeginExpression, in: line.text) {
-                    block = (":", line.start)
-                } else if let name = capture(drawerExpression, in: line.text),
-                          OrgDrawerName.isSupported(name) {
-                    guard name.uppercased() != "END" else { throw Failure.ambiguousStructure }
-                    drawer = (name.uppercased(), line.start, line.end)
-                } else if let marker = capture(headingExpression, in: line.text) {
-                    let title = String(line.text.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces)
-                    headings.append(Heading(start: line.start, end: line.end, level: marker.count,
-                                            title: title, rawTitle: line.text.trimmingCharacters(in: .whitespaces)))
-                }
-            }
-            guard block == nil, drawer == nil else { throw Failure.ambiguousStructure }
-            self.headings = headings
-            self.drawers = drawers
-            self.protected = protected
         }
 
         func heading(at start: Int) throws -> Heading {
             guard let heading = headings.first(where: { $0.start == start }) else { throw Failure.missingHeading }
             return heading
         }
-        func sectionEnd(of heading: Heading) -> Int { headings.first(where: { $0.start > heading.start })?.start ?? byteCount }
+        func section(of heading: Heading) -> ArraySlice<OrgSyntaxNode> {
+            blocks.drop { Int($0.startByte) < heading.end }.prefix { $0.type != "heading" }
+        }
         func subtreeEnd(of heading: Heading) -> Int {
             headings.first(where: { $0.start > heading.start && $0.level <= heading.level })?.start ?? byteCount
         }
@@ -468,6 +376,5 @@ enum OrgWorkflowOperations {
             while let last = result.last, last.level >= heading.level { result.removeLast() }
             return result
         }
-        func isProtected(_ offset: Int) -> Bool { protected.contains { $0.contains(offset) } }
     }
 }

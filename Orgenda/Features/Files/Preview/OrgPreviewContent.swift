@@ -215,10 +215,13 @@ private struct OrgPreviewRowView: View {
     }
 
     private var customBlock: some View {
-        let children = OrgPreviewOutline.rows(from: row.node.children)
+        let contents = row.node.children.filter { !["custom_block_begin", "custom_block_end"].contains($0.type) }
+        let children = OrgPreviewOutline.rows(from: contents)
             .filter { $0.node.type != "blank_line" }
+        let title = row.node.child(ofType: "custom_block_begin")?.text
+            .trimmingCharacters(in: .whitespaces).dropFirst("#+BEGIN_".count) ?? ""
         return VStack(alignment: .leading, spacing: 4) {
-            OrgPreviewSearchText(OrgPreviewCustomBlocks.title(for: row.node))
+            OrgPreviewSearchText(String(title))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)

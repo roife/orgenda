@@ -103,3 +103,46 @@ func incompleteOrUnknownMathRemainsEditable(formula: String) {
         #expect(Array(original.rootNode.text.utf8) == Array(source.utf8))
     }
 }
+
+@Test func customBlockBoundariesKeepLiteralHeadingsAndNestedControls() throws {
+    let source = "#+begin_note 中文🙂\r\n* Literal\r\n#+BEGIN_note\r\n- [ ] Keep\r\n#+END_note\r\n"
+        + "#+END_note_extra\r\n#+END_note trailing\r\n#+END_note\r\n* Tail\r\n"
+    let tree = OrgParser().parse(source)
+    #expect(!tree.hasIncompleteStructure, "\(tree.sExpression)")
+    #expect(tree.rootNode.namedChildren.map(\.type) == ["custom_block", "heading"])
+    let outer = try #require(tree.rootNode.namedChildren.first)
+    #expect(outer.child(named: "begin")?.text == "#+begin_note 中文🙂")
+    #expect(outer.child(named: "end")?.text == "#+END_note")
+    let inner = try #require(outer.namedChildren.first { $0.type == "custom_block" })
+    let list = try #require(inner.namedChildren.first { $0.type == "list" })
+    let checkbox = try #require(list.namedChildren.first?.child(named: "checkbox"))
+    #expect(Array(source.utf8)[Int(checkbox.startByte)..<Int(checkbox.endByte)] == ArraySlice("[ ] ".utf8))
+    #expect(tree.rootNode.text.utf8.elementsEqual(source.utf8))
+}
+
+@Test func incrementalCustomBlockEditsRestoreTheScannerStack() {
+    let parser = OrgParser()
+    let source = "#+BEGIN_note\n#+BEGIN_inner\n- [ ] 中文🙂\n#+END_inner\n#+END_note\n* Tail\n"
+    let original = parser.parse(source)
+    func signature(_ node: OrgSyntaxNode) -> [String] {
+        ["\(node.type):\(node.startByte):\(node.endByte):\(node.isMissing)"] + node.namedChildren.flatMap(signature)
+    }
+    let scalars = Array(source.unicodeScalars)
+    for index in scalars.indices {
+        var changed = scalars
+        changed.remove(at: index)
+        let text = String(String.UnicodeScalarView(changed))
+        let update = parser.update(text, previous: original)
+        #expect(signature(update.tree.rootNode) == signature(parser.parse(text).rootNode), "\(text)")
+        let restored = parser.update(source, previous: update.tree).tree
+        #expect(signature(restored.rootNode) == signature(original.rootNode))
+    }
+}
+
+@Test func unfinishedDrawerIsVisibleWithoutSwallowingTheNextHeading() {
+    let source = "* Task\n:LOGBOOK:\nUnfinished\n* Neighbor\n"
+    let tree = OrgParser().parse(source)
+    #expect(tree.hasIncompleteStructure)
+    #expect(tree.rootNode.namedChildren.filter { $0.type == "heading" }.count == 2)
+    #expect(tree.rootNode.text.utf8.elementsEqual(source.utf8))
+}

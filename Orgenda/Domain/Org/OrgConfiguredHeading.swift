@@ -1,30 +1,22 @@
 import Foundation
+import OrgTreeSitter
 
 enum OrgConfiguredHeading {
     static func workflow(in source: String, base: WorkspaceConfiguration.Workflow) -> WorkspaceConfiguration.Workflow {
+        workflow(in: OrgParser().parse(source), base: base)
+    }
+
+    static func workflow(in tree: OrgSyntaxTree, base: WorkspaceConfiguration.Workflow) -> WorkspaceConfiguration.Workflow {
         var sequences: [WorkspaceConfiguration.Sequence] = []
         var styles = base.keywords
-        var blockEnd: String?
-        for line in source.components(separatedBy: .newlines) {
-            let marker = line.trimmingCharacters(in: .whitespaces).uppercased()
-            if let expected = blockEnd {
-                if marker == expected { blockEnd = nil }
-                continue
-            }
-            // Literal declarations never alter the file's workflow. Match
-            // the opening block's exact end, including indented delimiters.
-            if let begin = marker.firstMatch(of: #/^#\+BEGIN_([A-Z0-9_-]+)(?:[ \t]|$)/#) {
-                blockEnd = "#+END_" + begin.1
-                continue
-            }
-            if marker.firstMatch(of: #/^#\+BEGIN:[ \t]+\S/#) != nil {
-                blockEnd = "#+END:"
-                continue
-            }
-            let upper = line.uppercased()
-            guard ["#+TODO:", "#+SEQ_TODO:", "#+TYP_TODO:"].contains(where: { upper.hasPrefix($0) }),
-                  let colon = line.firstIndex(of: ":") else { continue }
-            let words = line[line.index(after: colon)...].split(whereSeparator: \.isWhitespace).map(String.init)
+        // Only document-level declarations apply. Stop at an unfinished container
+        // because recovery nodes after it may still belong to literal content.
+        for node in tree.rootNode.namedChildren.prefix(while: { !$0.hasError && $0.type != "orphan_drawer_delimiter" }) {
+            guard node.type == "keyword",
+                  let name = node.child(named: "name")?.text.uppercased(),
+                  ["#+TODO:", "#+SEQ_TODO:", "#+TYP_TODO:"].contains(name),
+                  let value = node.child(named: "value")?.text else { continue }
+            let words = value.split(whereSeparator: \.isWhitespace).map(String.init)
             var process: [String] = []
             var terminal: [String] = []
             var done = false
