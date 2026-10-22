@@ -6,7 +6,6 @@
 
 enum TokenType {
   END_OF_FILE,
-  TODO_KEYWORD,
   DRAWER_BEGIN,
   FIXED_WIDTH_MARKER,
   HORIZONTAL_RULE_MARKER,
@@ -302,26 +301,6 @@ static bool scan_latex(TSLexer *lexer, const bool *valid_symbols) {
   return true;
 }
 
-static bool is_todo_keyword(const char *word, size_t length) {
-  static const char *const keywords[] = {
-    "TODO",
-    "NEXT",
-    "WAIT",
-    "SOMEDAY",
-    "URGENT",
-    "DONE",
-    "CANCELED",
-  };
-
-  for (size_t index = 0; index < sizeof(keywords) / sizeof(keywords[0]); index++) {
-    if (strlen(keywords[index]) == length &&
-        memcmp(keywords[index], word, length) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void *tree_sitter_org_external_scanner_create(void) {
   return calloc(1, sizeof(Scanner));
 }
@@ -355,7 +334,7 @@ bool tree_sitter_org_external_scanner_scan(
   const bool *valid_symbols
 ) {
   // Error recovery enables every token; do not change the block stack there.
-  if (valid_symbols[TODO_KEYWORD] && valid_symbols[CUSTOM_BLOCK_END]) return false;
+  if (valid_symbols[SOURCE_BLOCK_END] && valid_symbols[EXAMPLE_BLOCK_END]) return false;
 
   if (valid_symbols[END_OF_FILE] && lexer->eof(lexer)) {
     lexer->mark_end(lexer);
@@ -384,28 +363,6 @@ bool tree_sitter_org_external_scanner_scan(
     if (lexer->lookahead == '#') return scan_block_boundary(payload, lexer, valid_symbols);
   }
 
-  if (valid_symbols[TODO_KEYWORD]) {
-    char word[16];
-    size_t length = 0;
-
-    while (lexer->lookahead >= 'A' && lexer->lookahead <= 'Z') {
-      if (length < sizeof(word)) {
-        word[length] = (char)lexer->lookahead;
-      }
-      length++;
-      lexer->advance(lexer, false);
-    }
-
-    bool has_boundary = horizontal_space(lexer->lookahead) || line_end(lexer);
-    if (length <= sizeof(word) && has_boundary && is_todo_keyword(word, length)) {
-      while (horizontal_space(lexer->lookahead)) {
-        lexer->advance(lexer, false);
-      }
-      lexer->mark_end(lexer);
-      lexer->result_symbol = TODO_KEYWORD;
-      return true;
-    }
-  }
 
   return false;
 }

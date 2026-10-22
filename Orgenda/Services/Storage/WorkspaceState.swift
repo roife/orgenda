@@ -12,15 +12,6 @@ struct WorkspaceState: Sendable {
     var attachments: [String: CachedWorkspaceAttachment] = [:]
     var trash: [WorkspaceTrashEntry] = []
     var operations: [WorkspaceOperation] = []
-    var fileOperation: WorkspaceOperation? {
-        get { operations.first }
-        set {
-            if let newValue {
-                if operations.isEmpty { operations.append(newValue) }
-                else { operations[0] = newValue }
-            } else if !operations.isEmpty { operations.removeFirst() }
-        }
-    }
     var lastSync: Date?
 }
 

@@ -63,7 +63,7 @@ enum OrgWorkflowOperations {
         to source: String, headingStartByte: Int,
         replacing original: OrgItem, with item: OrgItem,
         note: String? = nil, now: Date = Date(), originalSource: String? = nil,
-        logging: WorkspaceConfiguration.Logging = .init(done: .time, reschedule: .time, redeadline: .time)
+        logging: WorkspaceConfiguration.Logging
     ) throws -> String {
         let cleanNote = note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let doneLog = original.state.rawValue != item.state.rawValue && item.state.isTerminal ? logging.done : .none
@@ -142,8 +142,7 @@ enum OrgWorkflowOperations {
     }
 
     static func archiveDestination(
-        sourcePath: String, source: String, headingStartByte: Int, now: Date = Date(),
-        defaultLocation: String? = nil
+        sourcePath: String, source: String, headingStartByte: Int, defaultLocation: String
     ) throws -> OrgArchiveDestination {
         let structure = try Structure(source)
         let heading = try structure.heading(at: headingStartByte)
@@ -166,12 +165,7 @@ enum OrgWorkflowOperations {
         }
         let filename = (sourcePath as NSString).lastPathComponent
         let directory = (sourcePath as NSString).deletingLastPathComponent
-        let base = (filename as NSString).deletingPathExtension
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .autoupdatingCurrent
-        let year = calendar.component(.year, from: now)
-        let standard = "archives/\(base)-\(year).org::* Archived"
-        let location = (custom ?? defaultLocation ?? standard).replacingOccurrences(of: "%s", with: filename)
+        let location = (custom ?? defaultLocation).replacingOccurrences(of: "%s", with: filename)
         let pieces = location.components(separatedBy: "::")
         guard pieces.count == 2 else { throw Failure.unsafeArchivePath }
         let relative = pieces[0].trimmingCharacters(in: .whitespaces)
@@ -196,12 +190,7 @@ enum OrgWorkflowOperations {
         return OrgArchiveDestination(path: path, outline: outline.isEmpty ? nil : outline)
     }
 
-    static let refilePaths: Set<String> = [
-        "agenda/actions.org", "agenda/work.org", "agenda/personal.org",
-        "agenda/routines.org", "agenda/someday.org"
-    ]
-
-    static func refileTargets(in documents: [WorkspaceDocument], refilePaths: Set<String> = Self.refilePaths,
+    static func refileTargets(in documents: [WorkspaceDocument], refilePaths: Set<String>,
                               maxLevel: Int = 3) -> [OrgRefileTarget] {
         documents.filter { $0.kind == .org && refilePaths.contains($0.path) }.flatMap { document -> [OrgRefileTarget] in
             guard let structure = try? Structure(document.contents) else { return [] }
@@ -216,7 +205,7 @@ enum OrgWorkflowOperations {
     static func refile(
         source: WorkspaceDocument, headingStartByte: Int,
         destination: WorkspaceDocument, target: OrgRefileTarget,
-        refilePaths: Set<String> = Self.refilePaths, maxLevel: Int = 3
+        refilePaths: Set<String>, maxLevel: Int = 3
     ) throws -> OrgMovePlan {
         guard refilePaths.contains(destination.path), target.path == destination.path, target.level <= maxLevel else {
             throw Failure.invalidTarget
@@ -233,10 +222,10 @@ enum OrgWorkflowOperations {
 
     static func archive(
         source: WorkspaceDocument, headingStartByte: Int,
-        destination: WorkspaceDocument, now: Date = Date(), defaultLocation: String? = nil
+        destination: WorkspaceDocument, defaultLocation: String
     ) throws -> OrgMovePlan {
         let location = try archiveDestination(sourcePath: source.path, source: source.contents,
-                                              headingStartByte: headingStartByte, now: now, defaultLocation: defaultLocation)
+                                              headingStartByte: headingStartByte, defaultLocation: defaultLocation)
         guard destination.path == location.path else { throw Failure.invalidTarget }
         guard let outline = location.outline else {
             return try move(source: source, headingStartByte: headingStartByte, destination: destination,

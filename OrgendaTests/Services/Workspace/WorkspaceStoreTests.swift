@@ -5,6 +5,25 @@ import XCTest
 final class WorkspaceStoreTests: XCTestCase {
     private let referenceDate = Date(timeIntervalSince1970: 1_788_048_000)
 
+    func testTransferredCustomStatePreservesMetadataAndRejectsStaleSource() throws {
+        let source = "#+TODO: OPEN | FINISHED(!)\n* Parent\n** FINISHED Task\nOriginal notes.\n"
+        let store = parsedStore(source)
+        let original = try XCTUnwrap(store.items.first)
+        let encoded = try JSONEncoder().encode(OrgTaskTransfer(item: original))
+        let transfer = try JSONDecoder().decode(OrgTaskTransfer.self, from: encoded)
+        XCTAssertEqual(transfer.item, original)
+        XCTAssertTrue(transfer.item.state.isTerminal)
+        XCTAssertEqual(transfer.item.state.enterLog, .time)
+        XCTAssertEqual(transfer.item.source.ancestorTitles, ["Parent"])
+
+        let current = source.replacingOccurrences(of: "Original notes.", with: "Newer notes.")
+        store.updateDocument(path: "inbox.org", contents: current)
+        var edited = transfer.item
+        edited.title = "Edited title"
+        XCTAssertFalse(store.save(edited, original: transfer.item))
+        XCTAssertEqual(store.documents.first?.contents, current)
+    }
+
     func testItemSourceIncludesOnlyItsAncestorHeadings() throws {
         let store = parsedStore("""
         #+TODO: OPEN | FINISHED
@@ -43,14 +62,6 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertTrue(refreshed.hasSameEditableValues(as: original))
     }
 
-    func testSourceLocationDecodesOlderPayloadsAndPreservesAncestors() throws {
-        let legacy = Data(#"{"file":"routines.org","startByte":0,"endByte":20,"startLine":1}"#.utf8)
-        var source = try JSONDecoder().decode(SourceLocation.self, from: legacy)
-        XCTAssertEqual(source.ancestorTitles, [])
-        source.ancestorTitles = ["a", "b"]
-        XCTAssertEqual(try JSONDecoder().decode(SourceLocation.self, from: JSONEncoder().encode(source)), source)
-    }
-
     func testStaleEditorBaselineRejectsNewerSourceNotesBeforeAndAfterReindex() throws {
         for reindex in [false, true] {
             let store = parsedStore("* TODO Original\nOriginal notes.\n")
@@ -75,7 +86,7 @@ final class WorkspaceStoreTests: XCTestCase {
 
             let exact = try XCTUnwrap(store.exactSource(for: draft))
             XCTAssertTrue(exact.utf8.elementsEqual("* TODO \(after)\nBody.\n".utf8))
-            draft.state = .done
+            draft.state = store.configuration.workflow.toggled(draft.state)
             XCTAssertTrue(store.save(draft))
             XCTAssertTrue(try XCTUnwrap(store.documents.first?.contents).utf8.elementsEqual(
                 "* DONE \(after)\nBody.\n* TODO Tail\n".utf8
@@ -121,8 +132,8 @@ final class WorkspaceStoreTests: XCTestCase {
         let suite = "OrgendaConfigurationAudit-" + UUID().uuidString
         store.connectionDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { store.connectionDefaults.removePersistentDomain(forName: suite) }
-        let before = "{\"version\":1,\"custom\":\"Café\"}"
-        let after = "{\"version\":1,\"custom\":\"Cafe\u{301}\"}"
+        let before = "{\"version\":1,\"files\":{\"journal\":\"Café\"}}"
+        let after = "{\"version\":1,\"files\":{\"journal\":\"Cafe\u{301}\"}}"
         XCTAssertTrue(store.acceptConfiguration(before))
         let revision = store.configurationRevision
 
@@ -131,7 +142,8 @@ final class WorkspaceStoreTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(store.configurationSource).utf8.elementsEqual(after.utf8))
         let encoded = try store.configurationDocument.encoded(store.configuration)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(encoded.utf8)) as? [String: Any])
-        XCTAssertTrue(try XCTUnwrap(object["custom"] as? String).utf8.elementsEqual("Cafe\u{301}".utf8))
+        let files = try XCTUnwrap(object["files"] as? [String: Any])
+        XCTAssertTrue(try XCTUnwrap(files["journal"] as? String).utf8.elementsEqual("Cafe\u{301}".utf8))
     }
 
     private func parsedStore(_ contents: String, path: String = "inbox.org") -> WorkspaceStore {

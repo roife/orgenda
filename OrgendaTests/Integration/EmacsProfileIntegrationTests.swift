@@ -9,7 +9,7 @@ final class EmacsProfileIntegrationTests: XCTestCase {
         store.toggleDone(try XCTUnwrap(store.items.first))
         await store.waitForWorkspaceIndex()
         XCTAssertEqual(store.documents.first?.contents, source)
-        XCTAssertEqual(store.items.first?.state, .todo)
+        XCTAssertEqual(store.items.first?.state, store.configuration.workflow.initial)
         XCTAssertNotNil(store.operationError)
     }
 
@@ -46,7 +46,7 @@ final class EmacsProfileIntegrationTests: XCTestCase {
 
     private func makeStore(_ sources: [String: String]) -> WorkspaceStore {
         let store = WorkspaceStore(documents: sources.map { WorkspaceDocument(path: $0.key, title: $0.key, contents: $0.value, kind: .org) })
-        store.configuration = .classic
+        store.configuration = .standard.applyingClassicWorkflowPreset()
         store.parseWorkspace()
         return store
     }

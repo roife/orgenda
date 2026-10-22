@@ -2,13 +2,27 @@ import XCTest
 @testable import Orgenda
 
 final class OrgWorkflowOperationsTests: XCTestCase {
+    func testDefaultArchiveUsesConfiguredDestinationAndPreservesSource() throws {
+        let source = document("notes/tasks.org", "* TODO Move\nBody\n* Neighbor\nUntouched\n")
+        let rule = WorkspaceConfiguration.Files.standard.archive
+        let location = try OrgWorkflowOperations.archiveDestination(sourcePath: source.path,
+            source: source.contents, headingStartByte: 0, defaultLocation: rule)
+        XCTAssertEqual(location.path, "notes/tasks.org_archive")
+        let destination = document(location.path, "* Existing\nKeep\n")
+        let plan = try OrgWorkflowOperations.archive(source: source, headingStartByte: 0,
+            destination: destination, defaultLocation: rule)
+        XCTAssertEqual(plan.source.contents, "* Neighbor\nUntouched\n")
+        XCTAssertEqual(plan.destination.contents, "* Existing\nKeep\n* Archived\n** TODO Move\nBody\n")
+    }
+
     func testAmbiguousOrUnclosedDrawerDoesNotWrite() throws {
         for suffix in [":LOGBOOK:\nunfinished\n", ":LOGBOOK:\n:END:\n:LOGBOOK:\n:END:\n",
                        ":END:\n", "#+BEGIN_SRC org\nunfinished\n", "#+BEGIN_note\n#+END_other\n",
                        ":PROPERTIES:\n:ID: unfinished\n"] {
             XCTAssertThrowsError(try OrgWorkflowOperations.applyingLogs(
                 to: "* DONE Example\n" + suffix, headingStartByte: 0,
-                replacing: item(state: .todo), with: item(state: .done)
+                replacing: item(state: WorkspaceConfiguration.standard.workflow.initial),
+                with: item(state: OrgWorkflowState(token: "DONE", terminal: true)), logging: .init(done: .time)
             )) { XCTAssertEqual($0 as? OrgWorkflowOperations.Failure, .ambiguousStructure) }
         }
     }
@@ -65,22 +79,24 @@ final class OrgWorkflowOperationsTests: XCTestCase {
         * Neighbor
         """ + "\n"
         let child = try OrgWorkflowOperations.archiveDestination(sourcePath: "agenda/inbox.org", source: source,
-                                                                 headingStartByte: byteOffset(of: "** TODO Child", in: source))
+                                                                 headingStartByte: byteOffset(of: "** TODO Child", in: source),
+                                                                 defaultLocation: WorkspaceConfiguration.Files.standard.archive)
         XCTAssertEqual(child, OrgArchiveDestination(path: "agenda/inherited.org", outline: "* Parent archive"))
         let neighbor = try OrgWorkflowOperations.archiveDestination(sourcePath: "agenda/inbox.org", source: source,
-                                                                    headingStartByte: byteOffset(of: "* Neighbor", in: source))
+                                                                    headingStartByte: byteOffset(of: "* Neighbor", in: source),
+                                                                    defaultLocation: WorkspaceConfiguration.Files.standard.archive)
         XCTAssertEqual(neighbor, OrgArchiveDestination(path: "agenda/files.org", outline: "* File archive"))
     }
 
     func testLogsPreserveMetadataAndOriginalPlanningRange() throws {
         let source = "* TODO 中文🙂\r\nSCHEDULED: <2026-10-22 Thu +1w -2d>--<2026-10-23 Fri>\r\n"
             + ":PROPERTIES:\r\n:ID: keep\r\n:END:\r\nBody\r\n* Neighbor\r\n"
-        var original = item(state: .todo)
+        var original = item(state: WorkspaceConfiguration.standard.workflow.initial)
         original.scheduled = Date(timeIntervalSince1970: 1_792_627_200)
         var edited = original
         edited.scheduled = original.scheduled!.addingTimeInterval(86400)
         let updated = try OrgWorkflowOperations.applyingLogs(to: source, headingStartByte: 0,
-                                                            replacing: original, with: edited, originalSource: source)
+                                                            replacing: original, with: edited, originalSource: source, logging: .init(reschedule: .time))
         XCTAssertTrue(updated.contains("[2026-10-22 Thu +1w -2d]--[2026-10-23 Fri]"))
         XCTAssertTrue(updated.hasPrefix(source.components(separatedBy: "Body")[0] + ":LOGBOOK:\r\n"))
         XCTAssertTrue(updated.hasSuffix(":END:\r\nBody\r\n* Neighbor\r\n"))
@@ -102,8 +118,10 @@ final class OrgWorkflowOperationsTests: XCTestCase {
         for (name, heading, contents, expected) in cases {
             try XCTContext.runActivity(named: name) { _ in
                 let source = document("agenda/actions.org", contents)
-                let target = try XCTUnwrap(OrgWorkflowOperations.refileTargets(in: [source]).first { $0.title == "Destination" })
-                let plan = try OrgWorkflowOperations.refile(source: source, headingStartByte: byteOffset(of: heading, in: contents), destination: source, target: target)
+                let target = try XCTUnwrap(OrgWorkflowOperations.refileTargets(in: [source], refilePaths: [source.path])
+                    .first { $0.title == "Destination" })
+                let plan = try OrgWorkflowOperations.refile(source: source, headingStartByte: byteOffset(of: heading, in: contents),
+                    destination: source, target: target, refilePaths: [source.path])
                 XCTAssertEqual(plan.source, plan.destination)
                 XCTAssertEqual(plan.source.contents, expected)
             }

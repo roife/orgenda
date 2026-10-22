@@ -25,7 +25,8 @@ enum OrgSyntaxPresentation {
         _ kind: OrgHighlightKind,
         to textStorage: NSTextStorage,
         range: NSRange,
-        colorSchemeContrast: ColorSchemeContrast
+        colorSchemeContrast: ColorSchemeContrast,
+        workflow: WorkspaceConfiguration.Workflow
     ) {
         switch kind {
         case .heading:
@@ -35,7 +36,9 @@ enum OrgSyntaxPresentation {
         case .todo:
             textStorage.addAttribute(
                 .foregroundColor,
-                value: workflowColor(for: textStorage.attributedSubstring(from: range).string),
+                value: workflow.state(textStorage.attributedSubstring(from: range).string
+                    .trimmingCharacters(in: .whitespacesAndNewlines)).map { UIColor(OrgendaTheme.workflowColor($0)) }
+                    ?? .secondaryLabel,
                 range: range
             )
             addFontTraits(.traitBold, to: textStorage, range: range)
@@ -182,12 +185,6 @@ enum OrgSyntaxPresentation {
                   let state = workflow.state(String(tokens[1])) else { continue }
             storage.addAttribute(.foregroundColor, value: UIColor(OrgendaTheme.workflowColor(state)), range: span.range)
         }
-    }
-
-    private static func workflowColor(for token: String) -> UIColor {
-        let keyword = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let state = OrgWorkflowState(rawValue: keyword) else { return .secondaryLabel }
-        return UIColor(OrgendaTheme.workflowColor(state))
     }
 
     private static func priorityColor(for token: String) -> UIColor {

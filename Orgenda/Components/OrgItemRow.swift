@@ -66,9 +66,8 @@ struct OrgItemRow: View {
     @ViewBuilder
     private var contextActions: some View {
         if item.canComplete {
-            let target: OrgWorkflowState = item.state.isTerminal ? .todo : .done
             Button(action: onToggle) {
-                Label(completionLabel, systemImage: target.symbol)
+                Label(completionLabel, systemImage: item.state.isTerminal ? "circle" : "checkmark.circle")
             }
             .accessibilityLabel(completionLabel)
         }
@@ -175,9 +174,6 @@ struct OrgItemRow: View {
 
     private var displaySourcePath: String {
         var path = item.source.file
-        if path.hasPrefix("agenda/") {
-            path.removeFirst("agenda/".count)
-        }
         if path.hasSuffix(".org") {
             path.removeLast(".org".count)
         }

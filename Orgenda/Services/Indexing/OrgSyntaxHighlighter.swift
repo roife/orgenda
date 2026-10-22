@@ -65,7 +65,7 @@ actor OrgSyntaxHighlighter {
     private let syntax = OrgDocumentSyntaxCache()
     private var snapshot: OrgHighlightSnapshot?
 
-    func highlights(in source: String, configuration: WorkspaceConfiguration = .classic) -> OrgHighlightSnapshot {
+    func highlights(in source: String, configuration: WorkspaceConfiguration = .standard) -> OrgHighlightSnapshot {
         if let snapshot, snapshot.baseWorkflow == configuration.workflow,
            snapshot.source.utf8.elementsEqual(source.utf8) { return snapshot }
         syntax.update(source, path: "highlight.org", configuration: configuration)

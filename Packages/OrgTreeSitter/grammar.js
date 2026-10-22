@@ -21,7 +21,6 @@ module.exports = grammar({
 
   externals: $ => [
     $._eof,
-    $.todo_keyword,
     $.drawer_begin,
     $.fixed_width_marker,
     $.horizontal_rule_marker,
@@ -92,7 +91,6 @@ module.exports = grammar({
 
     heading: $ => prec.right(seq(
       field('marker', $.heading_marker),
-      optional(field('todo', $.todo_keyword)),
       optional(field('priority', $.priority)),
       optional(field('title', $.heading_title)),
       optional(field('tags', $.tag_list)),

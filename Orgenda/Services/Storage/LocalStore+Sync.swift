@@ -7,16 +7,17 @@ extension LocalStore {
         guard !isSynchronizing, !isPerformingFileOperation else { throw StorageError.busy }
         isSynchronizing = true
         defer { isSynchronizing = false }
-        if mode == .full || !state.initialized || state.fileOperation != nil {
-            try await refreshFromSource(paths: state.fileOperation == nil ? paths : nil)
+        if mode == .full || !state.initialized || !state.operations.isEmpty {
+            try await refreshFromSource(paths: state.operations.isEmpty ? paths : nil)
         }
-        while let operation = state.fileOperation {
+        while let operation = state.operations.first {
             let uploaded = try await pushPending(under: operation.sourcePath)
+            guard let operationIndex = state.operations.firstIndex(where: { $0.id == operation.id }) else { continue }
             if !uploaded.isEmpty {
                 var next = state
                 let source = next.entries[operation.sourcePath]?.file
-                next.fileOperation?.expected = try baselineDocuments(under: operation.sourcePath)
-                next.fileOperation?.source = source
+                next.operations[operationIndex].expected = try baselineDocuments(under: operation.sourcePath)
+                next.operations[operationIndex].source = source
                 try commit(next)
             }
             isPerformingFileOperation = true
@@ -261,7 +262,7 @@ extension LocalStore {
     /// still-queued draft refer to one logical file. Reconcile that identity in
     /// the same transaction as the pull, before publishing or indexing paths.
     private func reconcileObservedOperations(in next: inout WorkspaceState) throws {
-        while let operation = next.fileOperation, let target = next.entries[operation.destinationPath] {
+        while let operation = next.operations.first, let target = next.entries[operation.destinationPath] {
             var completed = next.entries[operation.sourcePath] == nil && !operation.expected.isEmpty
             if completed {
                 for expected in operation.expected {

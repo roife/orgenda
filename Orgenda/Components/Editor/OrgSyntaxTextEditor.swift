@@ -380,16 +380,16 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             for range in ranges.rangeView {
                 textStorage.setAttributes(baseAttributes, range: NSRange(range))
             }
-            var applied: [OrgHighlightSpan] = []
-            for block in changedBlocks {
-                for span in block.spans {
-                    let range = NSRange(location: block.range.location + span.range.location, length: span.range.length)
-                    OrgSyntaxPresentation.apply(span.kind, to: textStorage, range: range,
-                                                colorSchemeContrast: colorSchemeContrast)
-                    applied.append(OrgHighlightSpan(range: range, kind: span.kind))
-                }
-            }
             if let validHighlights {
+                var applied: [OrgHighlightSpan] = []
+                for block in changedBlocks {
+                    for span in block.spans {
+                        let range = NSRange(location: block.range.location + span.range.location, length: span.range.length)
+                        OrgSyntaxPresentation.apply(span.kind, to: textStorage, range: range,
+                                                    colorSchemeContrast: colorSchemeContrast, workflow: validHighlights.workflow)
+                        applied.append(OrgHighlightSpan(range: range, kind: span.kind))
+                    }
+                }
                 OrgSyntaxPresentation.applyWorkflowHeadingColors(applied, to: textStorage, workflow: validHighlights.workflow)
                 presentedBlocks = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, $0.revision) })
                 dirtyPresentationRange = nil

@@ -13,7 +13,7 @@ struct DocumentOutlineNode: Identifiable {
     var subtreeCount: Int { 1 + children.reduce(0) { $0 + $1.subtreeCount } }
     var flattened: [DocumentOutlineNode] { [self] + children.flatMap(\.flattened) }
 
-    static func tree(from nodes: [ParsedOrgNode], items: [OrgItem] = []) -> [DocumentOutlineNode] {
+    static func tree(from nodes: [ParsedOrgNode], items: [OrgItem]) -> [DocumentOutlineNode] {
         // The index only stores headings that carry a workflow state, a planning
         // date, or a tagged kind. Plain headings simply have nothing to filter on.
         let indexed = Dictionary(items.lazy.map { ($0.source.startByte, $0) }, uniquingKeysWith: { first, _ in first })
@@ -47,9 +47,7 @@ struct DocumentOutlineNode: Identifiable {
                         title: title.isEmpty ? String(localized: "Untitled") : title,
                         level: level,
                         children: children,
-                        state: item?.hasWorkflowState == true ? item?.state : heading.todoNode.flatMap {
-                            OrgWorkflowState(rawValue: $0.text.trimmingCharacters(in: .whitespacesAndNewlines))
-                        },
+                        state: item?.hasWorkflowState == true ? item?.state : nil,
                         scheduled: item?.scheduled,
                         deadline: item?.deadline
                     )

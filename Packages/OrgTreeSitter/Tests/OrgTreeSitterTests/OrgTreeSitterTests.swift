@@ -9,7 +9,6 @@ import Foundation
     #expect(tree.rootNode.text == source)
     #expect(tree.rootNode.namedChildren.map(\.type) == ["heading", "heading"])
     let heading = try #require(tree.rootNode.namedChildren.first)
-    #expect(heading.child(named: "todo") == nil)
     #expect(heading.child(named: "title")?.text == "TODO\u{0}Title")
 }
 

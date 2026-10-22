@@ -207,42 +207,6 @@ struct WorkspaceConfiguration: Equatable, Sendable {
         }
     }
     static let standard = WorkspaceConfiguration()
-    static let classic: WorkspaceConfiguration = {
-        var result = standard
-        result.workflow.sequences = [Sequence(process: ["TODO", "NEXT", "WAIT", "SOMEDAY", "URGENT"],
-                                             terminal: ["DONE", "CANCELED"])]
-        for state in OrgWorkflowState.allCases {
-            result.workflow.keywords[state.rawValue] = Keyword(
-                log: StateLog(enter: state.enterLog, leave: state.leaveLog))
-        }
-        result.files.inbox = "agenda/inbox.org"
-        result.files.refile = OrgWorkspaceConfiguration.refilePaths
-        result.agenda.sources = OrgWorkspaceConfiguration.agendaPaths.sorted()
-        result.reminders.deadlineWarningDays = 3
-        result.logging = Logging(done: .time, reschedule: .time, redeadline: .time)
-        result.capture.templates = OrgCaptureTemplate.allCases.map { legacy in
-            let token: String = legacy == .nextAction ? "NEXT" : legacy == .someday ? "SOMEDAY" : "TODO"
-            let plain = legacy == .inboxNote || legacy == .calendarEvent
-            let tags = legacy.isProject ? " :project:" : legacy == .inboxNote ? " :note:" : ""
-            var body = "* " + (plain ? "" : token + " ") + "%^{Title}" + tags + "\n"
-            if legacy == .reminder || legacy == .repeatingReminder {
-                body += legacy == .repeatingReminder ? "SCHEDULED: %^{First occurrence (Org timestamp with repeater)}\n" : "SCHEDULED: %^{When}T\n"
-            }
-            body += ":PROPERTIES:\n:CREATED: %U\n"
-            if legacy.includesAppointmentWarning { body += ":APPT_WARNTIME: %^{Warn before (minutes)|15}\n" }
-            body += ":END:\n"
-            if legacy == .calendarEvent { body += "%^{When}T\n" }
-            body += "%?\n"
-            if legacy.isProject { body += "** NEXT %^{First action}\n" }
-            return Template(id: legacy.rawValue, name: legacy.title, key: "",
-                            group: legacy.isProject ? "Projects" : "",
-                            target: Target(type: legacy.parentHeading == nil ? .file : .headline,
-                                           path: legacy.destinationPath, outline: legacy.parentHeading.map { [$0] } ?? []),
-                            template: body)
-        }
-        result.capture.defaultTemplate = OrgCaptureTemplate.inboxTask.rawValue
-        return result
-    }()
 
     func validate() throws {
         func require(_ condition: Bool, _ message: String) throws {

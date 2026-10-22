@@ -64,20 +64,6 @@ struct OrgWorkflowState: Codable, Identifiable, Hashable, Sendable {
         enterLog = enter
         leaveLog = leave
     }
-    /// Legacy token lookup is retained for unconfigured previews and fixtures.
-    /// Configured behavior resolves states against a per-document workflow.
-    init?(rawValue: String) {
-        guard let value = Self.allCases.first(where: { $0.rawValue == rawValue }) else { return nil }
-        self = value
-    }
-    static let todo = Self(token: "TODO")
-    static let next = Self(token: "NEXT")
-    static let wait = Self(token: "WAIT", enter: .note, leave: .time)
-    static let someday = Self(token: "SOMEDAY")
-    static let urgent = Self(token: "URGENT", enter: .time)
-    static let done = Self(token: "DONE", terminal: true, enter: .time)
-    static let canceled = Self(token: "CANCELED", terminal: true, enter: .note)
-    static let allCases: [Self] = [.todo, .next, .wait, .someday, .urgent, .done, .canceled]
 
     static func defaultIcon(for token: String, terminal: Bool) -> ConfigurationIcon {
         switch token {
@@ -90,16 +76,6 @@ struct OrgWorkflowState: Codable, Identifiable, Hashable, Sendable {
         case "CANCELED": .cross
         default: terminal ? .check : .circle
         }
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let token = try container.decode(String.self)
-        self = Self(rawValue: token) ?? Self(token: token)
-    }
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(rawValue)
     }
 }
 

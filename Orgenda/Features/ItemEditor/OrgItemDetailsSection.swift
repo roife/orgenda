@@ -4,7 +4,7 @@ struct OrgItemDetailsSection: View {
     @Binding var draft: OrgItem
     @Binding var tagsText: String
     let focusedField: FocusState<OrgItemEditorField?>.Binding
-    var workflow: WorkspaceConfiguration.Workflow = WorkspaceConfiguration.classic.workflow
+    let workflow: WorkspaceConfiguration.Workflow
 
     var body: some View {
         Section {

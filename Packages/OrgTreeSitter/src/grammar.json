@@ -140,22 +140,6 @@
             "members": [
               {
                 "type": "FIELD",
-                "name": "todo",
-                "content": {
-                  "type": "SYMBOL",
-                  "name": "todo_keyword"
-                }
-              },
-              {
-                "type": "BLANK"
-              }
-            ]
-          },
-          {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "FIELD",
                 "name": "priority",
                 "content": {
                   "type": "SYMBOL",
@@ -2653,10 +2637,6 @@
     {
       "type": "SYMBOL",
       "name": "_eof"
-    },
-    {
-      "type": "SYMBOL",
-      "name": "todo_keyword"
     },
     {
       "type": "SYMBOL",

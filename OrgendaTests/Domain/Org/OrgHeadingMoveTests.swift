@@ -88,14 +88,14 @@ final class OrgHeadingMoveTests: XCTestCase {
         let store = WorkspaceStore(documents: [
             WorkspaceDocument(path: document.path, title: "Tasks", contents: source, kind: .org)
         ])
-        store.configuration.workflow = WorkspaceConfiguration.classic.workflow
+        store.configuration.workflow = WorkspaceConfiguration.standard.applyingClassicWorkflowPreset().workflow
         store.parseWorkspace()
         let before = Dictionary(uniqueKeysWithValues: store.items.map { ($0.properties["ID"] ?? $0.title, $0.id) })
         let headings = document.root.children.filter { $0.type == "heading" }
         XCTAssertNotNil(store.moveHeading(in: document, headingID: headings[1].id,
                                           targetID: headings[0].id, placement: .child))
         var child = try XCTUnwrap(store.items.first { $0.properties["ID"] == "child" })
-        child.state = .next
+        child.state = try XCTUnwrap(store.configuration.workflow.state("NEXT"))
         XCTAssertTrue(store.save(child))
         await store.waitForWorkspaceIndex()
         XCTAssertEqual(Dictionary(uniqueKeysWithValues: store.items.map { ($0.properties["ID"] ?? $0.title, $0.id) }), before)

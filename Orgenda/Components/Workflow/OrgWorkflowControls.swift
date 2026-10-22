@@ -22,7 +22,7 @@ struct OrgWorkflowIcon: View {
 struct OrgWorkflowPicker: View {
     @Environment(\.orgWorkflow) private var workflow
     @Binding var selection: OrgWorkflowState
-    var states: [OrgWorkflowState] = OrgWorkspaceConfiguration.taskStates
+    let states: [OrgWorkflowState]
 
     var body: some View {
         Picker(selection: Binding(get: { selection.rawValue }, set: { token in

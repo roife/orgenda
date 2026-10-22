@@ -59,8 +59,7 @@ extension OrgItem {
     func hasSameEditableValues(as other: OrgItem) -> Bool {
         guard state.rawValue == other.state.rawValue else { return false }
         var comparable = self
-        // State metadata belongs to the workflow, not the task draft. Drag
-        // payloads encode its keyword and resolve metadata in the destination.
+        // State metadata belongs to the current workflow, not the task draft.
         comparable.state = other.state
         comparable.source = other.source
         comparable.habitHistory = other.habitHistory

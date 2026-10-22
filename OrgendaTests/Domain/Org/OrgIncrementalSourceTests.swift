@@ -4,17 +4,20 @@ import XCTest
 final class OrgIncrementalSourceTests: XCTestCase {
     func testDocumentCachesKeepIndependentSnapshotsAndConfiguration() async throws {
         let service = OrgIndexService()
+        let configuration = WorkspaceConfiguration.standard.applyingClassicWorkflowPreset()
         let first = WorkspaceDocument(path: "a.org", title: "A", contents: "* TODO 中文\n- [ ] first\n", kind: .org)
-        let second = WorkspaceDocument(path: "b.org", title: "B", contents: "* TODO 🙂\n- [ ] second\n", kind: .org)
-        let initial = await service.parse([first, second])
+        let second = WorkspaceDocument(path: "b.org", title: "B", contents: "* NEXT 🙂\n- [ ] second\n", kind: .org)
+        let initial = await service.parse([first, second], configuration: configuration)
         let retained = try XCTUnwrap(initial.first)
         var changed = first
         changed.contents = "前言\n" + first.contents.replacingOccurrences(of: "[ ]", with: "[X]")
-        _ = await service.parse([changed])
-        let secondResult = await service.parse([second])
+        _ = await service.parse([changed], configuration: configuration)
+        let secondResult = await service.parse([second], configuration: configuration)
         XCTAssertEqual(secondResult.first, initial.last)
         XCTAssertEqual(Array(retained.root.text.utf8), Array(first.contents.utf8))
         let reconfigured = await service.parse([second], configuration: .standard)
+        XCTAssertNil(reconfigured.first?.headings.first?.state)
+        XCTAssertEqual(reconfigured.first?.headings.first?.title, "NEXT 🙂")
         XCTAssertEqual(reconfigured.first?.headings,
                        OrgIndexService.parseSynchronously([second], configuration: .standard).first?.headings)
         await service.remove(paths: [first.path])

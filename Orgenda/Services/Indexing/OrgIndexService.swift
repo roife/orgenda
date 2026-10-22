@@ -17,7 +17,7 @@ actor OrgIndexService {
         for path in paths { documents.removeValue(forKey: path) }
     }
 
-    func parse(_ documents: [WorkspaceDocument], configuration: WorkspaceConfiguration = .classic) -> [ParsedOrgDocument] {
+    func parse(_ documents: [WorkspaceDocument], configuration: WorkspaceConfiguration = .standard) -> [ParsedOrgDocument] {
         var parsed: [ParsedOrgDocument] = []
         parsed.reserveCapacity(documents.count)
 
@@ -47,7 +47,7 @@ actor OrgIndexService {
     }
 
     nonisolated static func parseSynchronously(
-        _ documents: [WorkspaceDocument], configuration: WorkspaceConfiguration = .classic
+        _ documents: [WorkspaceDocument], configuration: WorkspaceConfiguration = .standard
     ) -> [ParsedOrgDocument] {
         return documents.compactMap { parse($0, using: Entry(), configuration: configuration) }
     }

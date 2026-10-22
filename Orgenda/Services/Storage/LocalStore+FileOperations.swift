@@ -156,7 +156,7 @@ extension LocalStore {
     }
 
     func finishFileOperation() async throws {
-        guard let operation = state.fileOperation else { return }
+        guard let operation = state.operations.first else { return }
         do {
             switch source {
             case .folder(let folder): try await finishFolderOperation(operation, folder: folder)
@@ -190,7 +190,8 @@ extension LocalStore {
             try await hydrateRestoredDocuments(operation, remote: remote)
             let expected = try baselineDocuments(under: operation.sourcePath)
             var next = state
-            next.fileOperation?.expected = expected
+            guard let operationIndex = next.operations.firstIndex(where: { $0.id == operation.id }) else { return }
+            next.operations[operationIndex].expected = expected
             try commit(next)
             source = state.entries[operation.sourcePath]?.file ?? source
         }

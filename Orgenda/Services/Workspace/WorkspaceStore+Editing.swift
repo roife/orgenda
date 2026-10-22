@@ -292,7 +292,7 @@ extension WorkspaceStore {
         if let before = beforeDocument?.headings.last(where: { $0.source.startByte <= node.startByte }),
            let after = afterDocument?.headings.first(where: { $0.source.startByte == before.source.startByte }) {
             func item(_ heading: IndexedOrgHeading) -> OrgItem {
-                OrgItem(id: UUID(), title: heading.title, state: heading.state ?? .todo,
+                OrgItem(id: UUID(), title: heading.title, state: heading.state ?? configuration.workflow.initial,
                     kind: heading.kind, priority: heading.priority, tags: heading.tags,
                     scheduled: heading.scheduled, deadline: heading.deadline, closed: heading.closed,
                     eventDate: heading.eventDate, hasTime: heading.hasTime, durationMinutes: heading.durationMinutes,

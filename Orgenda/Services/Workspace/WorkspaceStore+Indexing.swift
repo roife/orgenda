@@ -220,7 +220,7 @@ extension WorkspaceStore {
                 existingIDs.insert(id)
             }
             let item = OrgItem(
-                id: id, title: heading.title, state: heading.state ?? previous?.state ?? .todo,
+                id: id, title: heading.title, state: heading.state ?? configuration.workflow.initial,
                 kind: heading.tags.contains("event") ? .event
                     : (heading.tags.contains("note") ? .note : heading.kind),
                 priority: heading.priority, tags: heading.tags,

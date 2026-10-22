@@ -93,7 +93,7 @@ actor LocalStore {
             conflicts: state.conflicts.values.map { conflict in
                 var value = conflict; value.path = self.visiblePath(value.path); return value
             }.sorted { $0.path < $1.path }, lastSync: state.lastSync,
-            hasPendingOperation: state.fileOperation != nil, revision: state.commitSequence,
+            hasPendingOperation: !state.operations.isEmpty, revision: state.commitSequence,
             blobHashes: Dictionary(uniqueKeysWithValues: paths.compactMap { path in view[path]?.blob.map { (path, $0) } }),
             removedPaths: Set(paths.filter { view[$0] == nil }), isComplete: complete, uploadErrors: uploadErrors.merging(sourceErrors) { _, new in new })
     }
@@ -184,7 +184,7 @@ actor LocalStore {
     }
 
     func archiveUnsynced(to destination: URL) throws {
-        guard !state.pending.isEmpty || !state.conflicts.isEmpty || state.fileOperation != nil else { return }
+        guard !state.pending.isEmpty || !state.conflicts.isEmpty || !state.operations.isEmpty else { return }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd HHmmss"
@@ -302,7 +302,7 @@ actor LocalStore {
     /// blobs are collected, and only after the complete workspace is synced.
     func collectUnreferencedBlobsIfNeeded() throws {
         guard state.initialized, state.pending.isEmpty, state.conflicts.isEmpty,
-              state.fileOperation == nil else { return }
+              state.operations.isEmpty else { return }
         let now = Date.now
         guard lastBlobCleanup == nil || (commitsSinceBlobCleanup >= 32 &&
             now.timeIntervalSince(lastBlobCleanup ?? .distantPast) >= 15) else { return }

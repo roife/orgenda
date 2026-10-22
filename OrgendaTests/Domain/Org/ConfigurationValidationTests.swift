@@ -33,12 +33,12 @@ final class ConfigurationValidationTests: XCTestCase {
         let encoded = try ConfigurationDocument(configuration: .standard).encoded(configuration)
         let logging = try ConfigurationDocument(encoded).configuration.logging
         let source = "* DONE Example\n:狀態-LOG:\nOld log\n:END:\nBody\n* Neighbor\nUntouched\n"
-        let original = OrgItem(id: UUID(), title: "Example", state: .todo, kind: .task, priority: .none,
+        let original = OrgItem(id: UUID(), title: "Example", state: configuration.workflow.initial, kind: .task, priority: .none,
             tags: [], scheduled: nil, deadline: nil, hasTime: false, durationMinutes: 30,
             recurrence: nil, body: "Body", source: SourceLocation(file: "inbox.org", startByte: 0, endByte: 0, startLine: 1),
             habitHistory: [])
         var completed = original
-        completed.state = .done
+        completed.state = configuration.workflow.toggled(original.state)
         let result = try OrgWorkflowOperations.applyingLogs(to: source, headingStartByte: 0,
             replacing: original, with: completed, logging: logging)
         XCTAssertTrue(result.contains(":狀態-LOG:\n"))

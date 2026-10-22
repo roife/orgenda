@@ -11,7 +11,7 @@ struct AgendaStartupSkeleton: View {
     private static let placeholderItems = (0..<3).map { _ in
         OrgItem(
             id: UUID(), title: String(localized: "Loading workspace"),
-            state: .todo, kind: .task, priority: .none, tags: [],
+            state: WorkspaceConfiguration.standard.workflow.initial, kind: .task, priority: .none, tags: [],
             scheduled: nil, deadline: nil, hasTime: false, durationMinutes: 0,
             recurrence: nil, body: "",
             source: SourceLocation(file: "inbox.org", startByte: 0, endByte: 0, startLine: 1),

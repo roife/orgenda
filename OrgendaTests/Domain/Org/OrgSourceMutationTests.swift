@@ -2,6 +2,27 @@ import XCTest
 @testable import Orgenda
 
 final class OrgSourceMutationTests: XCTestCase {
+    func testUnconfiguredWorkflowWordsRemainEditableTitleText() throws {
+        for token in ["NEXT", "WAIT", "SOMEDAY", "URGENT", "CANCELED"] {
+            let source = "* \(token) *Keep 中文🙂* :note:\nBody\n* TODO Neighbor\n"
+            let document = WorkspaceDocument(path: "notes.org", title: "Notes", contents: source, kind: .org)
+            let parsed = try XCTUnwrap(OrgIndexService.parseSynchronously([document]).first)
+            let heading = try XCTUnwrap(parsed.headings.first)
+            XCTAssertNil(heading.state)
+            XCTAssertEqual(heading.title, "\(token) *Keep 中文🙂*")
+            let original = OrgItem(id: UUID(), title: heading.title,
+                state: WorkspaceConfiguration.standard.workflow.initial, kind: .note, priority: heading.priority,
+                tags: heading.tags, scheduled: nil, deadline: nil, hasTime: false, durationMinutes: 0,
+                recurrence: nil, body: heading.body, source: heading.source, habitHistory: [], hasWorkflowState: false)
+            var edited = original
+            edited.title += " edited"
+            let patches = try XCTUnwrap(OrgSourceMutation.itemEdits(replacing: original, with: edited,
+                heading: parsed.root.children[0], following: Array(parsed.root.children.dropFirst())))
+            let updated = try patches.reduce(source) { try $1.applied(to: $0) }
+            XCTAssertEqual(updated, source.replacingOccurrences(of: "*Keep 中文🙂*", with: "*Keep 中文🙂* edited"))
+        }
+    }
+
     func testLiteralWorkflowDeclarationsCannotChangeHeadingEdits() throws {
         let blocks = [
             ("  #+BEGIN_SRC org", "#+TODO: FINISHED | OPEN", "  #+END_SRC"),
@@ -18,7 +39,7 @@ final class OrgSourceMutationTests: XCTestCase {
             for (begin, body, end) in blocks {
                 let source = [begin, body, end, "#+TODO: OPEN(o) | FINISHED(f)", "* OPEN Keep this task", "Notes.", ""]
                     .joined(separator: "\n").replacingOccurrences(of: "\n", with: newline)
-                let workflow = OrgConfiguredHeading.workflow(in: source, base: WorkspaceConfiguration.classic.workflow)
+                let workflow = OrgConfiguredHeading.workflow(in: source, base: WorkspaceConfiguration.standard.workflow)
                 XCTAssertEqual(workflow.tokens, ["OPEN", "FINISHED"], begin + "\n" + body)
                 let (parsed, original) = try workflowFixture(source)
                 XCTAssertFalse(parsed.hasError)
