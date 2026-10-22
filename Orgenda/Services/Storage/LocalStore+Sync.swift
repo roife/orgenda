@@ -21,8 +21,8 @@ extension LocalStore {
                 try commit(next)
             }
             isPerformingFileOperation = true
-            do { try await finishFileOperation(); isPerformingFileOperation = false }
-            catch { isPerformingFileOperation = false; throw error }
+            defer { isPerformingFileOperation = false }
+            try await finishFileOperation()
         }
         _ = try await pushPending()
         if let path = sourceErrors.keys.sorted().first { throw StorageError.configuration(path + ": " + (sourceErrors[path] ?? "")) }
@@ -187,7 +187,7 @@ extension LocalStore {
         let operations = state.operations
         for operation in operations where staged[operation.sourcePath] == nil {
             for expected in operation.expected where expected.kind != .folder {
-                let path = operation.destinationPath + expected.path.dropFirst(operation.sourcePath.count)
+                let path = operation.destinationPath(for: expected.path)
                 guard let observed = staged[path], observed.blob == nil else { continue }
                 let bytes: Data
                 switch source {
@@ -266,7 +266,7 @@ extension LocalStore {
             var completed = next.entries[operation.sourcePath] == nil && !operation.expected.isEmpty
             if completed {
                 for expected in operation.expected {
-                    let path = operation.destinationPath + expected.path.dropFirst(operation.sourcePath.count)
+                    let path = operation.destinationPath(for: expected.path)
                     guard let observed = next.entries[path] else { completed = false; break }
                     if expected.kind == .folder {
                         if !observed.file.isDirectory { completed = false; break }

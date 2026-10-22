@@ -134,6 +134,7 @@ struct OrgItemRow: View {
             .contextMenu { contextActions } preview: { OrgItemContextPreview(item: item) }
         }
         .padding(.leading, -8)
+        .padding(.vertical, 1)
     }
 
     @ViewBuilder

@@ -1,6 +1,16 @@
 import Foundation
 
 extension WorkspaceConfiguration {
+    func updating(template: Template) -> WorkspaceConfiguration {
+        var result = self
+        if let index = result.capture.templates.firstIndex(where: { $0.id == template.id }) {
+            result.capture.templates[index] = template
+        } else {
+            result.capture.templates.append(template)
+        }
+        return result
+    }
+
     /// A workflow preset never changes paths, templates, reminder rules or history.
     func applyingClassicWorkflowPreset() -> WorkspaceConfiguration {
         var result = self

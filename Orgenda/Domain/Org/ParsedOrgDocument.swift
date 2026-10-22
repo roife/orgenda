@@ -34,10 +34,12 @@ extension ParsedOrgNode {
     var checkboxNode: ParsedOrgNode? { child(ofType: "checkbox") }
 
     var descendantsByID: [String: ParsedOrgNode] {
-        var result = [id: self]
-        for child in children {
-            result.merge(child.descendantsByID) { current, _ in current }
+        var result: [String: ParsedOrgNode] = [:]
+        func collect(_ node: ParsedOrgNode) {
+            if result[node.id] == nil { result[node.id] = node }
+            for child in node.children { collect(child) }
         }
+        collect(self)
         return result
     }
 }

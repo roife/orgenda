@@ -388,7 +388,7 @@ actor LocalStore {
         var result = path
         for operation in state.operations {
             if WorkspaceFileTransfer.contains(result, in: operation.sourcePath) {
-                result = operation.destinationPath + result.dropFirst(operation.sourcePath.count)
+                result = operation.destinationPath(for: result)
             }
         }
         return result
@@ -422,7 +422,7 @@ actor LocalStore {
             let moved = result.filter { WorkspaceFileTransfer.contains($0.key, in: operation.sourcePath) }
             for (path, record) in moved {
                 result.removeValue(forKey: path)
-                result[operation.destinationPath + path.dropFirst(operation.sourcePath.count)] = record
+                result[operation.destinationPath(for: path)] = record
             }
         }
         for (path, pending) in state.pending where pending.requiresResolution {

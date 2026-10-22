@@ -98,13 +98,13 @@ extension WorkspaceStore {
 
     func acceptDiskDocuments(_ loaded: [WorkspaceDocument]) {
         let incomingPaths = Set(loaded.map(\.path))
-        let removed = Set(documents.map(\.path)).subtracting(incomingPaths).subtracting(dirtyFilePaths)
-        let previous = Dictionary(uniqueKeysWithValues: documents.map { ($0.path, $0) })
+        let previous = documentsByPath
+        let removed = Set(previous.keys).subtracting(incomingPaths).subtracting(dirtyFilePaths)
         let changed = Set(loaded.filter { document in
             guard let old = previous[document.path] else { return true }
             return !old.contents.utf8.elementsEqual(document.contents.utf8)
         }.map(\.path))
-        let pending = documents.filter { dirtyFilePaths.contains($0.path) }
+        let pending = previous.values.filter { dirtyFilePaths.contains($0.path) }
         let next = (loaded.filter { !dirtyFilePaths.contains($0.path) } + pending).sorted { $0.path < $1.path }
         // Canonically equivalent Swift strings can have different UTF-8 byte
         // ranges. Source-based editors must accept and reindex those changes.

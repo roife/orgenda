@@ -10,7 +10,6 @@ struct ConfigurationKeywordEditor: View {
     @State private var newToken: String
     @State private var error: String?
     @State private var isSaving = false
-    @State private var showsDiscardConfirmation = false
     private let originalKeyword: WorkspaceConfiguration.Keyword
 
     init(token: String?, terminal: Bool, configuration: WorkspaceConfiguration,
@@ -25,7 +24,12 @@ struct ConfigurationKeywordEditor: View {
     }
 
     var body: some View {
-        NavigationStack {
+        ConfigurationEditorForm(
+            title: token ?? String(localized: "Add state"),
+            cancelIdentifier: "configuration.cancelKeyword", saveIdentifier: "configuration.keyword.done",
+            hasChanges: hasChanges, isSaving: isSaving, canSave: !resolvedToken.isEmpty,
+            error: $error, save: confirm
+        ) {
             Form {
                 if let error { ConfigurationEditorErrorSection(message: error) }
                 Section {
@@ -94,49 +98,11 @@ struct ConfigurationKeywordEditor: View {
                 }
                 .pickerStyle(.navigationLink)
             }
-            .disabled(isSaving)
-            .tint(OrgendaTheme.accentText)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .navigationTitle(token ?? String(localized: "Add state"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel, action: cancel)
-                        .disabled(isSaving)
-                        .accessibilityIdentifier("configuration.cancelKeyword")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? String(localized: "Saving…") : String(localized: "Save"), role: .confirm) {
-                        Task { await confirm() }
-                    }
-                        .disabled(isSaving || resolvedToken.isEmpty)
-                        .accessibilityIdentifier("configuration.keyword.done")
-                }
-            }
-            .alert("Discard changes?", isPresented: $showsDiscardConfirmation) {
-                Button("Discard Changes", role: .destructive) { dismiss() }
-                Button("Keep editing", role: .cancel) { }
-            } message: {
-                Text("Your changes have not been saved.")
-            }
-        }
-        .interactiveDismissDisabled(hasChanges || isSaving)
-        .alert("Unable to save", item: $error) { _ in
-            Button("OK", role: .cancel) { error = nil }
-        } message: { message in
-            Text(message)
-            Text("Your changes are still here. Correct the problem and try saving again.")
         }
     }
 
     private var hasChanges: Bool {
         keyword != originalKeyword || newToken != (token ?? "")
-    }
-
-    private func cancel() {
-        if hasChanges { showsDiscardConfirmation = true }
-        else { dismiss() }
     }
 
     private var resolvedToken: String {
@@ -194,7 +160,6 @@ struct ConfigurationTemplateEditor: View {
     @State private var previewTemplate: WorkspaceConfiguration.Template?
     @State private var error: String?
     @State private var isSaving = false
-    @State private var showsDiscardConfirmation = false
     @State private var showsAdvancedOptions = false
 
     init(template: WorkspaceConfiguration.Template, store: WorkspaceStore,
@@ -209,7 +174,11 @@ struct ConfigurationTemplateEditor: View {
     }
 
     var body: some View {
-        NavigationStack {
+        ConfigurationEditorForm(
+            title: String(localized: "Capture template"),
+            cancelIdentifier: "configuration.cancelTemplate", saveIdentifier: "configuration.template.done",
+            hasChanges: hasChanges, isSaving: isSaving, error: $error, save: confirm
+        ) {
             Form {
                 if let error { ConfigurationEditorErrorSection(message: error) }
                 Section("Template details") {
@@ -248,41 +217,9 @@ struct ConfigurationTemplateEditor: View {
                     }
                 }
             }
-            .disabled(isSaving)
-            .tint(OrgendaTheme.accentText)
-            .textInputAutocapitalization(.never).autocorrectionDisabled()
-            .navigationTitle("Capture template")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel, action: cancel)
-                        .disabled(isSaving)
-                        .accessibilityIdentifier("configuration.cancelTemplate")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? String(localized: "Saving…") : String(localized: "Save"), role: .confirm) {
-                        Task { await confirm() }
-                    }
-                    .disabled(isSaving)
-                    .accessibilityIdentifier("configuration.template.done")
-                }
-            }
-            .alert("Discard changes?", isPresented: $showsDiscardConfirmation) {
-                Button("Discard Changes", role: .destructive) { dismiss() }
-                Button("Keep editing", role: .cancel) { }
-            } message: {
-                Text("Your changes have not been saved.")
-            }
-            .sheet(item: $previewTemplate) { candidate in
-                ConfiguredCaptureView(store: store, initialTemplate: candidate, previewOnly: true)
-            }
         }
-        .interactiveDismissDisabled(hasChanges || isSaving)
-        .alert("Unable to save", item: $error) { _ in
-            Button("OK", role: .cancel) { error = nil }
-        } message: { message in
-            Text(message)
-            Text("Your changes are still here. Correct the problem and try saving again.")
+        .sheet(item: $previewTemplate) { candidate in
+            ConfiguredCaptureView(store: store, initialTemplate: candidate, previewOnly: true)
         }
     }
 
@@ -321,22 +258,10 @@ struct ConfigurationTemplateEditor: View {
         template != originalTemplate || outline != originalTemplate.target.outline.joined(separator: "\n")
     }
 
-    private func cancel() {
-        if hasChanges { showsDiscardConfirmation = true }
-        else { dismiss() }
-    }
-
     private func validateFields() -> Bool {
         error = nil
-        let value = resolvedTemplate
-        var candidate = configuration
-        if let index = candidate.capture.templates.firstIndex(where: { $0.id == value.id }) {
-            candidate.capture.templates[index] = value
-        } else {
-            candidate.capture.templates.append(value)
-        }
         do {
-            try candidate.validate()
+            try configuration.updating(template: resolvedTemplate).validate()
             return true
         } catch {
             self.error = error.localizedDescription
@@ -364,6 +289,62 @@ struct ConfigurationTemplateEditor: View {
             TextField(title, text: text, prompt: Text(placeholder), axis: .vertical)
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+private struct ConfigurationEditorForm<Content: View>: View {
+    @Environment(\.dismiss) private var dismiss
+    let title: String
+    let cancelIdentifier: String
+    let saveIdentifier: String
+    let hasChanges: Bool
+    let isSaving: Bool
+    var canSave = true
+    @Binding var error: String?
+    let save: () async -> Void
+    @ViewBuilder let content: () -> Content
+    @State private var showsDiscardConfirmation = false
+
+    var body: some View {
+        NavigationStack {
+            content()
+                .disabled(isSaving)
+                .tint(OrgendaTheme.accentText)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .navigationTitle(title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel", role: .cancel) {
+                            if hasChanges { showsDiscardConfirmation = true }
+                            else { dismiss() }
+                        }
+                        .disabled(isSaving)
+                        .accessibilityIdentifier(cancelIdentifier)
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(isSaving ? String(localized: "Saving…") : String(localized: "Save"), role: .confirm) {
+                            Task { await save() }
+                        }
+                        .disabled(isSaving || !canSave)
+                        .accessibilityIdentifier(saveIdentifier)
+                    }
+                }
+                .alert("Discard changes?", isPresented: $showsDiscardConfirmation) {
+                    Button("Discard Changes", role: .destructive) { dismiss() }
+                    Button("Keep editing", role: .cancel) { }
+                } message: {
+                    Text("Your changes have not been saved.")
+                }
+        }
+        .interactiveDismissDisabled(hasChanges || isSaving)
+        .alert("Unable to save", item: $error) { _ in
+            Button("OK", role: .cancel) { error = nil }
+        } message: { message in
+            Text(message)
+            Text("Your changes are still here. Correct the problem and try saving again.")
         }
     }
 }

@@ -84,10 +84,7 @@ struct ConfigurationSettingsView: View {
             switch destination {
             case .template(let template):
                 ConfigurationTemplateEditor(template: template, store: store, configuration: draft) { value in
-                    var next = draft
-                    if let index = next.capture.templates.firstIndex(where: { $0.id == value.id }) { next.capture.templates[index] = value }
-                    else { next.capture.templates.append(value) }
-                    try await persist(next)
+                    try await persist(draft.updating(template: value))
                 }
             case .keyword(let originalToken, let terminal):
                 ConfigurationKeywordEditor(token: originalToken, terminal: terminal, configuration: draft) { token, keyword in

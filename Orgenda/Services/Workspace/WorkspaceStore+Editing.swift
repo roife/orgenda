@@ -33,7 +33,7 @@ extension WorkspaceStore {
             return false
         }
         guard original.source.file == item.source.file,
-              let documentIndex = documents.firstIndex(where: { $0.path == original.source.file }),
+              let document = documentsByPath[original.source.file],
               let resolved = resolvedHeading(for: original),
               baseline == nil || matchesSourceValues(original, heading: resolved.heading),
               let edits = OrgSourceMutation.itemEdits(
@@ -42,7 +42,7 @@ extension WorkspaceStore {
               )
         else { return false }
 
-        var contents = documents[documentIndex].contents
+        var contents = document.contents
         for edit in edits {
             guard let updated = try? edit.applied(to: contents) else { return false }
             contents = updated
@@ -53,7 +53,7 @@ extension WorkspaceStore {
             contents = try OrgWorkflowOperations.applyingLogs(to: contents,
                 headingStartByte: resolved.heading.source.startByte,
                 replacing: original, with: item, note: stateNote, now: .now,
-                originalSource: documents[documentIndex].contents,
+                originalSource: document.contents,
                 logging: configuration.logging)
             logInsertionDelta = contents.utf8.count - priorCount
         } catch {
@@ -87,7 +87,7 @@ extension WorkspaceStore {
             }
         }
         items = nextItems
-        documents[documentIndex].contents = contents
+        setDocument(document, contents: contents)
         operationError = nil
         scheduleWorkspaceRefresh(changedPaths: [original.source.file])
         return true
@@ -158,7 +158,7 @@ extension WorkspaceStore {
     /// atomically without adding TODO/DONE, CLOSED, or inferred kind tags.
     private func completeRepeatingEvent(_ original: OrgItem, nextDate: Date) {
         guard let itemIndex = items.firstIndex(where: { $0.id == original.id }),
-              let documentIndex = documents.firstIndex(where: { $0.path == original.source.file }),
+              let document = documentsByPath[original.source.file],
               let resolved = resolvedHeading(for: original),
               matchesSourceValues(original, heading: resolved.heading) else {
             operationError = String(localized: "The event changed. Reopen it before completing this occurrence.")
@@ -172,7 +172,7 @@ extension WorkspaceStore {
             operationError = String(localized: "The event metadata is ambiguous. Check its properties before completing it.")
             return
         }
-        var contents = documents[documentIndex].contents
+        var contents = document.contents
         do {
             for edit in edits { contents = try edit.applied(to: contents) }
         } catch {
@@ -184,7 +184,7 @@ extension WorkspaceStore {
         nextItems[itemIndex].source = resolved.heading.source
         rebaseItemSources(&nextItems, in: original.source.file, through: edits, contents: contents)
         items = nextItems
-        documents[documentIndex].contents = contents
+        setDocument(document, contents: contents)
         scheduleWorkspaceRefresh(changedPaths: [original.source.file])
     }
 
@@ -201,21 +201,17 @@ extension WorkspaceStore {
 
     func addJournalEntry(title: String, body: String, date: Date) {
         let path = "\(configuration.files.journal)/\(Calendar.autoupdatingCurrent.component(.year, from: date)).org"
-        let index: Int
-        if let existing = documents.firstIndex(where: { $0.path == path }) {
-            index = existing
-        } else {
-            index = documents.endIndex
-            documents.append(WorkspaceDocument(path: path, title: URL(fileURLWithPath: path).lastPathComponent, contents: "", kind: .org))
-        }
+        let document = documentsByPath[path] ?? WorkspaceDocument(
+            path: path, title: URL(fileURLWithPath: path).lastPathComponent, contents: "", kind: .org
+        )
         let time = date.formatted(.verbatim(
             "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
             locale: Locale(identifier: "en_US_POSIX"), timeZone: .autoupdatingCurrent,
             calendar: Calendar(identifier: .gregorian)
         ))
         let source = "* \(date.orgDateText(includesTime: false))\n** \(time) \(title)\n\(body)"
-        let separator = documents[index].contents.isEmpty ? "" : "\n\n"
-        let prefix = documents[index].contents + separator
+        let separator = document.contents.isEmpty ? "" : "\n\n"
+        let prefix = document.contents + separator
         let entry = JournalEntry(
             id: UUID(),
             date: date,
@@ -228,22 +224,20 @@ extension WorkspaceStore {
                 startLine: prefix.utf8.filter { $0 == 10 }.count + 1
             )
         )
-        documents[index].contents = prefix + source
+        setDocument(document, contents: prefix + source)
         journalEntries.append(entry)
         scheduleWorkspaceRefresh(changedPaths: [path])
     }
 
     func updateDocument(path: String, contents: String) {
-        var document: WorkspaceDocument
+        let document: WorkspaceDocument
         if let existing = documentsByPath[path] { document = existing }
         else if let baseline = retiredBlobs[path], let kind = WorkspaceDocument.Kind(path: path) {
             document = WorkspaceDocument(path: path, title: (path as NSString).lastPathComponent, contents: "", kind: kind)
             persistedBlobs[path] = baseline
         } else { return }
         guard !document.contents.utf8.elementsEqual(contents.utf8) else { return }
-        document.contents = contents
-        documentsByPath[path] = document
-        storageContentGeneration &+= 1
+        setDocument(document, contents: contents)
         scheduleWorkspaceRefresh(changedPaths: [path], debounce: .milliseconds(400))
     }
 
@@ -259,26 +253,26 @@ extension WorkspaceStore {
         placement: OrgHeadingPlacement
     ) -> OrgHeadingMove? {
         operationError = nil
-        guard let index = documents.firstIndex(where: { $0.path == document.path }),
-              documents[index].contents.utf8.elementsEqual(document.root.text.utf8) else {
+        guard let source = documentsByPath[document.path],
+              source.contents.utf8.elementsEqual(document.root.text.utf8) else {
             operationError = String(localized: "The document changed while dragging. Try moving the heading again.")
             return nil
         }
         guard let move = OrgHeadingMove.plan(in: document, headingID: headingID,
                                              targetID: targetID, placement: placement),
-              let contents = try? move.mutation.applied(to: documents[index].contents) else { return nil }
+              let contents = try? move.mutation.applied(to: source.contents) else { return nil }
         Self.updateItemSources(&items, in: document.path, contents: contents) { source in
             source = move.relocatedSource(source)
         }
-        documents[index].contents = contents
+        setDocument(source, contents: contents)
         scheduleWorkspaceRefresh(changedPaths: [document.path])
         return move
     }
 
     @discardableResult
     func applyPlanningDraft(path: String, node: ParsedOrgNode, draft: OrgPlanningEntryDraft) -> Bool {
-        guard let index = documents.firstIndex(where: { $0.path == path }) else { return false }
-        let source = documents[index].contents
+        guard let document = documentsByPath[path] else { return false }
+        let source = document.contents
         guard source.utf8.dropFirst(node.startByte).prefix(node.endByte - node.startByte).elementsEqual(node.text.utf8),
               let replacement = try? OrgSourceMutation(startByte: node.startByte, endByte: node.endByte,
                                                        replacement: draft.source).applied(to: source) else { return false }
@@ -286,8 +280,8 @@ extension WorkspaceStore {
         // Reuse the published index when it still matches the source; only
         // the post-edit document must always be parsed here.
         let beforeDocument = parsedDocuments[path].flatMap { $0.root.text.utf8.elementsEqual(source.utf8) ? $0 : nil }
-            ?? OrgIndexService.parseSynchronously([documents[index]], configuration: configuration).first
-        var candidate = documents[index]; candidate.contents = replacement
+            ?? OrgIndexService.parseSynchronously([document], configuration: configuration).first
+        var candidate = document; candidate.contents = replacement
         let afterDocument = OrgIndexService.parseSynchronously([candidate], configuration: configuration).first
         if let before = beforeDocument?.headings.last(where: { $0.source.startByte <= node.startByte }),
            let after = afterDocument?.headings.first(where: { $0.source.startByte == before.source.startByte }) {
@@ -305,7 +299,7 @@ extension WorkspaceStore {
                     originalSource: source, logging: configuration.logging)
             } catch { operationError = error.localizedDescription; return false }
         }
-        documents[index].contents = updated
+        setDocument(document, contents: updated)
         operationError = nil
         scheduleWorkspaceRefresh(changedPaths: [path])
         return true
@@ -319,8 +313,8 @@ extension WorkspaceStore {
         expectedText: String,
         replacement: String
     ) -> Bool {
-        guard let index = documents.firstIndex(where: { $0.path == path }) else { return false }
-        let source = documents[index].contents
+        guard let document = documentsByPath[path] else { return false }
+        let source = document.contents
         guard startByte >= 0,
               endByte >= startByte,
               source.utf8
@@ -335,7 +329,7 @@ extension WorkspaceStore {
             replacement: replacement
         )
         guard let contents = try? mutation.applied(to: source) else { return false }
-        documents[index].contents = contents
+        setDocument(document, contents: contents)
         scheduleWorkspaceRefresh(changedPaths: [path])
         return true
     }
@@ -436,13 +430,7 @@ extension WorkspaceStore {
 
     private func appendItem(_ item: OrgItem) {
         let path = item.source.file
-        let index: Int
-        if let existing = documents.firstIndex(where: { $0.path == path }) {
-            index = existing
-        } else {
-            index = documents.endIndex
-            documents.append(WorkspaceDocument(path: path, title: path, contents: "", kind: .org))
-        }
+        let document = documentsByPath[path] ?? WorkspaceDocument(path: path, title: path, contents: "", kind: .org)
         var lines = [item.orgHeading]
         if [.event, .note].contains(item.kind), !item.state.isTerminal {
             lines[0] = lines[0].replacingOccurrences(of: "* \(item.state.rawValue) ", with: "* ")
@@ -459,14 +447,14 @@ extension WorkspaceStore {
         }
         if !item.body.isEmpty { lines.append(item.body) }
         let newSource = lines.joined(separator: "\n")
-        let separator = documents[index].contents.isEmpty || documents[index].contents.hasSuffix("\n\n") ? "" : "\n\n"
-        let prefix = documents[index].contents + separator
+        let separator = document.contents.isEmpty || document.contents.hasSuffix("\n\n") ? "" : "\n\n"
+        let prefix = document.contents + separator
         var appended = item
         appended.source = SourceLocation(
             file: path, startByte: prefix.utf8.count, endByte: prefix.utf8.count + newSource.utf8.count,
             startLine: prefix.utf8.filter { $0 == 10 }.count + 1
         )
-        documents[index].contents = prefix + newSource
+        setDocument(document, contents: prefix + newSource)
         items.append(appended)
         scheduleWorkspaceRefresh(changedPaths: [path])
     }

@@ -120,6 +120,13 @@ final class WorkspaceStore {
         self.documents = documents
     }
 
+    func setDocument(_ document: WorkspaceDocument, contents: String) {
+        var updated = document
+        updated.contents = contents
+        documentsByPath[document.path] = updated
+        storageContentGeneration &+= 1
+    }
+
     /// Rebuilds the materialized derived collections. Called from the `items`
     /// observer and configuration updates, so every mutation path (index
     /// publishing, edits, moves, sync) refreshes them exactly once.

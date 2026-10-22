@@ -220,7 +220,7 @@ extension LocalStore {
         // Files and WebDAV identify entries by path. Match the known
         // textual subtree, and never issue another mutation for this outcome.
         for expected in operation.expected {
-            let path = operation.destinationPath + expected.path.dropFirst(operation.sourcePath.count)
+            let path = operation.destinationPath(for: expected.path)
             guard let current = state.entries[path] else { return false }
             if expected.kind == .folder {
                 guard current.file.isDirectory else { return false }
@@ -244,7 +244,7 @@ extension LocalStore {
 
     func applyAcknowledgedMove(_ operation: WorkspaceOperation, result: RemoteFile, to next: inout WorkspaceState) throws {
         for expected in operation.expected {
-            let path = operation.destinationPath + expected.path.dropFirst(operation.sourcePath.count)
+            let path = operation.destinationPath(for: expected.path)
             if next.entries[path] == nil {
                 let blob = expected.kind == .folder ? nil : try storeBlob(Data(expected.contents.utf8))
                 let file = path == operation.destinationPath ? result : RemoteFile(id: path, path: path,
@@ -255,7 +255,7 @@ extension LocalStore {
         let moved = next.entries.filter { WorkspaceFileTransfer.contains($0.key, in: operation.sourcePath) }
         for (oldPath, var entry) in moved {
             next.entries.removeValue(forKey: oldPath)
-            let path = operation.destinationPath + oldPath.dropFirst(operation.sourcePath.count)
+            let path = operation.destinationPath(for: oldPath)
             if entry.file.id == oldPath { entry.file.id = path }
             entry.file.path = path
             if oldPath == operation.sourcePath { entry.file = result }
@@ -268,7 +268,7 @@ extension LocalStore {
         if operation.kind == .move {
             let drafts = next.pending.filter { WorkspaceFileTransfer.contains($0.key, in: operation.sourcePath) }
             for (oldPath, var draft) in drafts {
-                let path = operation.destinationPath + oldPath.dropFirst(operation.sourcePath.count)
+                let path = operation.destinationPath(for: oldPath)
                 guard next.pending[path] == nil else { continue }
                 next.pending.removeValue(forKey: oldPath)
                 draft.fileID = next.entries[path]?.fileID ?? draft.fileID
@@ -294,7 +294,7 @@ extension LocalStore {
         let cached = next.attachments.filter { WorkspaceFileTransfer.contains($0.key, in: operation.sourcePath) }
         for (oldPath, var value) in cached {
             next.attachments.removeValue(forKey: oldPath)
-            let target = operation.destinationPath + oldPath.dropFirst(operation.sourcePath.count)
+            let target = operation.destinationPath(for: oldPath)
             if value.remoteID == oldPath { value.remoteID = target }
             next.attachments[target] = value
         }
@@ -374,7 +374,7 @@ extension LocalStore {
     private func hydrateRestoredDocuments(_ operation: WorkspaceOperation, remote: any RemoteWorkspaceBackend) async throws {
         var hydrated: [String: WorkspaceFileRecord] = [:]
         for (path, entry) in state.entries where WorkspaceFileTransfer.contains(path, in: operation.sourcePath) {
-            let restoredPath = operation.destinationPath + path.dropFirst(operation.sourcePath.count)
+            let restoredPath = operation.destinationPath(for: path)
             guard !entry.file.isDirectory, Self.isVisible(restoredPath), WorkspaceDocument.Kind(path: restoredPath) != nil,
                   entry.blob == nil || entry.file.revision == nil else { continue }
             let result = try await remote.download(entry.file, maxBytes: textLimit)
@@ -404,7 +404,7 @@ extension LocalStore {
                 remoteModifiedAt: next.entries[path]?.file.modifiedAt, isOperation: true)
         }
         for document in operation.expected where document.kind != .folder {
-            let path = operation.kind == .trash ? document.path : operation.destinationPath + document.path.dropFirst(operation.sourcePath.count)
+            let path = operation.kind == .trash ? document.path : operation.destinationPath(for: document.path)
             let blob = try next.pending[document.path]?.blob ?? storeBlob(Data(document.contents.utf8))
             let contents = try text(blob)
             if document.path != path {

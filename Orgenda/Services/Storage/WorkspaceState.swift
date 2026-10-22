@@ -50,4 +50,9 @@ struct WorkspaceOperation: Codable, Equatable, Sendable {
     var trashEntry: WorkspaceTrashEntry?
     var id = UUID()
     var sequence: UInt64 = 0
+
+    /// Translate a path already known to belong to this operation's source subtree.
+    func destinationPath(for path: String) -> String {
+        destinationPath + path.dropFirst(sourcePath.count)
+    }
 }

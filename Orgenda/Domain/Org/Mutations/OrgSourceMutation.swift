@@ -281,23 +281,19 @@ extension OrgSourceMutation {
         // planning/properties. Combining co-located insertions fixes their order.
         var insertions: [Int: String] = [:]
         if !insertedPlanning.isEmpty {
-            let prefix = heading.text.hasSuffix("\n") ? "" : newline
-            insertions[heading.endByte] = prefix + insertedPlanning.joined(separator: newline) + newline
+            appendInsertion(insertedPlanning.joined(separator: newline) + newline,
+                            after: heading, newline: newline, to: &insertions)
         }
         if eventNode == nil, let eventReplacement, !eventReplacement.isEmpty {
-            let insertionPoint = following.last?.endByte ?? heading.endByte
-            let preceding = following.last?.text ?? heading.text
-            let prefix = preceding.hasSuffix("\n") || insertions[insertionPoint] != nil ? "" : newline
-            insertions[insertionPoint, default: ""] += prefix + eventReplacement + newline
+            appendInsertion(eventReplacement + newline, after: following.last ?? heading,
+                            newline: newline, to: &insertions)
         }
         guard appendPropertyEdits(replacing: original.properties, with: item.properties,
                                   heading: heading, following: following, newline: newline,
                                   edits: &edits, insertions: &insertions) else { return nil }
         if !insertedBody.isEmpty {
-            let insertionPoint = following.last?.endByte ?? heading.endByte
-            let preceding = following.last?.text ?? heading.text
-            let prefix = preceding.hasSuffix("\n") || insertions[insertionPoint] != nil ? "" : newline
-            insertions[insertionPoint, default: ""] += prefix + insertedBody
+            appendInsertion(insertedBody, after: following.last ?? heading,
+                            newline: newline, to: &insertions)
         }
         for (offset, text) in insertions {
             edits.append(OrgSourceMutation(startByte: offset, endByte: offset, replacement: text))
@@ -364,11 +360,17 @@ extension OrgSourceMutation {
                 insertions[end.startByte, default: ""] += lines
             } else {
                 let preceding = following.last(where: { $0.type == "planning" }) ?? heading
-                let prefix = preceding.text.hasSuffix("\n") || insertions[preceding.endByte] != nil ? "" : newline
-                insertions[preceding.endByte, default: ""] += prefix + ":PROPERTIES:" + newline + lines + ":END:" + newline
+                appendInsertion(":PROPERTIES:" + newline + lines + ":END:" + newline,
+                                after: preceding, newline: newline, to: &insertions)
             }
         }
         return true
+    }
+
+    private static func appendInsertion(_ text: String, after node: ParsedOrgNode,
+                                        newline: String, to insertions: inout [Int: String]) {
+        let prefix = node.text.hasSuffix("\n") || insertions[node.endByte] != nil ? "" : newline
+        insertions[node.endByte, default: ""] += prefix + text
     }
 }
 

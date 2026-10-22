@@ -2,7 +2,7 @@ import Foundation
 
 extension WorkspaceStore {
     func workflow(for path: String) -> WorkspaceConfiguration.Workflow {
-        OrgConfiguredHeading.workflow(in: documents.first { $0.path == path }?.contents ?? "",
+        OrgConfiguredHeading.workflow(in: documentsByPath[path]?.contents ?? "",
                                       base: configuration.workflow)
     }
 
@@ -83,7 +83,7 @@ extension WorkspaceStore {
 
     func capture(_ template: WorkspaceConfiguration.Template, rendered: String, date: Date,
                  createMissing: Bool, expectedContents: String?) -> Bool {
-        let current = documents.first { $0.path == template.target.path }
+        let current = documentsByPath[template.target.path]
         guard current.map({ Data($0.contents.utf8) }) == expectedContents.map({ Data($0.utf8) }) else {
             operationError = "The capture destination changed. Preview the template again."
             return false
@@ -93,13 +93,12 @@ extension WorkspaceStore {
             validation.capture.templates = [template]
             validation.capture.defaultTemplate = template.id
             try validation.validate()
-            var document = current ?? WorkspaceDocument(path: template.target.path, title: (template.target.path as NSString).lastPathComponent,
+            let document = current ?? WorkspaceDocument(path: template.target.path, title: (template.target.path as NSString).lastPathComponent,
                                                        contents: "", kind: .org)
             let parsed = OrgIndexService.parseSynchronously([document], configuration: configuration)[0]
-            document.contents = try ConfiguredCapture.inserting(rendered, template: template, into: document.contents,
+            let contents = try ConfiguredCapture.inserting(rendered, template: template, into: document.contents,
                                                                parsed: parsed, date: date, createMissing: createMissing)
-            if let index = documents.firstIndex(where: { $0.path == document.path }) { documents[index] = document }
-            else { documents.append(document) }
+            setDocument(document, contents: contents)
             scheduleWorkspaceRefresh(changedPaths: [document.path])
             operationError = nil
             return true
