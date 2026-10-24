@@ -31,11 +31,13 @@ struct WorkspaceFolderView: View {
                 if let onOpenDocument { onOpenDocument(document.path) }
                 else { openedDocument = document }
             }
+            .listRowInsets(.horizontal, OrgendaSpacing.pageMargin)
         }
         .dragContainer(for: WorkspaceFileTransfer.self) { (path: String) -> [WorkspaceFileTransfer] in
             return store.documents.first { $0.path == path }.map { [store.fileTransfer($0)] } ?? []
         }
         .listStyle(.plain)
+        .contentMargins(.horizontal, 0, for: .scrollContent)
         .overlay {
             if children.isEmpty {
                 ContentUnavailableView("This folder is empty", systemImage: "folder",
@@ -70,15 +72,15 @@ struct WorkspaceFileRow: View {
     var headingCount: Int? = nil
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: OrgendaSpacing.contentInset) {
             if showsIcon {
                 Image(systemName: document.kind == .folder ? "folder.fill" : "doc.text")
                     .font(.system(size: 20))
-                    .foregroundStyle(document.kind == .folder ? Color.orange : OrgendaTheme.accentText)
+                    .foregroundStyle(document.kind == .folder ? OrgendaTheme.folder : OrgendaTheme.accentText)
                     .frame(width: 24, height: 26)
                     .accessibilityHidden(true)
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                 Text(document.title)
                     .font(.body)
                     .fixedSize(horizontal: false, vertical: true)
@@ -95,7 +97,7 @@ struct WorkspaceFileRow: View {
                     .accessibilityLabel("Pinned")
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, OrgendaSpacing.compactInset)
         .accessibilityElement(children: .combine)
     }
 

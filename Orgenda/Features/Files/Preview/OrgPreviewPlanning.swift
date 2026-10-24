@@ -6,7 +6,7 @@ struct OrgPreviewPlanning: View {
     let onEdit: (ParsedOrgNode, OrgPlanningEntryDraft) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
             ForEach(entries) { entry in
                 let source = pendingReplacements[entry.id]?.replacement ?? entry.text
 
@@ -24,9 +24,7 @@ struct OrgPreviewPlanning: View {
                     )
                     .font(.callout.monospaced())
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .background(OrgendaTheme.event.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                    .modifier(OrgPreviewMetadataSurface(fill: OrgendaTheme.tintedBackground(OrgendaTheme.event)))
                     .textSelection(.enabled)
                 }
             }
@@ -57,8 +55,8 @@ struct OrgPreviewPlanningEntryControl: View {
 
     var body: some View {
         Button(action: onEdit) {
-            HStack(alignment: .center, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .center, spacing: OrgendaSpacing.rowInset) {
+                VStack(alignment: .leading, spacing: OrgendaSpacing.textGap) {
                     if showsRawTimestamp {
                         Text(draft.source.trimmingCharacters(in: .whitespacesAndNewlines))
                             .font(.caption.monospaced())
@@ -81,12 +79,7 @@ struct OrgPreviewPlanningEntryControl: View {
                     .frame(width: 26, height: 26)
                     .accessibilityHidden(true)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 1)
-            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-            .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .contentShape(Rectangle())
+            .modifier(OrgPreviewMetadataSurface(fill: OrgendaTheme.tintedBackground(tint)))
         }
         .buttonStyle(.plain)
         .disabled(isUpdating)

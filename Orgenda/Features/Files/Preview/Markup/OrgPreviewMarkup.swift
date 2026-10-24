@@ -105,8 +105,8 @@ enum OrgPreviewMarkup {
             case "strikethrough": value.strikethroughStyle = .single
             default:
                 value.font = .subheadline.monospaced()
-                value.foregroundColor = Color(uiColor: .systemPink)
-                value.backgroundColor = Color(uiColor: .tertiarySystemFill)
+                value.foregroundColor = Color(uiColor: OrgendaTheme.Syntax.code)
+                value.backgroundColor = OrgendaTheme.tertiaryFill
             }
             return value
         case "link", "angle_link", "plain_link":
@@ -124,8 +124,8 @@ enum OrgPreviewMarkup {
         case "statistics_cookie":
             var value = AttributedString(String(node.text.dropFirst().dropLast()))
             value.inlinePresentationIntent = .stronglyEmphasized
-            value.foregroundColor = Color(uiColor: .systemBlue)
-            value.backgroundColor = Color(uiColor: .systemBlue).opacity(0.12)
+            value.foregroundColor = Color(uiColor: OrgendaTheme.Syntax.progress)
+            value.backgroundColor = Color(uiColor: OrgendaTheme.Syntax.progressBackground(contrast: .standard))
             return value
         case "target", "radio_target":
             let count = node.type == "target" ? 2 : 3
@@ -135,15 +135,15 @@ enum OrgPreviewMarkup {
         case "macro", "export_snippet":
             var value = AttributedString(node.text)
             value.font = .body.monospaced()
-            value.foregroundColor = Color(uiColor: .systemBrown)
-            value.backgroundColor = Color(uiColor: .tertiarySystemFill)
+            value.foregroundColor = Color(uiColor: OrgendaTheme.Syntax.literal)
+            value.backgroundColor = OrgendaTheme.tertiaryFill
             return value
         case "footnote_reference", "inline_footnote", "footnote_definition_marker":
             let raw = node.text.trimmingCharacters(in: .whitespacesAndNewlines)
             let label = raw.hasPrefix("[fn:") ? String(raw.dropFirst(4).dropLast()) : raw
             var value = AttributedString("[" + label.trimmingCharacters(in: CharacterSet(charactersIn: ":")) + "]"
                 + (node.type == "footnote_definition_marker" ? " " : ""))
-            value.foregroundColor = Color(uiColor: .systemPurple)
+            value.foregroundColor = Color(uiColor: OrgendaTheme.Syntax.footnote)
             return value
         case "description_tag":
             var value = AttributedString(node.text.trimmingCharacters(in: .whitespacesAndNewlines)

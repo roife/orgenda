@@ -14,9 +14,9 @@ struct OrgendaCalendarYearGrid: View {
     private let calendar = Calendar.autoupdatingCurrent
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: OrgendaCalendarLayout.yearRowSpacing) {
             ForEach(0..<4, id: \.self) { row in
-                HStack(spacing: 12) {
+                HStack(spacing: OrgendaSpacing.contentInset) {
                     ForEach(0..<3, id: \.self) { column in
                         yearMonthButton(
                             for: OrgCalendarDates(calendar: calendar).monthInYear(row * 3 + column + 1, year: year)
@@ -32,7 +32,7 @@ struct OrgendaCalendarYearGrid: View {
         return Button {
             onSelectMonth(month)
         } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: OrgendaSpacing.inlineGap) {
                 Text(month.formatted(.dateTime.month(.abbreviated)))
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
@@ -53,7 +53,7 @@ struct OrgendaCalendarYearGrid: View {
             .frame(height: yearRowHeight)
             .background {
                 if dynamicTypeSize.isAccessibilitySize && isSelectedMonth {
-                    RoundedRectangle(cornerRadius: 10)
+                    OrgendaCorners.standard
                         .fill(OrgendaTheme.accentSoft)
                 }
             }
@@ -77,10 +77,10 @@ private struct MiniMonth: View {
     let reduceMotion: Bool
 
     private let calendar = Calendar.autoupdatingCurrent
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 7)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: OrgendaCalendarLayout.miniMonthSpacing), count: 7)
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 1) {
+        LazyVGrid(columns: columns, spacing: OrgendaCalendarLayout.miniMonthSpacing) {
             ForEach(OrgCalendarDates(calendar: calendar).daysInMonthGrid(for: month), id: \.self) { date in
                 let inMonth = calendar.isDate(date, equalTo: month, toGranularity: .month)
                 let selected = inMonth && calendar.isDate(date, inSameDayAs: selectedDate)
@@ -101,13 +101,13 @@ private struct MiniMonth: View {
                     }
 
                     Text(String(calendar.component(.day, from: date)))
-                        .font(.system(size: 9, weight: selected ? .semibold : .regular, design: .rounded))
+                        .font(.system(size: OrgendaCalendarLayout.miniMonthDayNumberSize, weight: selected ? .semibold : .regular, design: .rounded))
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: true)
-                        .foregroundStyle(inMonth ? (selected ? Color.white : Color.primary) : Color.clear)
+                        .foregroundStyle(inMonth ? (selected ? OrgendaTheme.onAccent : OrgendaTheme.ink) : Color.clear)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 11)
+                .frame(height: OrgendaCalendarLayout.miniMonthDayHeight)
             }
         }
     }

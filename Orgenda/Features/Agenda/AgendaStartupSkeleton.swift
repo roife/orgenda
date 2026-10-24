@@ -33,24 +33,24 @@ struct AgendaStartupSkeleton: View {
                 .frame(maxWidth: .infinity)
             }
             ScrollView {
-                VStack(alignment: .leading, spacing: showsCalendar ? 12 : 20) {
+                VStack(alignment: .leading, spacing: showsCalendar ? OrgendaSpacing.contentInset : OrgendaSpacing.pageMargin) {
                     ForEach(0..<3) { section in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: OrgendaSpacing.inlineGap) {
                             AgendaDayHeader(date: date.adding(days: section), count: section == 0 ? 3 : 2)
                             ForEach(Self.placeholderItems.prefix(section == 0 ? 3 : 2)) { item in
                                 OrgItemRow(
                                     item: item, onToggle: {}, onOpen: {},
-                                    topPadding: compactRows ? 4.5 : 9,
-                                    bottomPadding: compactRows ? 6 : 9,
+                                    topPadding: compactRows ? OrgendaSpacing.inlineGap : OrgendaSpacing.contentInset,
+                                    bottomPadding: compactRows ? OrgendaSpacing.rowInset : OrgendaSpacing.contentInset,
                                     allowsSwipeActions: false
                                 )
-                                .padding(.horizontal, 16)
+                                .padding(.horizontal, OrgendaSpacing.pageMargin)
                             }
                         }
                     }
                 }
-                .padding(.top, showsCalendar ? 0 : 12)
-                .padding(.bottom, 24)
+                .padding(.top, showsCalendar ? 0 : OrgendaSpacing.contentInset)
+                .padding(.bottom, OrgendaSpacing.scrollBottomInset)
                 .frame(maxWidth: 760)
                 .frame(maxWidth: .infinity)
                 .redacted(reason: .placeholder)

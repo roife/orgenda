@@ -13,7 +13,7 @@ struct OrgRecurrenceEditor: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.contentInset) {
             Toggle("Repeat", isOn: Binding(
                 get: { recurrence != nil },
                 set: { recurrence = $0 ? draft.token : nil }
@@ -25,12 +25,12 @@ struct OrgRecurrenceEditor: View {
                     .accessibilityIdentifier("\(identifier).interval")
                 unitPicker(String(localized: "Unit"), selection: $draft.unit, identifier: "\(identifier).unit")
                 ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.contentInset) {
                         Text("Repeat from").fixedSize()
                         Spacer(minLength: 0)
                         repeatModePicker.fixedSize()
                     }
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: OrgendaSpacing.inlineGap) {
                         Text("Repeat from")
                         repeatModePicker
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -73,7 +73,7 @@ struct OrgRecurrenceEditor: View {
                 } else {
                     Text("This repeat rule is unsupported. Choose an interval above to replace it.")
                         .font(.subheadline)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(OrgendaTheme.error)
                 }
             }
         }

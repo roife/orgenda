@@ -187,7 +187,7 @@ struct ConfigurationSettingsView: View {
         if error != nil || store.configurationError != nil || needsRecovery {
             Section {
                 if let message = error ?? store.configurationError {
-                    Text(message).foregroundStyle(.red).textSelection(.enabled)
+                    Text(message).foregroundStyle(OrgendaTheme.error).textSelection(.enabled)
                 }
                 if needsRecovery {
                     Button("Reload settings") {
@@ -283,7 +283,7 @@ struct ConfigurationSettingsView: View {
                         }
                     } label: {
                         Label {
-                            VStack(alignment: .leading, spacing: 3) {
+                            VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                                 Text(state.title).foregroundStyle(.primary)
                                 if state.title != token { Text(verbatim: token).font(.caption.monospaced()).foregroundStyle(.secondary) }
                             }
@@ -315,7 +315,7 @@ struct ConfigurationSettingsView: View {
                                 }
                             }
                         }
-                        .tint(.blue)
+                        .tint(OrgendaTheme.info)
                         .accessibilityIdentifier("configuration.keyword.move.\(token)")
                     }
                 }
@@ -392,7 +392,7 @@ struct ConfigurationSettingsView: View {
                             }
                         } label: {
                             Label {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                                     Text(template.name).foregroundStyle(.primary)
                                     Text(template.target.path).font(.caption).foregroundStyle(.secondary)
                                         .lineLimit(2)
@@ -464,7 +464,7 @@ struct ConfigurationSettingsView: View {
     }
 
     private func text(_ title: String, _ path: WritableKeyPath<WorkspaceConfiguration, String>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.inlineGap) {
             LabeledContent(LocalizedStringKey(title)) {
                 TextField(LocalizedStringKey(title), text: binding(path), axis: .vertical)
                     .foregroundStyle(.primary)

@@ -54,8 +54,8 @@ struct OrgItemEditor: View {
                 ProgressView(isArchiving ? "Archiving item…" : "Moving item…")
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, OrgendaSpacing.pageMargin)
+                    .padding(.vertical, OrgendaSpacing.contentInset)
                     .background(.regularMaterial)
                     .accessibilityIdentifier("item.editor.moveProgress")
             }
@@ -189,7 +189,7 @@ struct OrgItemEditor: View {
         Section {
             TextField("Add a title", text: $draft.title, axis: .vertical)
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(isNew && (draft.kind == .note || draft.kind == .event) ? Color.primary : draft.workflowTitleColor)
+                .foregroundStyle(isNew && (draft.kind == .note || draft.kind == .event) ? OrgendaTheme.ink : draft.workflowTitleColor)
                 .lineLimit(1...4)
                 .focused($focusedField, equals: .title)
                 .accessibilityLabel("Title")
@@ -253,8 +253,7 @@ struct OrgItemEditor: View {
                 if draft.body.isEmpty {
                     Text("Add context, a checklist, or a link…")
                         .foregroundStyle(.secondary)
-                        .padding(.top, 8)
-                        .padding(.leading, 5)
+                        .padding(OrgendaSpacing.textEditorPlaceholderInsets)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }

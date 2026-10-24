@@ -16,7 +16,7 @@ struct AgendaRescheduleSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.rowInset) {
                         if item.hasWorkflowState { OrgWorkflowIcon(item.state) }
                         Text(item.title).foregroundStyle(item.workflowTitleColor)
                     }

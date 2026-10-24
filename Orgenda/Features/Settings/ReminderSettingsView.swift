@@ -171,7 +171,7 @@ struct ReminderTimingEditor: View {
                 } footer: {
                     if validValue == nil {
                         Text("Enter a whole number from \(kind.range.lowerBound) to \(kind.range.upperBound).")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(OrgendaTheme.error)
                     }
                 }
             }
@@ -208,13 +208,13 @@ struct ReminderSettingsSections: View {
             Section {
                 Toggle(isOn: $remindersEnabled) {
                     Label {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                             Text("Agenda reminders")
                                 .foregroundStyle(.primary)
                             if store.reminderPermissionDenied {
                                 Text("Notifications disabled in Settings")
                                     .font(.caption)
-                                    .foregroundStyle(.red)
+                                    .foregroundStyle(OrgendaTheme.error)
                                     .accessibilityIdentifier("settings.reminders.status")
                             }
                         }

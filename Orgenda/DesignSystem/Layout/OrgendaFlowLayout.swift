@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct OrgendaFlowLayout: Layout {
-    var horizontalSpacing: CGFloat = 8
-    var verticalSpacing: CGFloat = 6
+    var horizontalSpacing: CGFloat = OrgendaSpacing.rowInset
+    var verticalSpacing: CGFloat = OrgendaSpacing.inlineGap
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         layout(width: proposal.width, subviews: subviews).size

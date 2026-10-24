@@ -90,7 +90,7 @@ struct ConfiguredCaptureView: View {
                         Text(preview.contents).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
                     }
                 }
-                if let error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+                if let error { Text(error).foregroundStyle(OrgendaTheme.error).textSelection(.enabled) }
             }
             .navigationTitle(previewOnly ? "Template preview" : "Capture")
             .toolbar {

@@ -5,7 +5,7 @@ enum OrgendaDateLayout {
     static let dayNumberSize: CGFloat = 15
     static let weekdayLineHeight: CGFloat = 17
     static let eventMarkerDiameter: CGFloat = 3
-    static let eventMarkerSpacing: CGFloat = 2
+    static let eventMarkerSpacing = OrgendaSpacing.textGap
     static let dayCellHeight: CGFloat = 44
 
     static func accessibleDayDiameter(numberSize: CGFloat) -> CGFloat {
@@ -42,7 +42,7 @@ struct OrgendaDateButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: showsWeekday ? 3 : OrgendaDateLayout.eventMarkerSpacing) {
+            VStack(spacing: showsWeekday ? OrgendaSpacing.compactInset : OrgendaDateLayout.eventMarkerSpacing) {
                 if showsWeekday {
                     Text(date.formatted(.dateTime.weekday(.narrow)).uppercased())
                         .font(.footnote.weight(.semibold))
@@ -100,7 +100,7 @@ struct OrgendaDateButton: View {
                     selectionSurface
                 } else if isToday {
                     Circle()
-                        .stroke(OrgendaTheme.accent.opacity(0.72), lineWidth: 1.5)
+                        .stroke(OrgendaTheme.todayOutline, lineWidth: 1.5)
                 }
             }
     }
@@ -113,8 +113,7 @@ struct OrgendaDateButton: View {
     }
 
     private var dayColor: Color {
-        if isSelected { return .white }
-        let opacity = isDimmed ? (colorSchemeContrast == .increased ? 0.75 : 0.55) : 1
-        return (isWeekend ? OrgendaTheme.weekend : OrgendaTheme.ink).opacity(opacity)
+        if isSelected { return OrgendaTheme.onAccent }
+        return OrgendaTheme.calendarDayColor(isWeekend: isWeekend, isDimmed: isDimmed, contrast: colorSchemeContrast)
     }
 }

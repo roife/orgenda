@@ -36,7 +36,7 @@ struct OrgPreviewContent: View {
                     && !(drag.map { row.parentHeadingIDs.contains($0.headingID) } ?? false)
             }?.id
         }
-        LazyVStack(alignment: .leading, spacing: 4) {
+        LazyVStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
             ForEach(visibleRows) { row in
                 OrgPreviewRowView(
                     row: row,
@@ -84,11 +84,11 @@ struct OrgPreviewContent: View {
                     ? 0 : row.spacingBefore)
                 .background {
                     if dropTarget?.placement == .child && row.id == dropTarget?.headingID {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(OrgendaTheme.accentText.opacity(0.10))
+                        OrgendaCorners.standard
+                            .fill(OrgendaTheme.dropTargetBackground)
                             .overlay {
-                                RoundedRectangle(cornerRadius: 6)
-                                    .strokeBorder(OrgendaTheme.accentText.opacity(0.55), lineWidth: 1)
+                                OrgendaCorners.standard
+                                    .strokeBorder(OrgendaTheme.dropTargetBorder, lineWidth: 1)
                             }
                             .padding(.leading, row.indentation)
                             .allowsHitTesting(false)
@@ -117,11 +117,9 @@ struct OrgPreviewContent: View {
                 .id(row.id)
             }
         }
-        .lineSpacing(6)
+        .lineSpacing(OrgendaSpacing.inlineGap)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.top, 6)
-        .padding(.bottom, 20)
+        .padding(OrgendaSpacing.documentInsets)
         .frame(maxWidth: 900, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .center)
         .coordinateSpace(name: "org.preview.content")
@@ -178,7 +176,7 @@ private struct OrgPreviewRowView: View {
         case "verse_block", "center_block", "dynamic_block":
             OrgPreviewTextBlock(node: row.node)
         case "horizontal_rule":
-            Divider().padding(.vertical, 4)
+            Divider().padding(.vertical, OrgendaSpacing.compactInset)
         case "clock":
             OrgPreviewClock(node: row.node)
         case "planning":
@@ -220,7 +218,7 @@ private struct OrgPreviewRowView: View {
             .filter { $0.node.type != "blank_line" }
         let title = row.node.child(ofType: "custom_block_begin")?.text
             .trimmingCharacters(in: .whitespaces).dropFirst("#+BEGIN_".count) ?? ""
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
             OrgPreviewSearchText(String(title))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -243,8 +241,8 @@ private struct OrgPreviewRowView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(Color(uiColor: .quaternarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+        .padding(OrgendaSpacing.contentInset)
+        .background(OrgendaTheme.quaternaryFill, in: OrgendaCorners.standard)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("org.preview.custom-block.\(row.node.startByte)")
     }

@@ -18,7 +18,7 @@ enum OrgCodeHighlighting {
         dynamicTypeSize: DynamicTypeSize
     ) -> AttributedString {
         let fontSize = OrgPreviewFontMetrics.pointSize(for: .footnote, dynamicTypeSize: dynamicTypeSize)
-        let theme = colorScheme == .dark ? "github-dark" : "github"
+        let theme = OrgendaTheme.Syntax.codeTheme(for: colorScheme)
         let normalizedLanguage = language?.lowercased()
         let aliases = ["elisp": "lisp", "emacs-lisp": "lisp", "shell-script": "bash"]
         let highlightingLanguage = normalizedLanguage.map { aliases[$0] ?? $0 }

@@ -2,8 +2,15 @@ import SwiftUI
 
 enum OrgendaCalendarLayout {
     static let miniMonthSelectionDiameter: CGFloat = 14
-    static let monthRowSpacing: CGFloat = 2
+    static let miniMonthDayHeight: CGFloat = 11
+    static let miniMonthDayNumberSize: CGFloat = 9
+    static let miniMonthSpacing: CGFloat = 1
+    static let yearRowSpacing: CGFloat = 10
+    static let densityHandleHitSlop: CGFloat = 14
+    static let monthRowSpacing = OrgendaSpacing.textGap
     static let monthRowCount = 6
+    static let miniMonthHeight = miniMonthDayHeight * CGFloat(monthRowCount)
+        + miniMonthSpacing * CGFloat(monthRowCount - 1)
     static let monthHeight = OrgendaDateLayout.dayCellHeight * CGFloat(monthRowCount)
         + monthRowSpacing * CGFloat(monthRowCount - 1)
 }
@@ -58,7 +65,7 @@ struct OrgendaCalendarSizing {
 
     func selectionHeight(for density: Density) -> CGFloat {
         calendarHeight(for: density)
-            + (density != .year && !usesAccessibilityText ? weekdayLineHeight + 6 : 0)
+            + (density != .year && !usesAccessibilityText ? weekdayLineHeight + OrgendaSpacing.inlineGap : 0)
     }
 
     func dragPosition(for density: Density) -> CGFloat {
@@ -90,7 +97,8 @@ struct OrgendaCalendarSizing {
     }
 
     var accessibleDateStripHeight: CGFloat {
-        accessibleDayDiameter + weekdayLineHeight + OrgendaDateLayout.eventMarkerDiameter + 14
+        accessibleDayDiameter + weekdayLineHeight + OrgendaDateLayout.eventMarkerDiameter
+            + OrgendaSpacing.compactInset * 4
     }
 
     var yearRowHeight: CGFloat {
@@ -98,7 +106,7 @@ struct OrgendaCalendarSizing {
     }
 
     var yearHeight: CGFloat {
-        yearRowHeight * 4 + 30
+        yearRowHeight * 4 + OrgendaCalendarLayout.yearRowSpacing * 3
     }
 
 }

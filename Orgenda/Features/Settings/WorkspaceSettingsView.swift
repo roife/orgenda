@@ -19,7 +19,7 @@ struct WorkspaceSettingsView: View {
                         StorageConflictsView(store: store)
                     } label: {
                         Label("Resolve Conflicts", systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(OrgendaTheme.error)
                     }
                     .accessibilityIdentifier("workspace.resolveConflict")
                 }
@@ -48,7 +48,7 @@ struct WorkspaceSettingsView: View {
             if let error = store.fileSyncError {
                 Section("File changes need attention") {
                     Label(error, systemImage: "exclamationmark.circle")
-                        .font(.subheadline).foregroundStyle(.red)
+                        .font(.subheadline).foregroundStyle(OrgendaTheme.error)
                         .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                         .accessibilityIdentifier("workspace.error")
                     if store.syncConflicts.isEmpty && store.pendingFileCount > 0 && store.storageConnection?.provider.isRemote != true {

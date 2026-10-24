@@ -35,7 +35,7 @@ struct SearchView: View {
             searchContent
                 .frame(maxWidth: 900)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(uiColor: .systemBackground))
+                .background(OrgendaTheme.background)
                 .navigationTitle("Search")
                 // Regular-width search lives in the navigation bar; hiding it
                 // also removes the iPad search field. Compact layouts use the
@@ -80,22 +80,22 @@ struct SearchView: View {
     }
 
     private var scopeBar: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.contentInset) {
             Text("Search category")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityHidden(true)
-            Spacer(minLength: 8)
+            Spacer(minLength: OrgendaSpacing.rowInset)
             scopeMenu
                 .buttonStyle(.bordered)
                 .tint(OrgendaTheme.accentText)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
+        .padding(.horizontal, OrgendaSpacing.pageMargin)
+        .padding(.vertical, OrgendaSpacing.rowInset)
         .frame(maxWidth: 900)
         .frame(maxWidth: .infinity)
-        .background(Color(uiColor: .systemBackground))
+        .background(OrgendaTheme.background)
         .overlay(alignment: .bottom) { Divider() }
     }
 
@@ -151,7 +151,7 @@ struct SearchView: View {
                         result: match.result, store: store, trimmedQuery: request.query,
                         subtitle: match.subtitle, onPresent: { presentation = $0 }
                     )
-                    .padding(.vertical, 5)
+                    .padding(.vertical, OrgendaSpacing.compactInset)
                 }
             } header: {
                 ViewThatFits(in: .horizontal) {
@@ -160,7 +160,7 @@ struct SearchView: View {
                         Spacer()
                         resultCount
                     }
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                         Text(request.scope == .all ? String(localized: "All results") : request.scope.title)
                         resultCount
                     }
@@ -169,13 +169,14 @@ struct SearchView: View {
                 .textCase(nil)
                 .accessibilityElement(children: .combine)
             }
+            .listRowInsets(.horizontal, OrgendaSpacing.pageMargin)
         }
         .searchListSurface()
         .accessibilityIdentifier("search.results")
     }
 
     private var resultCount: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: OrgendaSpacing.rowInset) {
             if completedSearch != searchRequest {
                 ProgressView()
                     .controlSize(.mini)
@@ -218,7 +219,7 @@ struct SearchView: View {
                 ? String(localized: "No matches for “\(trimmedQuery)”. Try another word or a shorter phrase.")
                 : String(localized: "No matches for “\(trimmedQuery)” in \(scope.title). Try searching all categories.")
         ) {
-            VStack(spacing: 12) {
+            VStack(spacing: OrgendaSpacing.contentInset) {
                 if scope != .all {
                     Button("Search All") { scope = .all }
                         .buttonStyle(.borderedProminent)

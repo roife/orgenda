@@ -9,7 +9,7 @@ enum OrgKeyboardAccessory {
             var configuration = UIButton.Configuration.plain()
             configuration.image = UIImage(systemName: symbol)
             configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 20)
-            configuration.baseForegroundColor = .label
+            configuration.baseForegroundColor = OrgendaTheme.inkColor
             configuration.contentInsets = .zero
             let button = UIButton(configuration: configuration, primaryAction: UIAction { _ in action() })
             button.accessibilityLabel = title
@@ -52,7 +52,8 @@ enum OrgKeyboardAccessory {
         let effect = UIGlassEffect(style: .regular)
         effect.isInteractive = true
         let glass = UIVisualEffectView(effect: effect)
-        glass.layer.cornerRadius = 24
+        glass.layer.cornerRadius = OrgendaCorners.glassRadius
+        glass.layer.cornerCurve = .continuous
         glass.clipsToBounds = true
         glass.contentView.addSubview(actions)
         NSLayoutConstraint.activate([

@@ -69,7 +69,7 @@ struct AgendaView: View {
                     }
                 }
             }
-            .background(Color(uiColor: .systemBackground))
+            .background(OrgendaTheme.background)
             .navigationTitle(mode == .agenda ? displayedPerspective.title
                              : !showsPerspectiveMenu ? String(localized: "Calendar") : "")
             .navigationBarTitleDisplayMode(.inline)
@@ -107,13 +107,13 @@ struct AgendaView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if let change = gestureUndo {
                     let layout = dynamicTypeSize.isAccessibilitySize
-                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-                        : AnyLayout(HStackLayout(spacing: 12))
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: OrgendaSpacing.compactInset))
+                        : AnyLayout(HStackLayout(spacing: OrgendaSpacing.contentInset))
                     layout {
                         Text(change.label)
                             .font(.subheadline)
                             .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 8) {
+                        HStack(spacing: OrgendaSpacing.rowInset) {
                             Button("Undo", systemImage: "arrow.uturn.backward") {
                                 if !store.undoGesture(change) { showsCompletionError = true }
                                 gestureUndo = nil
@@ -130,11 +130,11 @@ struct AgendaView: View {
                         .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil, alignment: .trailing)
                     }
                     .buttonStyle(.plain)
-                    .padding(.leading, 16).padding(.trailing, 6)
-                    .padding(.vertical, 4)
-                    .glassEffect(.regular, in: .rect(cornerRadius: 24))
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
+                    .padding(.leading, OrgendaSpacing.pageMargin).padding(.trailing, OrgendaSpacing.compactInset)
+                    .padding(.vertical, OrgendaSpacing.compactInset)
+                    .glassEffect(.regular, in: OrgendaCorners.glass)
+                    .padding(.horizontal, OrgendaSpacing.pageMargin)
+                    .padding(.bottom, OrgendaSpacing.rowInset)
                     .frame(maxWidth: 760)
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
@@ -216,13 +216,13 @@ struct AgendaView: View {
             editorItem = canonical
         }, onReschedule: { reschedulingItem = canonical }, onShowInFile: {
             onShowInFile(item)
-        }, dragItem: canonical, topPadding: mode == .agenda ? 4.5 : 9,
-           bottomPadding: mode == .agenda ? 6 : 9,
-           tagSpacing: mode == .agenda ? 2 : 6,
+        }, dragItem: canonical, topPadding: mode == .agenda ? OrgendaSpacing.inlineGap : OrgendaSpacing.contentInset,
+           bottomPadding: mode == .agenda ? OrgendaSpacing.rowInset : OrgendaSpacing.contentInset,
+           tagSpacing: mode == .agenda ? OrgendaSpacing.textGap : OrgendaSpacing.inlineGap,
            // Perspectives keep their scroll views alive. Remove just the
            // inactive rows' swipe hosts so returning starts with actions closed.
            allowsSwipeActions: mode != .calendar && perspective == option)
-        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 0, leading: OrgendaSpacing.pageMargin, bottom: 0, trailing: OrgendaSpacing.pageMargin))
         .listRowSeparator(.hidden)
     }
 

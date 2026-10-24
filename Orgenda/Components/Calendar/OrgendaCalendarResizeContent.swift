@@ -16,7 +16,7 @@ struct OrgendaCalendarResizeContent<Month: View, Year: View, Weekdays: View, Day
         let height = sizing.selectionHeight(at: position)
         if position <= monthPosition {
             let progress = position / monthPosition
-            VStack(spacing: 6) {
+            VStack(spacing: OrgendaSpacing.inlineGap) {
                 if !sizing.usesAccessibilityText {
                     weekdayHeader().frame(height: sizing.weekdayLineHeight)
                 }
@@ -27,7 +27,7 @@ struct OrgendaCalendarResizeContent<Month: View, Year: View, Weekdays: View, Day
                         .equatable()
                         .frame(height: OrgendaCalendarLayout.monthHeight, alignment: .top)
                         .offset(y: -selectedWeekOffset * (1 - progress))
-                        .frame(height: height - sizing.weekdayLineHeight - 6, alignment: .top)
+                        .frame(height: height - sizing.weekdayLineHeight - OrgendaSpacing.inlineGap, alignment: .top)
                         .clipped()
                 }
             }
@@ -42,12 +42,12 @@ struct OrgendaCalendarResizeContent<Month: View, Year: View, Weekdays: View, Day
             GeometryReader { geometry in
                 let width = geometry.size.width
                 let monthIndex = snapshot.monthIndex
-                let columnWidth = (width - 24) / 3
-                let targetX = CGFloat(monthIndex % 3) * (columnWidth + 12)
-                // The month label and 71-point miniature are centered in the row.
-                let targetY = CGFloat(monthIndex / 3) * (sizing.yearRowHeight + 10)
-                    + (sizing.yearRowHeight - sizing.monthLabelHeight - 6 - 71) / 2
-                    + sizing.monthLabelHeight + 6
+                let columnWidth = (width - OrgendaSpacing.contentInset * 2) / 3
+                let targetX = CGFloat(monthIndex % 3) * (columnWidth + OrgendaSpacing.contentInset)
+                // Match the centered label and miniature in the static year grid.
+                let targetY = CGFloat(monthIndex / 3) * (sizing.yearRowHeight + OrgendaCalendarLayout.yearRowSpacing)
+                    + (sizing.yearRowHeight - sizing.monthLabelHeight - OrgendaSpacing.inlineGap - OrgendaCalendarLayout.miniMonthHeight) / 2
+                    + sizing.monthLabelHeight + OrgendaSpacing.inlineGap
                 ZStack(alignment: .topLeading) {
                     Group {
                         if sizing.usesAccessibilityText {
@@ -61,7 +61,7 @@ struct OrgendaCalendarResizeContent<Month: View, Year: View, Weekdays: View, Day
                         .frame(width: width, height: sizing.yearHeight, alignment: .top)
                         .blur(radius: blurRadius)
                         .overlay {
-                            Color(uiColor: .systemBackground)
+                            OrgendaTheme.background
                                 .opacity(veilOpacity)
                                 .allowsHitTesting(false)
                         }
@@ -78,11 +78,11 @@ struct OrgendaCalendarResizeContent<Month: View, Year: View, Weekdays: View, Day
                         OrgendaCalendarMorphingMonth(snapshot: snapshot, progress: progress)
                             .frame(
                                 width: width + (columnWidth - width) * progress,
-                                height: OrgendaCalendarLayout.monthHeight + (71 - OrgendaCalendarLayout.monthHeight) * progress,
+                                height: OrgendaCalendarLayout.monthHeight + (OrgendaCalendarLayout.miniMonthHeight - OrgendaCalendarLayout.monthHeight) * progress,
                                 alignment: .top
                             )
                             .offset(x: targetX * progress,
-                                    y: (sizing.weekdayLineHeight + 6) * (1 - progress) + targetY * progress)
+                                    y: (sizing.weekdayLineHeight + OrgendaSpacing.inlineGap) * (1 - progress) + targetY * progress)
                     }
                 }
             }
@@ -108,12 +108,12 @@ private struct OrgendaCalendarMorphingMonth: View, Equatable {
 
     var body: some View {
         Canvas { context, size in
-            let columnSpacing = interpolate(4, 1)
+            let columnSpacing = interpolate(OrgendaSpacing.compactInset, OrgendaCalendarLayout.miniMonthSpacing)
             let cellWidth = (size.width - columnSpacing * 6) / 7
-            let rowHeight = interpolate(OrgendaDateLayout.dayCellHeight, 11)
-            let rowSpacing = interpolate(OrgendaCalendarLayout.monthRowSpacing, 1)
+            let rowHeight = interpolate(OrgendaDateLayout.dayCellHeight, OrgendaCalendarLayout.miniMonthDayHeight)
+            let rowSpacing = interpolate(OrgendaCalendarLayout.monthRowSpacing, OrgendaCalendarLayout.miniMonthSpacing)
             let diameter = interpolate(OrgendaDateLayout.dayDiameter, OrgendaCalendarLayout.miniMonthSelectionDiameter)
-            let fontSize = interpolate(monthFontSize, 9)
+            let fontSize = interpolate(monthFontSize, OrgendaCalendarLayout.miniMonthDayNumberSize)
             for (index, day) in snapshot.monthData.days.enumerated() {
                 let cellCenter = CGPoint(x: CGFloat(index % 7) * (cellWidth + columnSpacing) + cellWidth / 2,
                                          y: CGFloat(index / 7) * (rowHeight + rowSpacing) + rowHeight / 2)
@@ -123,11 +123,11 @@ private struct OrgendaCalendarMorphingMonth: View, Equatable {
                 if day.isSelected {
                     context.fill(circle, with: .color(OrgendaTheme.accent))
                 } else if day.isToday {
-                    context.stroke(circle, with: .color(OrgendaTheme.accent.opacity(0.72 * (1 - progress))), lineWidth: 1.5)
+                    context.stroke(circle, with: .color(OrgendaTheme.todayOutline.opacity(1 - progress)), lineWidth: 1.5)
                 }
-                let monthColor = day.isSelected ? Color.white : (day.isWeekend ? OrgendaTheme.weekend : OrgendaTheme.ink)
-                    .opacity(day.inMonth ? 1 : (contrast == .increased ? 0.75 : 0.55))
-                let yearColor = day.inMonth ? (day.isSelected ? Color.white : Color.primary) : .clear
+                let monthColor = day.isSelected ? OrgendaTheme.onAccent
+                    : OrgendaTheme.calendarDayColor(isWeekend: day.isWeekend, isDimmed: !day.inMonth, contrast: contrast)
+                let yearColor = day.inMonth ? (day.isSelected ? OrgendaTheme.onAccent : OrgendaTheme.ink) : .clear
                 let text = Text(day.number)
                     .font(.system(size: fontSize, weight: day.isSelected ? .semibold : .regular, design: .rounded))
                     .foregroundStyle(monthColor.mix(with: yearColor, by: progress))
@@ -213,26 +213,28 @@ private struct OrgendaCalendarYearCanvas: View, Equatable {
 
     var body: some View {
         Canvas(rendersAsynchronously: true) { context, size in
-            let monthWidth = (size.width - 24) / 3
-            let cellWidth = (monthWidth - 6) / 7
-            let topInset = (rowHeight - labelHeight - 6 - 71) / 2
+            let monthWidth = (size.width - OrgendaSpacing.contentInset * 2) / 3
+            let cellWidth = (monthWidth - OrgendaCalendarLayout.miniMonthSpacing * 6) / 7
+            let topInset = (rowHeight - labelHeight - OrgendaSpacing.inlineGap - OrgendaCalendarLayout.miniMonthHeight) / 2
             for (monthIndex, month) in snapshot.months.enumerated() {
-                let origin = CGPoint(x: CGFloat(monthIndex % 3) * (monthWidth + 12),
-                                     y: CGFloat(monthIndex / 3) * (rowHeight + 10) + topInset)
+                let origin = CGPoint(x: CGFloat(monthIndex % 3) * (monthWidth + OrgendaSpacing.contentInset),
+                                     y: CGFloat(monthIndex / 3) * (rowHeight + OrgendaCalendarLayout.yearRowSpacing) + topInset)
                 let label = Text(month.label).font(.subheadline.weight(.semibold)).foregroundStyle(OrgendaTheme.ink)
                 context.draw(label, at: CGPoint(x: origin.x + monthWidth / 2, y: origin.y + labelHeight / 2))
                 guard monthIndex != snapshot.monthIndex else { continue }
                 for (index, day) in month.days.enumerated() where day.inMonth {
-                    let center = CGPoint(x: origin.x + CGFloat(index % 7) * (cellWidth + 1) + cellWidth / 2,
-                                         y: origin.y + labelHeight + 6 + CGFloat(index / 7) * 12 + 5.5)
+                    let center = CGPoint(x: origin.x + CGFloat(index % 7) * (cellWidth + OrgendaCalendarLayout.miniMonthSpacing) + cellWidth / 2,
+                                         y: origin.y + labelHeight + OrgendaSpacing.inlineGap
+                                            + CGFloat(index / 7) * (OrgendaCalendarLayout.miniMonthDayHeight + OrgendaCalendarLayout.miniMonthSpacing)
+                                            + OrgendaCalendarLayout.miniMonthDayHeight / 2)
                     if day.isSelected {
                         let diameter = OrgendaCalendarLayout.miniMonthSelectionDiameter
                         context.fill(Path(ellipseIn: CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2,
                                                             width: diameter, height: diameter)), with: .color(OrgendaTheme.accent))
                     }
                     context.draw(Text(day.number)
-                        .font(.system(size: 9, weight: day.isSelected ? .semibold : .regular, design: .rounded))
-                        .foregroundStyle(day.isSelected ? Color.white : Color.primary), at: center)
+                        .font(.system(size: OrgendaCalendarLayout.miniMonthDayNumberSize, weight: day.isSelected ? .semibold : .regular, design: .rounded))
+                        .foregroundStyle(day.isSelected ? OrgendaTheme.onAccent : OrgendaTheme.ink), at: center)
                 }
             }
         }

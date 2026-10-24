@@ -46,8 +46,8 @@ struct WorkspaceBrowserRow: View {
         .contentShape(Rectangle())
         .overlay {
             if dropTargeted && document.kind == .folder {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(OrgendaTheme.accent.opacity(0.10))
+                OrgendaCorners.standard
+                    .fill(OrgendaTheme.tintedBackground(OrgendaTheme.accent))
                     .stroke(OrgendaTheme.accent, lineWidth: 2)
                     .allowsHitTesting(false)
             }
@@ -65,13 +65,13 @@ struct WorkspaceBrowserRow: View {
             Button("Delete") { deletion = store.fileTransfer(document) }
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            pinButton.tint(.orange)
+            pinButton.tint(OrgendaTheme.pinned)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button("Delete", systemImage: "trash") {
                 deletion = store.fileTransfer(document)
             }
-            .tint(.red)
+            .tint(OrgendaTheme.error)
             .accessibilityIdentifier("files.swipe.delete")
             Button("Move", systemImage: "folder") {
                 moveRequest = store.fileTransfer(document)
@@ -131,7 +131,7 @@ private struct WorkspaceMoveSheet: View {
                 }
             }
             .disabled(store.isPerformingFileAction)
-            .overlay { if store.isPerformingFileAction { ProgressView("Moving…").padding().background(.regularMaterial, in: Capsule()) } }
+            .overlay { if store.isPerformingFileAction { ProgressView("Moving…").padding(OrgendaSpacing.pageMargin).background(.regularMaterial, in: Capsule()) } }
             .alert("Couldn't Move Item", item: $error) { _ in
                 Button("OK", role: .cancel) {}
             } message: { message in Text(message) }
@@ -162,8 +162,8 @@ struct WorkspaceRecentlyDeleted: View {
         NavigationStack {
             List {
                 ForEach(store.recentlyDeleted) { entry in
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: OrgendaSpacing.contentInset) {
+                        VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                             Text(entry.title).font(.headline)
                             Text(entry.originalPath).font(.footnote).foregroundStyle(.secondary)
                         }.frame(maxWidth: .infinity, alignment: .leading)
@@ -213,7 +213,7 @@ struct WorkspaceFileFeedback: ViewModifier {
         content
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if let undo = store.fileUndo {
-                    HStack(spacing: 12) {
+                    HStack(spacing: OrgendaSpacing.contentInset) {
                         Text(undo.message).font(.subheadline).frame(maxWidth: .infinity, alignment: .leading)
                         Button("Undo", systemImage: "arrow.uturn.backward") {
                             Task {
@@ -227,11 +227,11 @@ struct WorkspaceFileFeedback: ViewModifier {
                         Button("Dismiss", systemImage: "xmark") { store.fileUndo = nil }
                             .labelStyle(.iconOnly).frame(width: 44, height: 44)
                     }
-                    .padding(.leading, 16).padding(.trailing, 6).background(.regularMaterial)
+                    .padding(.leading, OrgendaSpacing.pageMargin).padding(.trailing, OrgendaSpacing.compactInset).background(.regularMaterial)
                 }
             }
             .overlay {
-                if store.isPerformingFileAction { ProgressView("Updating files…").padding().background(.regularMaterial, in: Capsule()) }
+                if store.isPerformingFileAction { ProgressView("Updating files…").padding(OrgendaSpacing.pageMargin).background(.regularMaterial, in: Capsule()) }
             }
             .alert("Couldn't Update Files", item: $store.fileActionError) { _ in
                 Button("OK", role: .cancel) {}

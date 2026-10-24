@@ -54,7 +54,7 @@ private struct StorageWebDAVCredentialsView: View {
                             else { connectionError = store.fileSyncError }
                         }
                     } label: {
-                        HStack(spacing: 12) {
+                        HStack(spacing: OrgendaSpacing.contentInset) {
                             if isReconnecting { ProgressView() }
                             Text("Update Password")
                         }

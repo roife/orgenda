@@ -8,17 +8,13 @@ struct OrgPreviewDrawer: View {
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
             OrgPreviewReadOnlyContent(nodes: OrgPreviewMarkup.contents(of: node))
-                .padding(.top, 2)
+                .padding(.top, OrgendaSpacing.compactInset)
         } label: {
             OrgPreviewSearchText(name)
                 .font(.caption2)
                 .foregroundStyle(OrgendaTheme.previewMetadata)
-                .frame(minHeight: 24, alignment: .leading)
         }
-        .controlSize(.mini)
-        .tint(OrgendaTheme.accentText)
-        .padding(.horizontal, 6)
-        .background(OrgendaTheme.accentSoft.opacity(0.55), in: RoundedRectangle(cornerRadius: 6))
+        .disclosureGroupStyle(OrgPreviewDrawerStyle())
         .accessibilityIdentifier("org.preview.drawer.\(node.startByte)")
         .onChange(of: searchQuery, initial: true) { _, query in
             if !query.isEmpty, node.text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
@@ -35,18 +31,57 @@ struct OrgPreviewDrawer: View {
 
 }
 
+private struct OrgPreviewDrawerStyle: DisclosureGroupStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        let fill = OrgendaTheme.previewDrawerBackground
+
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation {
+                    configuration.isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: OrgendaSpacing.rowInset) {
+                    configuration.label
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(OrgendaTheme.accentText)
+                        .rotationEffect(.degrees(configuration.isExpanded ? 90 : 0))
+                        .frame(width: 26, height: 26)
+                        .accessibilityHidden(true)
+                }
+                .modifier(OrgPreviewMetadataSurface(fill: configuration.isExpanded ? .clear : fill))
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(configuration.isExpanded ? Text("Expanded") : Text("Collapsed"))
+
+            if configuration.isExpanded {
+                configuration.content
+                    .padding(.horizontal, OrgendaSpacing.rowInset)
+                    .padding(.bottom, OrgendaSpacing.compactInset)
+            }
+        }
+        .background {
+            if configuration.isExpanded {
+                OrgendaCorners.standard.fill(fill)
+            }
+        }
+    }
+}
+
 struct OrgPreviewClock: View {
     @Environment(\.locale) private var locale
     let node: ParsedOrgNode
 
     var body: some View {
         let value = OrgPreviewClockValue(node)
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.inlineGap) {
             Image(systemName: "clock")
                 .imageScale(.small)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: OrgendaSpacing.textGap) {
                 Text(value.minutes == nil ? "Running clock" : "Clock")
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
@@ -57,7 +92,7 @@ struct OrgPreviewClock: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: OrgendaSpacing.rowInset)
             Text(value.duration)
                 .monospacedDigit()
                 .fontWeight(.semibold)
@@ -80,13 +115,13 @@ struct OrgPreviewReadOnlyContent: View {
 
     var body: some View {
         let blocks = OrgPreviewParagraphs.group(nodes).filter { $0.type != "blank_line" }
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
             ForEach(blocks) { node in
                 switch node.type {
                 case "clock": OrgPreviewClock(node: node)
                 case "latex_block": OrgPreviewMathBlock(expression: OrgMathExpression(node))
                 case "property":
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: OrgendaSpacing.textGap) {
                         OrgPreviewSearchText(node.child(ofType: "property_name")?.text ?? "")
                             .font(.caption.monospaced().weight(.semibold)).foregroundStyle(.secondary)
                         if let value = node.child(ofType: "property_value") {
@@ -108,7 +143,7 @@ struct OrgPreviewReadOnlyContent: View {
                 case "list":
                     ForEach(node.children) { item in
                         if let entry = workflowEntry(item) {
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.rowInset) {
                                 if let previous = entry.previous {
                                     OrgWorkflowIcon(keyword: previous)
                                     Image(systemName: "arrow.right").foregroundStyle(.secondary)
@@ -123,7 +158,7 @@ struct OrgPreviewReadOnlyContent: View {
                             .font(.subheadline)
                             .accessibilityElement(children: .combine)
                         } else {
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.rowInset) {
                                 Text(item.checkboxNode?.text.trimmingCharacters(in: .whitespaces) ?? OrgPreviewMarkup.listMarker(item))
                                     .foregroundStyle(.secondary)
                                 if let content = item.children.first(where: { $0.type == "list_item_content" }) {
@@ -145,7 +180,7 @@ struct OrgPreviewReadOnlyContent: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
-                    .padding(.top, node.type == "paragraph_group" && node.id != blocks.first?.id ? 8 : 0)
+                    .padding(.top, node.type == "paragraph_group" && node.id != blocks.first?.id ? OrgendaSpacing.rowInset : 0)
                 }
             }
         }
@@ -253,7 +288,7 @@ struct OrgPreviewTextBlock: View {
     @ViewBuilder
     var body: some View {
         if node.type == "dynamic_block" {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                 OrgPreviewReadOnlyContent(nodes: OrgPreviewMarkup.contents(of: node))
             }
         } else {

@@ -32,8 +32,7 @@ struct JournalComposer: View {
                         if entryBody.isEmpty {
                             Text("What's on your mind?")
                                 .foregroundStyle(.secondary)
-                                .padding(.top, 8)
-                                .padding(.leading, 5)
+                                .padding(OrgendaSpacing.textEditorPlaceholderInsets)
                                 .allowsHitTesting(false)
                                 .accessibilityHidden(true)
                         }

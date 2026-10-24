@@ -12,15 +12,15 @@ struct SearchResultLabel: View {
     var state: OrgWorkflowState?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: OrgendaSpacing.contentInset) {
             Image(systemName: icon)
                 .font(.body)
                 .foregroundStyle(tint)
                 .frame(width: iconSize, height: iconSize)
-                .background(tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
+                .background(OrgendaTheme.tintedBackground(tint), in: OrgendaCorners.standard)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
+                HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.rowInset) {
                     if let state { OrgWorkflowIcon(state) }
                     Text(highlightedTitle)
                         .foregroundStyle(state.map(OrgendaTheme.workflowColor) ?? .primary)

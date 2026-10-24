@@ -18,13 +18,13 @@ struct OrgendaCalendarDayGrid: View {
     let onScheduleTask: ((OrgTaskTransfer, Date) -> Void)?
 
     private let calendar = Calendar.autoupdatingCurrent
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: OrgendaSpacing.compactInset), count: 7)
 
     var body: some View {
         if dynamicTypeSize.isAccessibilitySize {
             dateStrip
         } else {
-            LazyVGrid(columns: columns, spacing: isWeekLayout ? 6 : OrgendaCalendarLayout.monthRowSpacing) {
+            LazyVGrid(columns: columns, spacing: isWeekLayout ? OrgendaSpacing.inlineGap : OrgendaCalendarLayout.monthRowSpacing) {
                 ForEach(dates, id: \.self) { date in
                     dayCell(date)
                 }
@@ -39,14 +39,14 @@ struct OrgendaCalendarDayGrid: View {
     private var dateStrip: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
-                HStack(spacing: 8) {
+                HStack(spacing: OrgendaSpacing.rowInset) {
                     ForEach(dates, id: \.self) { date in
                         dayCell(date)
-                            .frame(width: accessibleDayDiameter + 12)
+                            .frame(width: accessibleDayDiameter + OrgendaSpacing.contentInset)
                             .id(date.orgendaDayKey)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, OrgendaSpacing.compactInset)
             }
             .scrollIndicators(.hidden)
             .accessibilityHidden(!exposesAccessibility)
@@ -85,8 +85,8 @@ struct OrgendaCalendarDayGrid: View {
         .accessibilityIdentifier("orgenda.calendar.day.\(date.orgendaDayKey)")
         .overlay {
             if dropDate == date {
-                RoundedRectangle(cornerRadius: 10).stroke(OrgendaTheme.accent, lineWidth: 3)
-                    .background(OrgendaTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                OrgendaCorners.standard.stroke(OrgendaTheme.accent, lineWidth: 3)
+                    .background(OrgendaTheme.tintedBackground(OrgendaTheme.accent), in: OrgendaCorners.standard)
                     .allowsHitTesting(false)
             }
         }

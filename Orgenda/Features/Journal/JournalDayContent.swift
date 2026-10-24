@@ -8,7 +8,7 @@ struct JournalDayContent: View {
             Text("Journal · \(entries.count)")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .padding(.bottom, 12)
+                .padding(.bottom, OrgendaSpacing.contentInset)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("journal.day.heading")
 
@@ -23,7 +23,7 @@ private struct JournalTimelineEntry: View {
     let isLast: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.rowInset) {
             Text(entry.date.formatted(date: .omitted, time: .shortened))
                 .font(.subheadline.monospacedDigit().weight(.medium))
                 .foregroundStyle(.secondary)
@@ -37,18 +37,18 @@ private struct JournalTimelineEntry: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(3)
+                    .lineSpacing(OrgendaSpacing.compactInset)
                     .textSelection(.enabled)
             }
         }
         .padding(.leading, 28)
-        .padding(.bottom, 28)
+        .padding(.bottom, OrgendaSpacing.scrollBottomInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(alignment: .topLeading) {
             ZStack(alignment: .top) {
                 if !isLast {
                     Rectangle()
-                        .fill(OrgendaTheme.accent.opacity(0.18))
+                        .fill(OrgendaTheme.timelineConnector)
                         .frame(width: 1)
                         .padding(.top, 10)
                 }

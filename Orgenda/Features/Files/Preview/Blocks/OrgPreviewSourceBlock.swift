@@ -6,7 +6,7 @@ struct OrgPreviewSourceBlock: View {
     let node: ParsedOrgNode
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
             Label(label, systemImage: node.type == "source_block" ? "chevron.left.forwardslash.chevron.right" : "text.alignleft")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -17,9 +17,9 @@ struct OrgPreviewSourceBlock: View {
                     .accessibilityIdentifier("org.preview.source.content.\(node.startByte)")
             }
         }
-        .padding(8)
+        .padding(OrgendaSpacing.contentInset)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+        .background(OrgendaTheme.secondaryFill, in: OrgendaCorners.standard)
         .accessibilityIdentifier("org.preview.source.\(node.startByte)")
     }
 

@@ -5,11 +5,11 @@ struct HabitHistoryView: View {
     let completedDates: Set<String>
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: dynamicTypeSize.isAccessibilitySize ? 7 : 14), spacing: 4) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: OrgendaSpacing.compactInset), count: dynamicTypeSize.isAccessibilitySize ? 7 : 14), spacing: OrgendaSpacing.compactInset) {
             ForEach((0..<28).reversed(), id: \.self) { offset in
                 let date = Date.now.adding(days: -offset)
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(completedDates.contains(date.orgendaDayKey) ? OrgendaTheme.habit : Color.secondary.opacity(0.14))
+                OrgendaCorners.indicator
+                    .fill(completedDates.contains(date.orgendaDayKey) ? OrgendaTheme.habit : OrgendaTheme.habitPlaceholder)
                     .aspectRatio(1, contentMode: .fit)
                     .accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted))
                     .accessibilityValue(completedDates.contains(date.orgendaDayKey) ? "Completed" : "Not completed")

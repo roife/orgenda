@@ -24,12 +24,12 @@ struct SettingsRow: View {
     }
 
     private var text: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
             Text(title)
                 .font(.body)
                 .foregroundStyle(.primary)
             if !subtitle.isEmpty {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.compactInset) {
                     if let subtitleIcon {
                         Image(systemName: subtitleIcon)
                             .accessibilityHidden(true)

@@ -56,7 +56,7 @@ struct OrgendaCalendar: View {
     @GestureState private var isDraggingDensity = false
 
     private let calendar = Calendar.autoupdatingCurrent
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: OrgendaSpacing.compactInset), count: 7)
     private let weekPageOffsets = -1040...1040
     private let monthPageOffsets = -240...240
     private let yearPageOffsets = -200...200
@@ -88,11 +88,11 @@ struct OrgendaCalendar: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: OrgendaSpacing.inlineGap) {
             if controlsInHeader {
                 let layout = dynamicTypeSize.isAccessibilitySize
-                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-                    : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: OrgendaSpacing.compactInset))
+                    : AnyLayout(HStackLayout(alignment: .center, spacing: OrgendaSpacing.contentInset))
                 layout {
                     calendarTitle
                     headerActions
@@ -126,7 +126,7 @@ struct OrgendaCalendar: View {
                             settleDensity(to: target)
                         }
                 } else {
-                    VStack(spacing: 6) {
+                    VStack(spacing: OrgendaSpacing.inlineGap) {
                         if density != .year && !dynamicTypeSize.isAccessibilitySize {
                             weekdayHeader
                                 .frame(height: weekdayLineHeight)
@@ -139,16 +139,15 @@ struct OrgendaCalendar: View {
             .clipped()
             .allowsHitTesting(densityDragPosition == nil)
             calendarDensityHandle
-                .padding(.top, -4)
+                .padding(.top, -OrgendaSpacing.compactInset)
             if let dropDate {
                 Text("Schedule for \(OrgendaDatePresentation.relativeDate(dropDate))")
                     .font(.footnote.weight(.semibold)).foregroundStyle(OrgendaTheme.accentText)
                     .accessibilityIdentifier("agenda.drop.preview")
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 4)
-        .padding(.bottom, 4)
+        .padding(.horizontal, OrgendaSpacing.pageMargin)
+        .padding(.vertical, OrgendaSpacing.compactInset)
         .toolbar {
             if showsNavigationControls && !controlsInHeader {
                 ToolbarItemGroup(placement: .topBarLeading) {
@@ -202,8 +201,8 @@ struct OrgendaCalendar: View {
     }
 
     private var headerActions: some View {
-        GlassEffectContainer(spacing: 8) {
-            HStack(spacing: 8) {
+        GlassEffectContainer(spacing: OrgendaSpacing.rowInset) {
+            HStack(spacing: OrgendaSpacing.rowInset) {
                 if !isShowingToday {
                     calendarTodayButton
                         .frame(width: 44, height: 44)
@@ -294,12 +293,12 @@ struct OrgendaCalendar: View {
 
     private var calendarDensityHandle: some View {
         Capsule()
-            .fill(densityDragPosition == nil ? Color.secondary.opacity(0.35) : OrgendaTheme.accent)
+            .fill(densityDragPosition == nil ? OrgendaTheme.calendarHandle : OrgendaTheme.accent)
             .frame(width: 36, height: 5)
-            .padding(.top, 2)
-            .padding(.bottom, 9)
+            .padding(.top, OrgendaSpacing.textGap)
+            .padding(.bottom, OrgendaSpacing.rowInset)
             .frame(width: 96)
-            .contentShape(.interaction, Rectangle().inset(by: -14))
+            .contentShape(.interaction, Rectangle().inset(by: -OrgendaCalendarLayout.densityHandleHitSlop))
             .gesture(densityResizeGesture)
             .accessibilityElement()
             .accessibilityLabel("Calendar view")

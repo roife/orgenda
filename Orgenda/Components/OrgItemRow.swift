@@ -10,9 +10,9 @@ struct OrgItemRow: View {
     var onReschedule: (() -> Void)? = nil
     var onShowInFile: (() -> Void)? = nil
     var dragItem: OrgItem? = nil
-    var topPadding: CGFloat = 9
-    var bottomPadding: CGFloat = 9
-    var tagSpacing: CGFloat = 6
+    var topPadding: CGFloat = OrgendaSpacing.contentInset
+    var bottomPadding: CGFloat = OrgendaSpacing.contentInset
+    var tagSpacing: CGFloat = OrgendaSpacing.inlineGap
     var allowsSwipeActions = true
 
     var body: some View {
@@ -45,7 +45,7 @@ struct OrgItemRow: View {
                         Label(completionLabel, systemImage: item.state.isTerminal ? "arrow.uturn.backward" : "checkmark")
                     }
                     .labelStyle(.iconOnly)
-                    .tint(.green)
+                    .tint(OrgendaTheme.success)
                     .accessibilityIdentifier("agenda.swipe.complete")
                 }
             }
@@ -86,7 +86,7 @@ struct OrgItemRow: View {
     private var canSchedule: Bool { item.hasWorkflowState && item.kind != .event && onReschedule != nil }
 
     private var rowContent: some View {
-        HStack(alignment: .top, spacing: 2) {
+        HStack(alignment: .top, spacing: OrgendaSpacing.textGap) {
             if canSchedule {
                 completionControl.draggable(OrgTaskTransfer(item: dragItem ?? item))
             } else {
@@ -94,15 +94,14 @@ struct OrgItemRow: View {
             }
 
             Button(action: onOpen) {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
+                    HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.inlineGap) {
                         if item.priority != .none {
                             Text(item.priority.rawValue)
                                 .font(.footnote.weight(.bold))
                                 .foregroundStyle(priorityColor)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(priorityColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 4))
+                                .padding(OrgendaSpacing.badgeInsets)
+                                .background(OrgendaTheme.tintedBackground(priorityColor), in: OrgendaCorners.standard)
                                 .accessibilityLabel("Priority \(item.priority.rawValue)")
                         }
                         Text(item.title)
@@ -133,7 +132,7 @@ struct OrgItemRow: View {
             .accessibilityIdentifier("agenda.item.open.\(item.id)")
             .contextMenu { contextActions } preview: { OrgItemContextPreview(item: item) }
         }
-        .padding(.leading, -8)
+        .padding(.leading, -OrgendaSpacing.rowInset)
         .padding(.vertical, 1)
     }
 
@@ -160,7 +159,7 @@ struct OrgItemRow: View {
     }
 
     private var metadata: some View {
-        OrgendaFlowLayout(horizontalSpacing: 8) {
+        OrgendaFlowLayout(horizontalSpacing: OrgendaSpacing.rowInset) {
             if item.hasTime, let date = item.agendaDate {
                 Text(date.formatted(date: .omitted, time: .shortened))
                     .font(.footnote.monospacedDigit())
@@ -182,11 +181,11 @@ struct OrgItemRow: View {
     }
 
     private var habitHistory: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: OrgendaSpacing.textGap) {
             ForEach(0..<7, id: \.self) { offset in
                 let date = Date.now.adding(days: -offset)
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(item.habitHistory.contains(where: { Calendar.autoupdatingCurrent.isDate($0, inSameDayAs: date) }) ? OrgendaTheme.habit : Color.secondary.opacity(0.18))
+                OrgendaCorners.indicator
+                    .fill(item.habitHistory.contains(where: { Calendar.autoupdatingCurrent.isDate($0, inSameDayAs: date) }) ? OrgendaTheme.habit : OrgendaTheme.habitPlaceholder)
                     .frame(width: 5, height: 10)
             }
         }
@@ -217,11 +216,6 @@ struct OrgItemRow: View {
     }
 
     private var priorityColor: Color {
-        switch item.priority {
-        case .high: .red
-        case .medium: .orange
-        case .low: .blue
-        case .none: .secondary
-        }
+        OrgendaTheme.priorityColor(item.priority)
     }
 }

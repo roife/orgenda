@@ -6,10 +6,10 @@ struct AgendaDayHeader: View {
     let count: Int
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.contentInset) {
             let dateLayout = dynamicTypeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 3))
-                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: OrgendaSpacing.compactInset))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: OrgendaSpacing.rowInset))
             dateLayout {
                 Text((OrgendaDatePresentation.relativeDayName(for: date)
                       ?? date.formatted(.dateTime.weekday(.abbreviated))).uppercased())
@@ -29,9 +29,9 @@ struct AgendaDayHeader: View {
                     .accessibilityLabel("\(count) items")
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color(uiColor: .systemBackground).opacity(0.96))
+        .padding(.horizontal, OrgendaSpacing.pageMargin)
+        .padding(.vertical, OrgendaSpacing.rowInset)
+        .background(OrgendaTheme.pinnedHeaderBackground)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("orgenda.agenda.day.\(date.orgendaDayKey)")
     }

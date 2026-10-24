@@ -95,8 +95,8 @@ struct OrgItemRefileDestinations: View {
                 $0.source.file == target.path && $0.source.startByte == target.headingStartByte
             }
             Button { onMove(target) } label: {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
+                    HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.rowInset) {
                         if let item, item.hasWorkflowState { OrgWorkflowIcon(item.state) }
                         Text(target.outline.isEmpty ? target.title : target.outline)
                             .foregroundStyle(item?.workflowTitleColor ?? .primary)

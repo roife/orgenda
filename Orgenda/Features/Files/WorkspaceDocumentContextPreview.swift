@@ -7,7 +7,7 @@ struct WorkspaceDocumentContextPreview: View {
     var body: some View {
         OrgContextPreview(title: document.title, subtitle: document.path,
                           systemImage: document.kind == .folder ? "folder.fill" : "doc.text",
-                          tint: document.kind == .folder ? .orange : OrgendaTheme.accentText) {
+                          tint: document.kind == .folder ? OrgendaTheme.folder : OrgendaTheme.accentText) {
             if document.kind == .folder {
                 let children = visibleFolderDocuments(store.documents, folderPath: document.path)
                 if children.isEmpty {

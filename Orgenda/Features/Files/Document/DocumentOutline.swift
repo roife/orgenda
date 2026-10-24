@@ -221,8 +221,8 @@ struct DocumentOutlineSheet: View {
                     )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
+            .padding(.horizontal, OrgendaSpacing.pageMargin)
+            .padding(.bottom, OrgendaSpacing.scrollBottomInset)
         }
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .accessibilityIdentifier("org.document.outline.scroll")
@@ -273,11 +273,11 @@ struct DocumentOutlineSheet: View {
     }
 
     private var filterSummary: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: OrgendaSpacing.contentInset) {
             Label("\(filter.matchCount(in: nodes)) matching", systemImage: "line.3.horizontal.decrease.circle.fill")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
-            Spacer(minLength: 8)
+            Spacer(minLength: OrgendaSpacing.rowInset)
             Button("Clear", systemImage: "xmark.circle", action: clearFilter)
                 .labelStyle(.iconOnly)
                 .font(.subheadline.weight(.semibold))
@@ -320,7 +320,7 @@ struct DocumentOutlineFilterSheet: View {
         NavigationStack {
             Form {
                 Section("Status") {
-                    OrgendaFlowLayout(horizontalSpacing: 8, verticalSpacing: 8) {
+                    OrgendaFlowLayout(horizontalSpacing: OrgendaSpacing.rowInset, verticalSpacing: OrgendaSpacing.rowInset) {
                         ForEach(workflow.states) { state in
                             Toggle(isOn: Binding(
                                 get: { filter.states.contains(state.rawValue) },
@@ -339,7 +339,7 @@ struct DocumentOutlineFilterSheet: View {
                             .accessibilityIdentifier("org.outline.filter.state.\(state.rawValue)")
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, OrgendaSpacing.compactInset)
                 }
                 dateSection("Scheduled", from: $filter.scheduledFrom, to: $filter.scheduledTo)
                 dateSection("Deadline", from: $filter.deadlineFrom, to: $filter.deadlineTo)
@@ -375,7 +375,7 @@ struct DocumentOutlineFilterSheet: View {
             get: { value.wrappedValue != nil },
             set: { value.wrappedValue = $0 ? (value.wrappedValue ?? Date.now.startOfDay) : nil }
         )
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
             Toggle(label, isOn: enabled)
                 .accessibilityIdentifier("org.outline.filter.\(identifier)")
             if let date = value.wrappedValue {
@@ -408,20 +408,14 @@ private struct DocumentOutlineBranch: View {
     let onSelect: (DocumentOutlineNode) -> Void
 
     var body: some View {
-        Group {
-            if node.children.isEmpty {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
+                disclosureControl
                 headingRow
-            } else if isFiltering {
-                headingRow
+            }
+            if !node.children.isEmpty && isExpanded {
                 children
-            } else {
-                DisclosureGroup(isExpanded: expansion) {
-                    children
-                } label: {
-                    // Keep the title action out of the system disclosure target.
-                    headingRow.padding(.trailing, 44)
-                }
-                .accessibilityIdentifier("org.document.outline.disclosure.\(node.startByte)")
+                    .padding(.leading, 20)
             }
         }
         .overlay(alignment: dropTarget?.placement == .before ? .top : .bottom) {
@@ -429,7 +423,7 @@ private struct DocumentOutlineBranch: View {
                 Rectangle()
                     .fill(OrgendaTheme.accentText)
                     .frame(height: 2)
-                    .padding(.leading, target.placement == .child ? 16 : 0)
+                    .padding(.leading, target.placement == .child ? OrgendaSpacing.pageMargin : 0)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
@@ -440,9 +434,36 @@ private struct DocumentOutlineBranch: View {
             : "org.document.outline.disclosure.\(node.startByte)")
     }
 
+    private var isExpanded: Bool {
+        isFiltering || expandedHeadingIDs.contains(node.id)
+    }
+
+    @ViewBuilder
+    private var disclosureControl: some View {
+        if node.children.isEmpty {
+            Color.clear
+                .frame(width: 44, height: 44)
+                .accessibilityHidden(true)
+        } else {
+            Button { expansion.wrappedValue.toggle() } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isFiltering)
+            .accessibilityLabel(isExpanded ? "Collapse \(node.title)" : "Expand \(node.title)")
+            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+            .accessibilityIdentifier("org.document.outline.toggle.\(node.startByte)")
+        }
+    }
+
     private var headingRow: some View {
         Button { onSelect(node) } label: {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.rowInset) {
                 if let state = node.state { OrgWorkflowIcon(state) }
                 Text(node.title)
                     .foregroundStyle(node.state.map(OrgendaTheme.workflowColor) ?? .primary)
@@ -467,8 +488,8 @@ private struct DocumentOutlineBranch: View {
         .opacity(drag.map { $0.headingID == node.id || parentHeadingIDs.contains($0.headingID) } == true ? 0.4 : 1)
         .background {
             if dropTarget?.headingID == node.id && dropTarget?.placement == .child {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(OrgendaTheme.accentText.opacity(0.10))
+                OrgendaCorners.standard
+                    .fill(OrgendaTheme.dropTargetBackground)
                     .allowsHitTesting(false)
             }
         }

@@ -7,8 +7,8 @@ struct StorageSyncSummary: View {
     let pendingUploadCount: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.contentInset) {
+            HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.contentInset) {
                 // Keep the symbol's baseline when ProgressView appears; its
                 // intrinsic baseline otherwise changes the entire row height.
                 Image(systemName: "checkmark.circle.fill")
@@ -31,7 +31,7 @@ struct StorageSyncSummary: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("workspace.syncStatus")
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: OrgendaSpacing.rowInset) {
                 if let lastChecked {
                     LabeledContent("Last checked",
                                    value: lastChecked.formatted(date: .abbreviated, time: .shortened))
@@ -44,7 +44,7 @@ struct StorageSyncSummary: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, OrgendaSpacing.inlineGap)
     }
 }
 
@@ -82,9 +82,9 @@ extension WorkspaceSyncState {
     }
 
     var storageColor: Color {
-        if needsAttention { return .red }
+        if needsAttention { return OrgendaTheme.error }
         switch self {
-        case .synced, .folderUpdated: return .green
+        case .synced, .folderUpdated: return OrgendaTheme.success
         case .idle, .offline: return .secondary
         default: return OrgendaTheme.accentText
         }

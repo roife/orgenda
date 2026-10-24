@@ -129,6 +129,7 @@ struct FilesView: View {
             } header: {
                 Label("Pinned", systemImage: "pin")
             }
+            .listRowInsets(.horizontal, selection == nil ? OrgendaSpacing.pageMargin : nil)
             Section {
                 if recentDocuments.isEmpty {
                     Text("Files you open will appear here.")
@@ -140,6 +141,7 @@ struct FilesView: View {
             } header: {
                 Label("Recently Used", systemImage: "clock")
             }
+            .listRowInsets(.horizontal, selection == nil ? OrgendaSpacing.pageMargin : nil)
             Section("All Files") {
                 browserRows(documents, selection: selection)
                     .dropDestination(for: WorkspaceFileTransfer.self) { files, _ in
@@ -148,13 +150,18 @@ struct FilesView: View {
                         Task { OrgendaHaptics.result(await store.moveFile(file, to: "")) }
                     }
             }
+            .listRowInsets(.horizontal, selection == nil ? OrgendaSpacing.pageMargin : nil)
         }
         .dragContainer(for: WorkspaceFileTransfer.self) { (path: String) -> [WorkspaceFileTransfer] in
             return store.documents.first { $0.path == path }.map { [store.fileTransfer($0)] } ?? []
         }
         .accessibilityIdentifier("files.browser")
         return Group {
-            if selection == nil { list.listStyle(.plain) }
+            if selection == nil {
+                list.listStyle(.plain)
+                    .contentMargins(.horizontal, 0, for: .scrollContent)
+                    .listSectionSpacing(OrgendaSpacing.rowInset)
+            }
             else { list.listStyle(.sidebar) }
         }
         .overlay {
@@ -176,7 +183,7 @@ struct FilesView: View {
                     .accessibilityIdentifier("files.recentlyDeleted")
             }
             ToolbarItem(placement: .principal) {
-                HStack(spacing: 6) {
+                HStack(spacing: OrgendaSpacing.inlineGap) {
                     Text("Files")
                         .font(.headline)
                     Image(systemName: workspaceStatusIcon)
@@ -225,9 +232,9 @@ struct FilesView: View {
     }
 
     private var workspaceStatusColor: Color {
-        if store.fileSyncError != nil { return OrgendaTheme.overdue }
+        if store.fileSyncError != nil { return OrgendaTheme.error }
         if store.pendingFileCount > 0 { return OrgendaTheme.accentText }
-        return store.isFolderConnected ? OrgendaTheme.habit : .secondary
+        return store.isFolderConnected ? OrgendaTheme.success : .secondary
     }
 
     private var workspaceStatusLabel: String {

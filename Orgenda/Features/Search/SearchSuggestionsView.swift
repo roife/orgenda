@@ -12,12 +12,12 @@ struct SearchSuggestionsView: View {
             if !suggestions.tags.isEmpty {
                 Section {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: OrgendaSpacing.rowInset) {
                             ForEach(suggestions.tags, id: \.self) { tag in
                                 Button {
                                     query = tag
                                 } label: {
-                                    HStack(spacing: 4) {
+                                    HStack(spacing: OrgendaSpacing.compactInset) {
                                         Image(systemName: "number")
                                         Text(tag)
                                     }
@@ -36,6 +36,7 @@ struct SearchSuggestionsView: View {
                 } header: {
                     searchSectionTitle(String(localized: "Try a tag"))
                 }
+                .listRowInsets(.horizontal, OrgendaSpacing.pageMargin)
             }
 
             if scope == .all || scope == .journal {
@@ -45,11 +46,12 @@ struct SearchSuggestionsView: View {
                         ForEach(entries) { entry in
                             SearchResultRow(result: .journal(entry), store: store, trimmedQuery: "",
                                             subtitle: searchExcerpt(entry.body), onPresent: onPresent)
-                                .padding(.vertical, 4)
+                                .padding(.vertical, OrgendaSpacing.compactInset)
                         }
                     } header: {
                         searchSectionTitle(String(localized: "Recent journal entries"))
                     }
+                    .listRowInsets(.horizontal, OrgendaSpacing.pageMargin)
                 }
             }
 
@@ -60,11 +62,12 @@ struct SearchSuggestionsView: View {
                         ForEach(files) { document in
                             SearchResultRow(result: .document(document), store: store, trimmedQuery: "",
                                             subtitle: document.path, onPresent: onPresent)
-                                .padding(.vertical, 4)
+                                .padding(.vertical, OrgendaSpacing.compactInset)
                         }
                     } header: {
                         searchSectionTitle(String(localized: "Browse files"))
                     }
+                    .listRowInsets(.horizontal, OrgendaSpacing.pageMargin)
                 }
             }
 
@@ -82,9 +85,9 @@ struct SearchSuggestionsView: View {
                     }
                     .accessibilityHint("Opens Settings")
                 }
+                .listRowInsets(.horizontal, OrgendaSpacing.pageMargin)
             }
         }
-        .listSectionSpacing(16)
         .searchListSurface()
         .accessibilityIdentifier("search.suggestions")
     }
@@ -94,9 +97,6 @@ struct SearchSuggestionsView: View {
             .font(.subheadline.weight(.semibold))
             .textCase(nil)
             .fixedSize(horizontal: false, vertical: true)
-            // Plain list headers carry ~20pt of system padding on each side;
-            // pull it back so suggestions read as compact groups.
-            .padding(.vertical, -10)
     }
 
 }

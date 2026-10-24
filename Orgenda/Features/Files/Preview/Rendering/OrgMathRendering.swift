@@ -34,7 +34,7 @@ enum OrgMathRendering {
         if let cached = cache.object(forKey: key) { return cached }
 
         let traits = UITraitCollection(userInterfaceStyle: colorScheme == .dark ? .dark : .light)
-        let label = UIColor.label.resolvedColor(with: traits)
+        let label = OrgendaTheme.inkColor.resolvedColor(with: traits)
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
               let components = label.cgColor.converted(to: space, intent: .defaultIntent, options: nil)?.components,
               components.count == 4 else { return nil }

@@ -14,6 +14,10 @@ Org 文件是工作区的内容来源。界面、索引和存储围绕同一份�
 | `Orgenda/Services` | 工作区状态、索引、文件访问、同步、图片加载与通知 |
 | `Packages/OrgTreeSitter` | Org 语法、外部 scanner 与 Swift 封装；运行时依赖官方 TreeSitter 包 |
 
+自定义布局的间距统一使用 `OrgendaSpacing`：紧凑文本间距 2、紧凑内距 4、行内间距 6、行内距 8、内容内距 12、页面边距 16、滚动底部留白 24。徽标、文档和原生文本编辑器占位符共用命名内距；避免为 3、5、7、14 等相近值另建配置。原生 Form、List 和控件点击区域保持系统尺寸；源码缩进、基线对齐及日历过渡几何保留其专用含义。日历静态视图和 Canvas 共用 `OrgendaCalendarLayout` 中的网格尺寸与间距。圆角由 `OrgendaCorners` 管理。
+
+应用颜色统一由 `OrgendaTheme` 管理：页面使用背景、状态、优先级等语义颜色，Org 编辑器与预览共用 `OrgendaTheme.Syntax`。配置色板及深浅色、高对比度的色值也在这里维护；默认强调色仅定义在 `Assets.xcassets/AccentColor.colorset`，主题和系统控件共同读取。徽标、结果图标和元数据卡片共用 `tintedBackground`，习惯空格、拖放反馈和日期描边使用共享语义色；日期弱化颜色及高对比度规则也由主题提供。SwiftUI 的 `.primary`、`.secondary`、透明色和系统材质保持原生语义，组件可按交互状态调整透明度，不再自行定义色值或选择系统色板。
+
 ## 状态与数据流
 
 `OrgendaRootView` 持有 `WorkspaceStore`，负责顶层导航、快捷操作和工作区生命周期。`WorkspaceStore` 在主 actor 上按路径维护文档、本机 blob 基线、解析结果、议程集合和保存状态，同步状态订阅自 `SyncEngine`；按职责拆分的扩展仍属于同一个 store。文档数组是按需生成的界面投影，保存和单文件索引直接按路径查找。

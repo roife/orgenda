@@ -22,7 +22,7 @@ struct ConfigurationImportEditor: View {
                 if let error {
                     Section {
                         Label(error, systemImage: "exclamationmark.circle")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(OrgendaTheme.error)
                             .accessibilityIdentifier("configuration.importError")
                     }
                 }

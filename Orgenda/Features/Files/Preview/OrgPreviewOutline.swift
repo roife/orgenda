@@ -19,11 +19,11 @@ struct OrgPreviewRow: Identifiable {
 
     var spacingBefore: CGFloat {
         switch node.type {
-        case "heading": headingLevel == 1 ? 10 : 6
-        case "property_drawer", "drawer", "planning": 3
+        case "heading": headingLevel == 1 ? OrgendaSpacing.contentInset : OrgendaSpacing.inlineGap
+        case "property_drawer", "drawer", "planning": 0
         case "list_item": 0
-        case "paragraph_group": 12
-        default: 3
+        case "paragraph_group": OrgendaSpacing.contentInset
+        default: OrgendaSpacing.compactInset
         }
     }
 }

@@ -10,7 +10,7 @@ struct OrgPreviewQuote: View {
         )
             .font(.subheadline.italic())
             .foregroundStyle(.secondary)
-            .padding(.leading, 10)
+            .padding(.leading, OrgendaSpacing.contentInset)
             .overlay(alignment: .leading) {
                 Rectangle()
                     .fill(OrgendaTheme.accent)

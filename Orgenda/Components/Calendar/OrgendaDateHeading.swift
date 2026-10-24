@@ -46,7 +46,7 @@ struct OrgendaDateHeading: View, Animatable {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(OrgendaTheme.ink)
             } else {
-                HStack(alignment: .lastTextBaseline, spacing: 12) {
+                HStack(alignment: .lastTextBaseline, spacing: OrgendaSpacing.contentInset) {
                     Text(String(calendar.component(.day, from: date)))
                         .font(.system(size: dayNumberSize, weight: .bold, design: .rounded))
                         .foregroundStyle(OrgendaTheme.ink)
@@ -57,7 +57,7 @@ struct OrgendaDateHeading: View, Animatable {
                         .opacity(detailOpacity)
                         .offset(x: -12 * progress)
 
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                         Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased())
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)

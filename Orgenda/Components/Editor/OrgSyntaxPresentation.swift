@@ -30,7 +30,7 @@ enum OrgSyntaxPresentation {
     ) {
         switch kind {
         case .heading:
-            textStorage.addAttribute(.foregroundColor, value: UIColor.systemIndigo, range: range)
+            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.Syntax.heading, range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
         case .todo:
@@ -38,7 +38,7 @@ enum OrgSyntaxPresentation {
                 .foregroundColor,
                 value: workflow.state(textStorage.attributedSubstring(from: range).string
                     .trimmingCharacters(in: .whitespacesAndNewlines)).map { UIColor(OrgendaTheme.workflowColor($0)) }
-                    ?? .secondaryLabel,
+                    ?? OrgendaTheme.secondaryInkColor,
                 range: range
             )
             addFontTraits(.traitBold, to: textStorage, range: range)
@@ -54,65 +54,59 @@ enum OrgSyntaxPresentation {
         case .tag:
             textStorage.addAttributes(
                 [
-                    .foregroundColor: UIColor.systemPurple,
-                    .backgroundColor: UIColor.systemPurple.withAlphaComponent(
-                        colorSchemeContrast == .increased ? 0.22 : 0.12
-                    ),
+                    .foregroundColor: OrgendaTheme.Syntax.tag,
+                    .backgroundColor: OrgendaTheme.Syntax.tagBackground(contrast: colorSchemeContrast),
                 ],
                 range: range
             )
 
         case .planning:
-            textStorage.addAttribute(.foregroundColor, value: UIColor.secondaryLabel, range: range)
+            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.secondaryInkColor, range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
         case .timestamp:
-            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.syntaxTeal, range: range)
+            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.Syntax.timestamp, range: range)
 
         case .property, .table:
-            textStorage.addAttribute(.foregroundColor, value: UIColor.systemIndigo, range: range)
+            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.Syntax.property, range: range)
 
         case .drawer:
-            textStorage.addAttribute(.backgroundColor, value: UIColor.systemIndigo.withAlphaComponent(
-                colorSchemeContrast == .increased ? 0.16 : 0.06
-            ), range: range)
+            textStorage.addAttribute(.backgroundColor, value: OrgendaTheme.Syntax.drawerBackground(contrast: colorSchemeContrast), range: range)
 
         case .drawerDelimiter:
-            textStorage.addAttribute(.foregroundColor, value: UIColor.systemIndigo, range: range)
+            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.Syntax.property, range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
         case .clock, .listMarker:
-            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.syntaxTeal, range: range)
+            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.Syntax.timestamp, range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
         case .progress:
             textStorage.addAttributes([
-                .foregroundColor: UIColor.systemBlue,
-                .backgroundColor: UIColor.systemBlue.withAlphaComponent(
-                    colorSchemeContrast == .increased ? 0.22 : 0.12
-                ),
+                .foregroundColor: OrgendaTheme.Syntax.progress,
+                .backgroundColor: OrgendaTheme.Syntax.progressBackground(contrast: colorSchemeContrast),
             ], range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
         case .target, .keyword:
-            textStorage.addAttribute(.foregroundColor, value: UIColor.systemPurple, range: range)
+            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.Syntax.keyword, range: range)
             addFontTraits(.traitBold, to: textStorage, range: range)
 
         case .math, .macro, .verbatim:
             textStorage.addAttributes([
-                .foregroundColor: UIColor.systemBrown,
-                .backgroundColor: UIColor.tertiarySystemFill,
+                .foregroundColor: OrgendaTheme.Syntax.literal,
+                .backgroundColor: OrgendaTheme.tertiaryFillColor,
             ], range: range)
 
         case .comment, .quoteBlock:
-            textStorage.addAttribute(.foregroundColor, value: UIColor.secondaryLabel, range: range)
+            textStorage.addAttribute(.foregroundColor, value: OrgendaTheme.secondaryInkColor, range: range)
             addFontTraits(.traitItalic, to: textStorage, range: range)
 
         case .link:
             textStorage.addAttributes(
                 [
-                    .foregroundColor: UIColor.link,
-                    .underlineColor: UIColor.link,
+                    .foregroundColor: OrgendaTheme.Syntax.link,
+                    .underlineColor: OrgendaTheme.Syntax.link,
                     .underlineStyle: NSUnderlineStyle.single.rawValue,
                 ],
                 range: range
@@ -141,8 +135,8 @@ enum OrgSyntaxPresentation {
         case .code:
             textStorage.addAttributes(
                 [
-                    .foregroundColor: UIColor.systemPink,
-                    .backgroundColor: UIColor.tertiarySystemFill,
+                    .foregroundColor: OrgendaTheme.Syntax.code,
+                    .backgroundColor: OrgendaTheme.tertiaryFillColor,
                 ],
                 range: range
             )
@@ -150,8 +144,8 @@ enum OrgSyntaxPresentation {
         case .sourceBlock:
             textStorage.addAttributes(
                 [
-                    .foregroundColor: UIColor.label,
-                    .backgroundColor: UIColor.secondarySystemFill,
+                    .foregroundColor: OrgendaTheme.inkColor,
+                    .backgroundColor: OrgendaTheme.secondaryFillColor,
                 ],
                 range: range
             )
@@ -167,7 +161,7 @@ enum OrgSyntaxPresentation {
         case .footnote:
             textStorage.addAttributes(
                 [
-                    .foregroundColor: UIColor.systemPurple,
+                    .foregroundColor: OrgendaTheme.Syntax.footnote,
                     .underlineStyle: NSUnderlineStyle.single.rawValue,
                 ],
                 range: range
@@ -188,16 +182,16 @@ enum OrgSyntaxPresentation {
     }
 
     private static func priorityColor(for token: String) -> UIColor {
-        if token.contains("#A") { return .systemRed }
-        if token.contains("#B") { return .systemOrange }
-        if token.contains("#C") { return .systemBlue }
-        return .secondaryLabel
+        if token.contains("#A") { return UIColor(OrgendaTheme.priorityColor(.high)) }
+        if token.contains("#B") { return UIColor(OrgendaTheme.priorityColor(.medium)) }
+        if token.contains("#C") { return UIColor(OrgendaTheme.priorityColor(.low)) }
+        return OrgendaTheme.secondaryInkColor
     }
 
     private static func checkboxColor(for token: String) -> UIColor {
-        if token.localizedCaseInsensitiveContains("x") { return .systemGreen }
-        if token.contains("-") { return .systemOrange }
-        return .secondaryLabel
+        if token.localizedCaseInsensitiveContains("x") { return UIColor(OrgendaTheme.success) }
+        if token.contains("-") { return UIColor(OrgendaTheme.warning) }
+        return OrgendaTheme.secondaryInkColor
     }
 
     private static func addFontTraits(

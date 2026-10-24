@@ -47,7 +47,7 @@ struct OrgPlanningEditorSheet: View {
                     if saveFailed {
                         Label("The source changed before this edit could be saved. Reopen the editor and try again.",
                               systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(OrgendaTheme.error)
                     }
                 } footer: {
                     Text("Reminder offsets and timestamp ranges are kept when you edit the repeat rule.")
@@ -136,7 +136,7 @@ private struct OrgPlanningTimestampEditor: View {
             if timestamp.includesTime {
                 Group {
                     if dynamicTypeSize.isAccessibilitySize {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: OrgendaSpacing.rowInset) {
                             Text("Time")
                             timePicker.labelsHidden()
                         }

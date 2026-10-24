@@ -5,7 +5,7 @@ struct OrgPreviewTable: View {
 
     var body: some View {
         ScrollView(.horizontal) {
-            Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 0) {
+            Grid(alignment: .leading, horizontalSpacing: OrgendaSpacing.pageMargin, verticalSpacing: 0) {
                 ForEach(Array(node.children.enumerated()), id: \.element.id) { index, row in
                     if row.type == "table_separator" {
                         Divider().gridCellColumns(columnCount).gridCellUnsizedAxes(.horizontal)
@@ -22,7 +22,7 @@ struct OrgPreviewTable: View {
                                 )
                                 .font(.subheadline)
                                 .fontWeight(index == 0 && hasHeader ? .semibold : .regular)
-                                .padding(.vertical, 5)
+                                .padding(.vertical, OrgendaSpacing.rowInset)
                                 .textSelection(.enabled)
                             }
                         }
@@ -30,9 +30,9 @@ struct OrgPreviewTable: View {
                     }
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, OrgendaSpacing.contentInset)
         }
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+        .background(OrgendaTheme.groupedSurface, in: OrgendaCorners.standard)
         .accessibilityIdentifier("org.preview.table.\(node.startByte)")
     }
 

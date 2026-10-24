@@ -18,8 +18,8 @@ struct OrgItemScheduleSection: View {
             if draft.scheduled != nil && !usesEventTimestamp {
                 datePicker("Scheduled date", selection: scheduledDate, displayedComponents: .date)
                 let layout = dynamicTypeSize.isAccessibilitySize
-                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-                    : AnyLayout(HStackLayout(spacing: 12))
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: OrgendaSpacing.rowInset))
+                    : AnyLayout(HStackLayout(spacing: OrgendaSpacing.contentInset))
                 layout {
                     quickDateButton("Today", date: .now)
                     quickDateButton("Tomorrow", date: Date.now.adding(days: 1))
@@ -90,7 +90,7 @@ struct OrgItemScheduleSection: View {
         displayedComponents: DatePickerComponents
     ) -> some View {
         if dynamicTypeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: OrgendaSpacing.rowInset) {
                 Text(title)
                 DatePicker(title, selection: selection, displayedComponents: displayedComponents)
                     .labelsHidden()

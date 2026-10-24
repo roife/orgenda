@@ -21,20 +21,20 @@ struct AgendaDayContent<Row: View>: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(OrgendaTheme.overdue)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(OrgendaTheme.overdue.opacity(0.12),
-                                in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .padding(.horizontal, OrgendaSpacing.rowInset)
+                    .padding(.vertical, OrgendaSpacing.compactInset)
+                    .background(OrgendaTheme.tintedBackground(OrgendaTheme.overdue),
+                                in: OrgendaCorners.standard)
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("agenda.showOverdue")
-            .padding(.horizontal, 16)
+            .padding(.horizontal, OrgendaSpacing.pageMargin)
         }
 
         ForEach(allDayEvents) { item in
-            HStack(spacing: 2) {
+            HStack(spacing: OrgendaSpacing.textGap) {
                 if item.canComplete {
                     Button { onToggle(item) } label: {
                         Group {
@@ -59,15 +59,15 @@ struct AgendaDayContent<Row: View>: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(item.hasWorkflowState ? item.workflowTitleColor : OrgendaTheme.accentText)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(item.hasWorkflowState ? item.workflowTitleColor.opacity(0.12) : OrgendaTheme.accentSoft,
-                                    in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .padding(.horizontal, OrgendaSpacing.rowInset)
+                        .padding(.vertical, OrgendaSpacing.compactInset)
+                        .background(item.hasWorkflowState ? OrgendaTheme.tintedBackground(item.workflowTitleColor) : OrgendaTheme.accentSoft,
+                                    in: OrgendaCorners.standard)
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
                 }
             }
-            .padding(.leading, item.canComplete ? -8 : 0)
+            .padding(.leading, item.canComplete ? -OrgendaSpacing.rowInset : 0)
             .buttonStyle(.plain)
             .contextMenu {
                 if item.canComplete {
@@ -83,7 +83,7 @@ struct AgendaDayContent<Row: View>: View {
                 OrgItemContextPreview(item: item)
             }
             .accessibilityAction(named: "Show in File") { onShowInFile(item) }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, OrgendaSpacing.pageMargin)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
 
@@ -91,19 +91,19 @@ struct AgendaDayContent<Row: View>: View {
             Text("No scheduled items")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.horizontal, OrgendaSpacing.pageMargin)
+                .padding(.vertical, OrgendaSpacing.rowInset)
         } else {
             ForEach(regularItems) { item in
                 row(item)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, OrgendaSpacing.pageMargin)
             }
         }
 
         if !journalEntries.isEmpty {
             JournalDayContent(entries: journalEntries)
-                .padding(.horizontal, 16)
-                .padding(.top, dayItems.isEmpty ? 0 : 8)
+                .padding(.horizontal, OrgendaSpacing.pageMargin)
+                .padding(.top, dayItems.isEmpty ? 0 : OrgendaSpacing.rowInset)
         }
     }
 

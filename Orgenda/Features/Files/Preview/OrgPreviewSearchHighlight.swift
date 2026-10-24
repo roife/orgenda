@@ -11,7 +11,7 @@ enum OrgPreviewSearchHighlight {
         var remaining = result.startIndex..<result.endIndex
         while let range = result[remaining].range(of: query, options: [.caseInsensitive, .diacriticInsensitive]),
               !range.isEmpty {
-            result[range].backgroundColor = .yellow.opacity(0.45)
+            result[range].backgroundColor = OrgendaTheme.searchHighlight
             remaining = range.upperBound..<result.endIndex
         }
         return result

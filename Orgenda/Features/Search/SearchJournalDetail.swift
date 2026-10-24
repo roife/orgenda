@@ -5,7 +5,7 @@ struct SearchJournalDetail: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: OrgendaSpacing.pageMargin) {
                 Label(OrgendaDatePresentation.dateTime(entry.date), systemImage: "calendar")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -13,11 +13,13 @@ struct SearchJournalDetail: View {
                     .font(.title.weight(.bold))
                 Text(entry.body)
                     .font(.body)
-                    .lineSpacing(5)
+                    .lineSpacing(OrgendaSpacing.compactInset)
             }
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
+            .padding(OrgendaSpacing.documentInsets)
+            .frame(maxWidth: 900, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .navigationTitle("Journal Entry")

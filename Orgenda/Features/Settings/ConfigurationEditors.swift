@@ -37,7 +37,7 @@ struct ConfigurationKeywordEditor: View {
                         .font(.title3.weight(.medium))
                         .foregroundStyle(OrgendaTheme.workflowColor(preview))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, OrgendaSpacing.contentInset)
                         .accessibilityIdentifier("configuration.keyword.preview")
                 }
                 Section("Identity") {
@@ -355,7 +355,7 @@ private struct ConfigurationEditorErrorSection: View {
     var body: some View {
         Section {
             Label(message, systemImage: "exclamationmark.circle")
-                .foregroundStyle(.red)
+                .foregroundStyle(OrgendaTheme.error)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("configuration.editor.error")
         }

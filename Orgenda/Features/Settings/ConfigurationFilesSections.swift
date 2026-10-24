@@ -80,7 +80,7 @@ struct ConfigurationFilesSections: View {
                 LabeledContent("Example source file", value: archiveExample)
             }
             if let destination = ConfigurationSettingsPreview.archive(rule: draft.files.archive, sourcePath: archiveExample) {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: OrgendaSpacing.inlineGap) {
                     LabeledContent("Archive file") {
                         Text(verbatim: destination.path).textSelection(.enabled)
                     }
@@ -161,7 +161,7 @@ private struct ConfigurationPathSelectionRow: View {
             ConfigurationPathSelectionView(title: title, paths: $paths, choices: choices, directories: directories,
                                            emptyTitle: emptyTitle, identifier: identifier, requiresOrgFile: requiresOrgFile)
         } label: {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                 LabeledContent(LocalizedStringKey(title)) {
                     if paths.isEmpty { Text(LocalizedStringKey(emptyTitle)) }
                     else { Text(paths.joined(separator: ", ")).lineLimit(2) }

@@ -12,7 +12,7 @@ struct OrgContextPreview<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.contentInset) {
             Label {
                 Text(title).foregroundStyle(titleColor).lineLimit(3)
             } icon: {
@@ -29,9 +29,9 @@ struct OrgContextPreview<Content: View>: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         }
-        .padding(20)
+        .padding(OrgendaSpacing.pageMargin)
         .frame(width: 300, alignment: .leading)
-        .background(Color(uiColor: .systemBackground))
+        .background(OrgendaTheme.background)
     }
 }
 
@@ -68,7 +68,7 @@ struct OrgItemContextPreview: View {
     }
 
     private var habitHistory: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.rowInset) {
             Text("28-day history")
                 .font(.caption)
                 .foregroundStyle(.secondary)

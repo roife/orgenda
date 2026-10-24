@@ -46,8 +46,8 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             : OrgEditorTextView.make()
         textView.delegate = context.coordinator
         textView.backgroundColor = .clear
-        textView.textColor = .label
-        textView.tintColor = .systemTeal
+        textView.textColor = OrgendaTheme.inkColor
+        textView.tintColor = UIColor(OrgendaTheme.accentText)
         textView.adjustsFontForContentSizeCategory = true
         textView.isScrollEnabled = true
         textView.alwaysBounceVertical = true
@@ -56,7 +56,10 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
         textView.topEdgeEffect.style = .soft
         textView.bottomEdgeEffect.style = .soft
         textView.keyboardDismissMode = .interactive
-        textView.textContainerInset = UIEdgeInsets(top: 12, left: 14, bottom: 20, right: 14)
+        textView.textContainerInset = UIEdgeInsets(
+            top: OrgendaSpacing.documentInsets.top, left: OrgendaSpacing.documentInsets.leading,
+            bottom: OrgendaSpacing.documentInsets.bottom, right: OrgendaSpacing.documentInsets.trailing
+        )
         textView.textContainer.lineFragmentPadding = 0
 
         textView.autocorrectionType = .no
@@ -344,7 +347,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             paragraphStyle.lineSpacing = 2
             let baseAttributes: [NSAttributedString.Key: Any] = [
                 .font: font,
-                .foregroundColor: UIColor.label,
+                .foregroundColor: OrgendaTheme.inkColor,
                 .paragraphStyle: paragraphStyle,
             ]
 
@@ -354,7 +357,7 @@ struct OrgSyntaxTextEditor: UIViewRepresentable {
             // Setting UITextView.font/textColor also restyles its entire backing storage.
             if appearanceChanged {
                 textView.font = font
-                textView.textColor = .label
+                textView.textColor = OrgendaTheme.inkColor
                 presentedBlocks.removeAll()
             }
             textStorage.beginEditing()

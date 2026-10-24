@@ -56,7 +56,7 @@ struct OrgPreviewImageFlow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.rowInset) {
             ForEach(Array(Self.segments(fragments).enumerated()), id: \.offset) { _, segment in
                 switch segment {
                 case .text(let fragments):
@@ -125,7 +125,7 @@ struct OrgPreviewImageView: View {
                 .scaledToFit()
                 .frame(maxHeight: 360)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(OrgendaCorners.standard)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(reference.label)
@@ -137,7 +137,7 @@ struct OrgPreviewImageView: View {
     }
 
     private func failureView(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.inlineGap) {
             Label("Couldn't load image", systemImage: "photo.badge.exclamationmark")
                 .font(.subheadline.weight(.semibold))
             Text(reference.label).font(.footnote).foregroundStyle(.secondary)
@@ -149,9 +149,9 @@ struct OrgPreviewImageView: View {
                 .frame(minHeight: 44)
                 .accessibilityIdentifier("org.preview.image.retry.\(reference.startByte)")
         }
-        .padding(12)
+        .padding(OrgendaSpacing.contentInset)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+        .background(OrgendaTheme.secondaryFill, in: OrgendaCorners.standard)
     }
 }
 
@@ -206,7 +206,7 @@ private struct OrgZoomableImage: UIViewRepresentable {
             addSubview(imageView)
             showsVerticalScrollIndicator = false
             showsHorizontalScrollIndicator = false
-            backgroundColor = .systemBackground
+            backgroundColor = OrgendaTheme.backgroundColor
             let doubleTap = UITapGestureRecognizer(target: self, action: #selector(toggleZoom))
             doubleTap.numberOfTapsRequired = 2
             addGestureRecognizer(doubleTap)

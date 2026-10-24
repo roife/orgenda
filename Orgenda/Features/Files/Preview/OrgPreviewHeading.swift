@@ -18,10 +18,10 @@ struct OrgPreviewHeading: View {
     let onEndDrag: () -> Void
 
     var body: some View {
-        HStack(alignment: .previewHeadingFirstLineCenter, spacing: 2) {
+        HStack(alignment: .previewHeadingFirstLineCenter, spacing: OrgendaSpacing.textGap) {
             disclosureControl
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .previewHeadingFirstLineCenter, spacing: 4) {
+                HStack(alignment: .previewHeadingFirstLineCenter, spacing: OrgendaSpacing.compactInset) {
                     if let todoNode = node.todoNode {
                         todoControl(todoNode)
                             .fixedSize(horizontal: true, vertical: false)
@@ -56,10 +56,10 @@ struct OrgPreviewHeading: View {
                             isEnabled: !titleContainsImage
                         ))
                 }
-                .padding(.top, node.todoNode == nil ? 8 : 0)
+                .padding(.top, node.todoNode == nil ? OrgendaSpacing.rowInset : 0)
                 if priority != nil || !tags.isEmpty {
                     ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: OrgendaSpacing.rowInset) {
                             priorityBadge
                             tagText.fixedSize()
                         }
@@ -73,7 +73,7 @@ struct OrgPreviewHeading: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, level == 1 ? 0 : -8)
+        .padding(.leading, level == 1 ? 0 : -OrgendaSpacing.rowInset)
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("org.preview.heading.\(node.startByte)")
@@ -96,9 +96,8 @@ struct OrgPreviewHeading: View {
             OrgPreviewSearchText(priority)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(OrgendaTheme.previewMetadata)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(OrgendaTheme.previewMetadata.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
+                .padding(OrgendaSpacing.badgeInsets)
+                .background(OrgendaTheme.tintedBackground(OrgendaTheme.previewMetadata), in: OrgendaCorners.standard)
                 .accessibilityLabel("Priority \(priority)")
                 .fixedSize()
         }
@@ -253,7 +252,7 @@ struct OrgPreviewListItem: View {
     let onToggleCheckbox: (ParsedOrgNode) -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 7) {
+        HStack(alignment: .firstTextBaseline, spacing: OrgendaSpacing.rowInset) {
             if let checkboxNode = node.checkboxNode {
                 checkboxControl(checkboxNode)
             } else {

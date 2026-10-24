@@ -11,12 +11,12 @@ struct StorageConflictsView: View {
                         NavigationLink {
                             StorageConflictView(store: store, path: conflict.path)
                         } label: {
-                            VStack(alignment: .leading, spacing: 5) {
+                            VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                                 Text(conflict.path).font(.body.weight(.medium))
                                 Text(LocalizedStringKey(conflict.remoteContents == nil ? "Deleted at storage location" : "Changed on this device and at storage location"))
                                     .font(.subheadline).foregroundStyle(.secondary)
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, OrgendaSpacing.compactInset)
                         }
                         .accessibilityIdentifier("storage.conflict.\(conflict.path)")
                     }
@@ -152,7 +152,7 @@ private struct StorageVersionPreview: View {
     let identifier: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: OrgendaSpacing.contentInset) {
             Text(title).font(.body.weight(.medium))
             if let modifiedAt {
                 Text(modifiedAt.formatted(date: .abbreviated, time: .shortened))
@@ -164,10 +164,10 @@ private struct StorageVersionPreview: View {
                         .font(.system(.callout, design: .monospaced))
                         .textSelection(.enabled)
                         .fixedSize(horizontal: true, vertical: true)
-                        .padding(12)
+                        .padding(OrgendaSpacing.contentInset)
                 }
                 .frame(height: 130)
-                .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+                .background(OrgendaTheme.tertiaryFill, in: OrgendaCorners.standard)
                 .accessibilityIdentifier(identifier)
             } else {
                 Label("Deleted at storage location", systemImage: "trash")
@@ -175,6 +175,6 @@ private struct StorageVersionPreview: View {
                     .accessibilityIdentifier(identifier)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, OrgendaSpacing.rowInset)
     }
 }

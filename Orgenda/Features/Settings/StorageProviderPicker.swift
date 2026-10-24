@@ -20,7 +20,7 @@ struct StorageProviderPicker: View {
                         connectionError = nil
                         isChoosingFolder = true
                     } label: {
-                        HStack(spacing: 8) {
+                        HStack(spacing: OrgendaSpacing.rowInset) {
                             providerRow(.local)
                             if isConnecting {
                                 ProgressView().accessibilityLabel("Connecting…")
@@ -80,7 +80,7 @@ struct StorageProviderPicker: View {
     }
 
     private func providerRow(_ provider: StorageProvider) -> some View {
-        SettingsRow(icon: provider.symbol, color: provider == .webDAV ? .gray : OrgendaTheme.accent,
+        SettingsRow(icon: provider.symbol, color: provider == .webDAV ? OrgendaTheme.neutral : OrgendaTheme.accent,
                     title: provider.title, subtitle: "")
     }
 

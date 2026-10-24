@@ -9,7 +9,7 @@ struct OrgPreviewMathFlow: View {
 
     var body: some View {
         let blocks = preservesLineBreaks ? nodes : OrgPreviewParagraphs.group(nodes)
-        VStack(alignment: centered ? .center : .leading, spacing: preservesLineBreaks ? 4 : 12) {
+        VStack(alignment: centered ? .center : .leading, spacing: preservesLineBreaks ? OrgendaSpacing.compactInset : OrgendaSpacing.contentInset) {
             ForEach(blocks) { node in
                 if node.type == "latex_block" {
                     OrgPreviewMathBlock(expression: OrgMathExpression(node))

@@ -35,7 +35,7 @@ struct ConfigurationFieldError: View {
     var body: some View {
         Label(message, systemImage: "exclamationmark.circle")
             .font(.footnote)
-            .foregroundStyle(.red)
+            .foregroundStyle(OrgendaTheme.error)
             .fixedSize(horizontal: false, vertical: true)
     }
 }

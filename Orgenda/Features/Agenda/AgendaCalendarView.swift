@@ -119,13 +119,13 @@ struct AgendaCalendarView<Row: View>: View {
     private var agendaTimeline: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 4, pinnedViews: [.sectionHeaders]) {
+                LazyVStack(alignment: .leading, spacing: OrgendaSpacing.compactInset, pinnedViews: [.sectionHeaders]) {
                     ForEach(timelineDays) { day in
                         Section {
                             // A recurring item keeps its source ID across days.
                             // Give each day a layout boundary so LazyVStack does
                             // not flatten those occurrences into duplicate rows.
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: OrgendaSpacing.compactInset) {
                                 AgendaDayContent(
                                     date: day.date, dayItems: store.items(on: day.date),
                                     journalEntries: store.journal(on: day.date),
@@ -143,7 +143,7 @@ struct AgendaCalendarView<Row: View>: View {
                     }
                 }
                 .scrollTargetLayout()
-                .padding(.bottom, 24)
+                .padding(.bottom, OrgendaSpacing.scrollBottomInset)
                 .frame(maxWidth: 760)
                 .frame(maxWidth: .infinity)
             }
@@ -241,7 +241,7 @@ private struct AgendaCalendarTabletLayout<CalendarPanel: View, Detail: View>: Vi
     var body: some View {
         // The density handle extends its touch target beyond its visible grip.
         // Keep that area clear of the agenda when the panels are stacked.
-        let spacing: CGFloat = usesColumns ? 0 : 16
+        let spacing: CGFloat = usesColumns ? 0 : OrgendaSpacing.pageMargin
         let layout = usesColumns
             ? AnyLayout(HStackLayout(alignment: .top, spacing: 0))
             : AnyLayout(VStackLayout(spacing: spacing))
@@ -252,9 +252,9 @@ private struct AgendaCalendarTabletLayout<CalendarPanel: View, Detail: View>: Vi
             layout {
                 calendar()
                     .frame(width: usesColumns ? min(max(availableSize.width * 0.38, 364), 400) : nil)
-                    // The resize grip's hit target extends 14 points beyond its
+                    // The resize grip's hit target extends beyond its
                     // layout. Include that space in the outer scroll extent.
-                    .padding(.bottom, 14)
+                    .padding(.bottom, OrgendaCalendarLayout.densityHandleHitSlop)
                     .fixedSize(horizontal: false, vertical: true)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
                         calendarHeight = $0
@@ -262,7 +262,7 @@ private struct AgendaCalendarTabletLayout<CalendarPanel: View, Detail: View>: Vi
                     .overlay(alignment: .trailing) {
                         if usesColumns {
                             Rectangle()
-                                .fill(Color(uiColor: .separator))
+                                .fill(OrgendaTheme.separator)
                                 .frame(width: 0.5)
                                 .accessibilityHidden(true)
                         }
