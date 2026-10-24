@@ -99,9 +99,9 @@ struct OrgItemRow: View {
                         if item.priority != .none {
                             Text(item.priority.rawValue)
                                 .font(.footnote.weight(.bold))
-                                .foregroundStyle(priorityColor)
+                                .foregroundStyle(OrgendaTheme.priorityColor(item.priority))
                                 .padding(OrgendaSpacing.badgeInsets)
-                                .background(OrgendaTheme.tintedBackground(priorityColor), in: OrgendaCorners.standard)
+                                .background(OrgendaTheme.tintedBackground(OrgendaTheme.priorityColor(item.priority)), in: OrgendaCorners.standard)
                                 .accessibilityLabel("Priority \(item.priority.rawValue)")
                         }
                         Text(item.title)
@@ -213,9 +213,5 @@ struct OrgItemRow: View {
     private var completionLabel: String {
         if completesOccurrence { return String(localized: "Complete this occurrence") }
         return item.state.isTerminal ? String(localized: "Mark incomplete") : String(localized: "Mark complete")
-    }
-
-    private var priorityColor: Color {
-        OrgendaTheme.priorityColor(item.priority)
     }
 }

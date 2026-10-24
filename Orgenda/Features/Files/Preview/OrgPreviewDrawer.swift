@@ -6,15 +6,39 @@ struct OrgPreviewDrawer: View {
     @State private var isExpanded = false
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            OrgPreviewReadOnlyContent(nodes: OrgPreviewMarkup.contents(of: node))
-                .padding(.top, OrgendaSpacing.compactInset)
-        } label: {
-            OrgPreviewSearchText(name)
-                .font(.caption2)
-                .foregroundStyle(OrgendaTheme.previewMetadata)
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: OrgendaSpacing.rowInset) {
+                    OrgPreviewSearchText(name)
+                        .font(.caption2)
+                        .foregroundStyle(OrgendaTheme.previewMetadata)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(OrgendaTheme.accentText)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .frame(width: 26, height: 26)
+                        .accessibilityHidden(true)
+                }
+                .modifier(OrgPreviewMetadataSurface(fill: isExpanded ? .clear : OrgendaTheme.previewDrawerBackground))
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(isExpanded ? Text("Expanded") : Text("Collapsed"))
+
+            if isExpanded {
+                OrgPreviewReadOnlyContent(nodes: OrgPreviewMarkup.contents(of: node))
+                    .padding(.top, OrgendaSpacing.compactInset)
+                    .padding(.horizontal, OrgendaSpacing.rowInset)
+                    .padding(.bottom, OrgendaSpacing.compactInset)
+            }
         }
-        .disclosureGroupStyle(OrgPreviewDrawerStyle())
+        .background {
+            if isExpanded {
+                OrgendaCorners.standard.fill(OrgendaTheme.previewDrawerBackground)
+            }
+        }
         .accessibilityIdentifier("org.preview.drawer.\(node.startByte)")
         .onChange(of: searchQuery, initial: true) { _, query in
             if !query.isEmpty, node.text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
@@ -29,45 +53,6 @@ struct OrgPreviewDrawer: View {
             .trimmingCharacters(in: CharacterSet(charactersIn: ":"))
     }
 
-}
-
-private struct OrgPreviewDrawerStyle: DisclosureGroupStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        let fill = OrgendaTheme.previewDrawerBackground
-
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation {
-                    configuration.isExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: OrgendaSpacing.rowInset) {
-                    configuration.label
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(OrgendaTheme.accentText)
-                        .rotationEffect(.degrees(configuration.isExpanded ? 90 : 0))
-                        .frame(width: 26, height: 26)
-                        .accessibilityHidden(true)
-                }
-                .modifier(OrgPreviewMetadataSurface(fill: configuration.isExpanded ? .clear : fill))
-            }
-            .buttonStyle(.plain)
-            .accessibilityValue(configuration.isExpanded ? Text("Expanded") : Text("Collapsed"))
-
-            if configuration.isExpanded {
-                configuration.content
-                    .padding(.horizontal, OrgendaSpacing.rowInset)
-                    .padding(.bottom, OrgendaSpacing.compactInset)
-            }
-        }
-        .background {
-            if configuration.isExpanded {
-                OrgendaCorners.standard.fill(fill)
-            }
-        }
-    }
 }
 
 struct OrgPreviewClock: View {

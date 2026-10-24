@@ -445,7 +445,7 @@ private struct DocumentOutlineBranch: View {
                 .frame(width: 44, height: 44)
                 .accessibilityHidden(true)
         } else {
-            Button { expansion.wrappedValue.toggle() } label: {
+            Button { toggleExpansion() } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.secondary)
@@ -508,12 +508,13 @@ private struct DocumentOutlineBranch: View {
         }
     }
 
-    private var expansion: Binding<Bool> {
-        Binding(get: { expandedHeadingIDs.contains(node.id) }, set: { expanded in
-            withAnimation(OrgendaMotion.geometryAnimation(.content, reduceMotion: reduceMotion)) {
-                if expanded { expandedHeadingIDs.insert(node.id) }
-                else { expandedHeadingIDs.remove(node.id) }
+    private func toggleExpansion() {
+        withAnimation(OrgendaMotion.geometryAnimation(.content, reduceMotion: reduceMotion)) {
+            if expandedHeadingIDs.contains(node.id) {
+                expandedHeadingIDs.remove(node.id)
+            } else {
+                expandedHeadingIDs.insert(node.id)
             }
-        })
+        }
     }
 }
